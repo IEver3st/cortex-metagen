@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { motion } from "motion/react";
 import { useMetaStore } from "@/store/meta-store";
 import { SliderField } from "@/components/SliderField";
 import { carvariationsFields } from "@/lib/dictionary";
@@ -75,7 +76,12 @@ export function CarvariationsEditor() {
   };
 
   return (
-    <div className="space-y-1 p-4">
+    <motion.div
+      className="space-y-1 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+    >
       <div className="flex items-center gap-3 mb-4">
         <Label className="text-xs text-muted-foreground shrink-0">
           Model Name
@@ -266,6 +272,6 @@ export function CarvariationsEditor() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-    </div>
+    </motion.div>
   );
 }

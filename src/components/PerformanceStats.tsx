@@ -1,4 +1,5 @@
 import { useMemo, memo } from "react";
+import { motion } from "motion/react";
 import type { HandlingData } from "@/store/meta-store";
 
 interface Stat {
@@ -134,37 +135,61 @@ export const PerformanceStats = memo(function PerformanceStats({ handling, vehic
     : null;
 
   return (
-    <div className="space-y-2 p-3 rounded-md border bg-card/50">
+    <motion.div
+      className="space-y-2 p-3 rounded-md border bg-card/50"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "#2CD672" }}>
           Estimated Performance
         </h3>
         {typeLabel && (
-          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/25">
+          <motion.span
+            className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/25"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.25, delay: 0.1 }}
+          >
             {typeLabel}
-          </span>
+          </motion.span>
         )}
       </div>
-      <div className="text-[10px] text-muted-foreground mb-2">
+      <motion.div
+        className="text-[10px] text-muted-foreground mb-2"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1, duration: 0.25 }}
+      >
         Mass: {handling.fMass.toFixed(0)} kg · Drag: {handling.fInitialDragCoeff.toFixed(1)}
         {isAir && ` · Inertia: ${((handling.vecInertiaMultiplierX + handling.vecInertiaMultiplierY + handling.vecInertiaMultiplierZ) / 3).toFixed(2)} avg`}
-      </div>
+      </motion.div>
       <div className="space-y-1.5">
-        {stats.map((stat) => (
-          <div key={stat.label} className="space-y-0.5">
+        {stats.map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            className="space-y-0.5"
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.25, delay: i * 0.04, ease: "easeOut" }}
+          >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-foreground/80">{stat.label}</span>
               <span className="text-[10px] text-muted-foreground font-mono">{stat.value}</span>
             </div>
             <div className="h-2 w-full bg-muted/40 overflow-hidden">
-              <div
-                className="h-full transition-all duration-300"
-                style={{ width: `${Math.max(stat.bar, 2)}%`, backgroundColor: stat.color, opacity: 0.85 }}
+              <motion.div
+                className="h-full"
+                initial={{ width: "2%" }}
+                animate={{ width: `${Math.max(stat.bar, 2)}%` }}
+                transition={{ duration: 0.5, delay: i * 0.04 + 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
+                style={{ backgroundColor: stat.color, opacity: 0.85 }}
               />
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 });

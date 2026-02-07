@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { useMetaStore, type MetaFileType } from "@/store/meta-store";
 
 const allTypes: MetaFileType[] = ["handling", "vehicles", "carcols", "modkits", "carvariations", "vehiclelayouts"];
@@ -45,9 +46,19 @@ export const StatusBar = memo(function StatusBar() {
         )}
       </div>
       <div className="flex items-center gap-3">
-        {isDirty && (
-          <span className="text-yellow-500 font-medium">● Unsaved</span>
-        )}
+        <AnimatePresence>
+          {isDirty && (
+            <motion.span
+              className="text-yellow-500 font-medium"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: [1, 0.5, 1], scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" }, scale: { duration: 0.2 } }}
+            >
+              ● Unsaved
+            </motion.span>
+          )}
+        </AnimatePresence>
         <span className="truncate max-w-[300px]" title={filePath ?? undefined}>
           {pathDisplay}
         </span>

@@ -1,4 +1,5 @@
 import { useState, memo } from "react";
+import { motion } from "motion/react";
 import { useMetaStore } from "@/store/meta-store";
 import type { ModKit, VisibleMod, StatMod, SlotName } from "@/store/meta-store";
 import { modkitsFields, kitTypes, visibleModTypes, statModTypes, commonBones } from "@/lib/dictionary";
@@ -738,7 +739,12 @@ export function ModkitsEditor() {
   };
 
   return (
-    <div className="space-y-3 p-4">
+    <motion.div
+      className="space-y-3 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -784,6 +790,6 @@ export function ModkitsEditor() {
         <p><strong>Linking:</strong> After building a kit here, link it in <strong>carvariations.meta</strong> by adding the kit name to the vehicle's <code>&lt;kits&gt;</code> list.</p>
         <p><strong>Conflict Warning:</strong> If two cars share the same Kit ID, their mods will merge — causing glitchy parts on the wrong car.</p>
       </div>
-    </div>
+    </motion.div>
   );
 }

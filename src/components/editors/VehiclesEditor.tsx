@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { motion } from "motion/react";
 import { useMetaStore } from "@/store/meta-store";
 import { SliderField } from "@/components/SliderField";
 import { SquareToggle } from "@/components/SquareToggle";
@@ -106,7 +107,12 @@ export function VehiclesEditor() {
   }, [d.flags, update]);
 
   return (
-    <div className="space-y-1 p-4">
+    <motion.div
+      className="space-y-1 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+    >
       <div className="flex items-center justify-end mb-1">
         <button
           type="button"
@@ -280,6 +286,6 @@ export function VehiclesEditor() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-    </div>
+    </motion.div>
   );
 }

@@ -1,4 +1,5 @@
 import { lazy, Suspense, memo } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Panel,
   Group,
@@ -19,14 +20,55 @@ const CarvariationsEditor = lazy(() => import("@/components/editors/Carvariation
 const VehicleLayoutsEditor = lazy(() => import("@/components/editors/VehicleLayoutsEditor").then((m) => ({ default: m.VehicleLayoutsEditor })));
 const ModkitsEditor = lazy(() => import("@/components/editors/ModkitsEditor").then((m) => ({ default: m.ModkitsEditor })));
 
+function PinwheelSpinner() {
+  const blades = [0, 60, 120, 180, 240, 300];
+  return (
+    <motion.div
+      className="relative h-6 w-6"
+      animate={{ rotate: 360 }}
+      transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+    >
+      {blades.map((angle) => (
+        <motion.div
+          key={angle}
+          className="absolute left-1/2 top-0 h-1/2 w-[3px] origin-bottom rounded-full"
+          style={{
+            transform: `translateX(-50%) rotate(${angle}deg)`,
+            backgroundColor: "hsl(var(--primary))",
+          }}
+          initial={{ opacity: 0.25 }}
+          animate={{ opacity: [0.25, 1, 0.25] }}
+          transition={{
+            duration: 1.2,
+            repeat: Infinity,
+            delay: (angle / 360) * 1.2,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+    </motion.div>
+  );
+}
+
 function EditorFallback() {
   return (
-    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-      <div className="flex items-center gap-2">
-        <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        Loading editor…
+    <motion.div
+      className="flex items-center justify-center h-full text-muted-foreground text-sm"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="flex items-center gap-3">
+        <PinwheelSpinner />
+        <motion.span
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.15, duration: 0.3 }}
+        >
+          Loading editor…
+        </motion.span>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -41,25 +83,40 @@ function EditorPanel() {
   // Modkits tab is always accessible — users can create kits from scratch
   if (activeVehicle && !hasData && activeTab !== "modkits") {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+      <motion.div
+        className="flex items-center justify-center h-full text-muted-foreground text-sm"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+      >
         <div className="text-center space-y-1">
           <p>No <span className="font-semibold">{activeTab}.meta</span> data loaded for <span className="font-semibold">{activeVehicle.name}</span></p>
           <p className="text-xs">Import a {activeTab}.meta file or switch to a tab with loaded data</p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
     <ScrollArea className="h-full">
-      <Suspense fallback={<EditorFallback />}>
-        {activeTab === "handling" && <HandlingEditor />}
-        {activeTab === "vehicles" && <VehiclesEditor />}
-        {activeTab === "carcols" && <CarcolsEditor />}
-        {activeTab === "modkits" && <ModkitsEditor />}
-        {activeTab === "carvariations" && <CarvariationsEditor />}
-        {activeTab === "vehiclelayouts" && <VehicleLayoutsEditor />}
-      </Suspense>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+        >
+          <Suspense fallback={<EditorFallback />}>
+            {activeTab === "handling" && <HandlingEditor />}
+            {activeTab === "vehicles" && <VehiclesEditor />}
+            {activeTab === "carcols" && <CarcolsEditor />}
+            {activeTab === "modkits" && <ModkitsEditor />}
+            {activeTab === "carvariations" && <CarvariationsEditor />}
+            {activeTab === "vehiclelayouts" && <VehicleLayoutsEditor />}
+          </Suspense>
+        </motion.div>
+      </AnimatePresence>
     </ScrollArea>
   );
 }

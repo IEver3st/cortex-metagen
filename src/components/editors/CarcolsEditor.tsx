@@ -1,4 +1,5 @@
 import { useState, memo, useCallback } from "react";
+import { motion } from "motion/react";
 import { useMetaStore } from "@/store/meta-store";
 import { SliderField } from "@/components/SliderField";
 import { carcolsFields } from "@/lib/dictionary";
@@ -146,7 +147,12 @@ const LightEditor = memo(function LightEditor({
   const isLED = light.flashness >= 500;
 
   return (
-    <div className="border rounded-md p-3 space-y-2">
+    <motion.div
+      className="border rounded-md p-3 space-y-2"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, delay: index * 0.03 }}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">
@@ -238,7 +244,7 @@ const LightEditor = memo(function LightEditor({
         step={0.01}
       />
       <SequencerPicker value={light.sequencer} onChange={(v) => onChange({ sequencer: v })} />
-    </div>
+    </motion.div>
   );
 });
 
@@ -309,7 +315,12 @@ export function CarcolsEditor() {
     : "text-muted-foreground";
 
   return (
-    <div className="space-y-1 p-4">
+    <motion.div
+      className="space-y-1 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+    >
       <div className="flex items-center justify-end mb-1">
         <button
           type="button"
@@ -463,6 +474,6 @@ export function CarcolsEditor() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-    </div>
+    </motion.div>
   );
 }

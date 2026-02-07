@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { useMetaStore } from "@/store/meta-store";
 import { SliderField } from "@/components/SliderField";
 import { PerformanceStats } from "@/components/PerformanceStats";
@@ -23,6 +24,9 @@ export function HandlingEditor() {
   const updateHandling = useMetaStore((s) => s.updateHandling);
   const [showPerf, setShowPerf] = useState(true);
   const [openSections, setOpenSections] = useState<string[]>(ALL_SECTIONS);
+  const update = useCallback((data: Record<string, any>) => {
+    if (activeId) updateHandling(activeId, data);
+  }, [updateHandling, activeId]);
 
   if (!vehicle || !activeId) {
     return (
@@ -33,10 +37,14 @@ export function HandlingEditor() {
   }
 
   const h = vehicle.handling;
-  const update = useCallback((data: Record<string, any>) => updateHandling(activeId, data), [updateHandling, activeId]);
 
   return (
-    <div className="space-y-1 p-4">
+    <motion.div
+      className="space-y-1 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+    >
       <div className="flex items-center gap-3 mb-4">
         <Label className="text-xs text-muted-foreground shrink-0">
           Handling Name
@@ -68,7 +76,19 @@ export function HandlingEditor() {
           {openSections.length > 0 ? "Collapse All" : "Expand All"}
         </button>
       </div>
-      {showPerf && <PerformanceStats handling={h} vehicleType={vehicle.vehicles.type} />}
+      <AnimatePresence>
+        {showPerf && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <PerformanceStats handling={h} vehicleType={vehicle.vehicles.type} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Accordion
         type="multiple"
@@ -158,6 +178,6 @@ export function HandlingEditor() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-    </div>
+    </motion.div>
   );
 }
