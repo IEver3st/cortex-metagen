@@ -42,14 +42,24 @@ async function closeWindow() {
   } catch {}
 }
 
-// Progressive toolbar collapse tiers (ordered widest → narrowest)
-// full:    all labels + all elements
-// compact: icon-only buttons
-// narrow:  hide presets + edit button
-// mini:    hide center tabs entirely
-// tiny:    hide METAGEN text, code toggle
-const TIERS = ["full", "compact", "narrow", "mini", "tiny"] as const;
-type SizeTier = (typeof TIERS)[number];
+// Progressive toolbar collapse — uses CSS pixels (DPI-independent)
+// Breakpoints are generous to guarantee no overlap at any scale
+type SizeTier = "full" | "compact" | "narrow" | "mini" | "tiny";
+
+function pickTier(w: number, hasVehicle: boolean): SizeTier {
+  if (!hasVehicle) {
+    // Without a vehicle selected, very little content — always fits
+    return w >= 500 ? "full" : "tiny";
+  }
+  // Breakpoints measured generously to guarantee zero overlap:
+  // Logo(140) + Dropdown(260) + Presets(90) + Tabs(400) + Btns+Labels(160) + WinCtrl(140) ≈ 1190
+  // Each tier removes content; thresholds include generous safety margins
+  if (w >= 1280) return "full";     // everything with text labels
+  if (w >= 1150) return "compact";  // icon-only buttons (saves ~100px)
+  if (w >= 1050) return "narrow";   // hide presets + edit (saves ~130px more)
+  if (w >= 600) return "mini";      // hide center tabs (saves ~400px more)
+  return "tiny";                     // hide METAGEN + code toggle
+}
 
 export const Toolbar = memo(function Toolbar({ onOpenFile, onSaveFile }: ToolbarProps) {
   const activeTab = useMetaStore((s) => s.activeTab);
@@ -61,45 +71,19 @@ export const Toolbar = memo(function Toolbar({ onOpenFile, onSaveFile }: Toolbar
   const hasSelection = useMetaStore((s) => s.activeVehicleId !== null);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
-  const [tier, setTier] = useState<SizeTier>("tiny");
-  const prevWidthRef = useRef(0);
+  const [tier, setTier] = useState<SizeTier>(() =>
+    typeof window !== "undefined" ? pickTier(window.innerWidth, false) : "full"
+  );
 
-  // On window resize: if growing, try stepping UP; the post-render check handles stepping DOWN
   useEffect(() => {
-    const outer = toolbarRef.current;
-    if (!outer) return;
-    const ro = new ResizeObserver(() => {
-      const w = outer.clientWidth;
-      if (w > prevWidthRef.current) {
-        // Window grew — try showing more by stepping up one tier
-        setTier((prev) => {
-          const idx = TIERS.indexOf(prev);
-          return idx > 0 ? TIERS[idx - 1] : prev;
-        });
-      }
-      prevWidthRef.current = w;
-    });
-    ro.observe(outer);
-    prevWidthRef.current = outer.clientWidth;
+    const el = toolbarRef.current;
+    if (!el) return;
+    const update = () => setTier(pickTier(el.clientWidth, hasSelection));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
     return () => ro.disconnect();
-  }, []);
-
-  // After every render: if inner content overflows outer, step down one tier
-  useEffect(() => {
-    const outer = toolbarRef.current;
-    const inner = innerRef.current;
-    if (!outer || !inner) return;
-    const id = requestAnimationFrame(() => {
-      if (inner.scrollWidth > outer.clientWidth + 2) {
-        setTier((prev) => {
-          const idx = TIERS.indexOf(prev);
-          return idx < TIERS.length - 1 ? TIERS[idx + 1] : prev;
-        });
-      }
-    });
-    return () => cancelAnimationFrame(id);
-  });
+  }, [hasSelection]);
 
   const showLabels = tier === "full";
   const showPresets = tier === "full" || tier === "compact";
@@ -111,150 +95,151 @@ export const Toolbar = memo(function Toolbar({ onOpenFile, onSaveFile }: Toolbar
   return (
     <div
       ref={toolbarRef}
-      className="flex items-center pl-3 pr-0 py-0 border-b bg-card select-none overflow-hidden"
+      className="flex items-center gap-1 pl-3 pr-0 py-0 border-b bg-card select-none overflow-hidden"
       data-tauri-drag-region
     >
-      <div ref={innerRef} className="flex items-center gap-1 w-max" data-tauri-drag-region>
-        {/* Left: logo + vehicle controls */}
-        <div className="flex items-center gap-2 shrink-0" data-tauri-drag-region>
-          <div className="flex items-center gap-1 shrink-0 py-2" data-tauri-drag-region>
-            <span className="text-sm font-bold tracking-widest uppercase" style={{ color: "#2CD672", fontFamily: "var(--font-hud)" }}>
-              CORTEX
+      {/* Left: logo + vehicle controls */}
+      <div className="flex items-center gap-2 shrink-0" data-tauri-drag-region>
+        <div className="flex items-center gap-1 shrink-0 py-2" data-tauri-drag-region>
+          <span className="text-sm font-bold tracking-widest uppercase" style={{ color: "#2CD672", fontFamily: "var(--font-hud)" }}>
+            CORTEX
+          </span>
+          {showMetagen && (
+            <span className="text-sm font-bold tracking-tight" style={{ color: "#2CD672", fontFamily: "var(--font-hud)" }}>
+              METAGEN
             </span>
-            {showMetagen && (
-              <span className="text-sm font-bold tracking-tight" style={{ color: "#2CD672", fontFamily: "var(--font-hud)" }}>
-                METAGEN
-              </span>
-            )}
-          </div>
-
-          <Separator orientation="vertical" className="h-4" />
-          <VehicleDropdown />
-          {hasSelection && showPresets && (
-            <>
-              <Separator orientation="vertical" className="h-4" />
-              <PresetPicker />
-            </>
           )}
         </div>
 
-        {/* Center: mode selector */}
-        {hasSelection && showTabs && (
-          <div className="flex items-center shrink-0" data-tauri-drag-region>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MetaFileType)}>
-              <TabsList variant="line" className="h-7 gap-0 bg-transparent p-0 rounded-none">
-                <TabsTrigger value="handling" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                  Handling
+        <Separator orientation="vertical" className="h-4" />
+        <VehicleDropdown />
+        {hasSelection && showPresets && (
+          <>
+            <Separator orientation="vertical" className="h-4" />
+            <PresetPicker />
+          </>
+        )}
+      </div>
+
+      {/* Spacer — centers the mode selector */}
+      <div className="flex-1 min-w-1" data-tauri-drag-region />
+
+      {/* Center: mode selector */}
+      {hasSelection && showTabs && (
+        <div className="flex items-center shrink-0" data-tauri-drag-region>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MetaFileType)}>
+            <TabsList variant="line" className="h-7 gap-0 bg-transparent p-0 rounded-none">
+              <TabsTrigger value="handling" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                Handling
+              </TabsTrigger>
+              <Separator orientation="vertical" className="h-4" />
+              <TabsTrigger value="vehicles" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                Vehicles
+              </TabsTrigger>
+              <Separator orientation="vertical" className="h-4" />
+              <div className="relative flex items-center mx-0.5 px-0.5">
+                <TabsTrigger value="carcols" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                  Sirens
                 </TabsTrigger>
-                <Separator orientation="vertical" className="h-4" />
-                <TabsTrigger value="vehicles" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                  Vehicles
+                <span className="w-px h-3 bg-border/60" />
+                <TabsTrigger value="modkits" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                  ModKits
                 </TabsTrigger>
-                <Separator orientation="vertical" className="h-4" />
-                <div className="relative flex items-center mx-0.5 px-0.5">
-                  <TabsTrigger value="carcols" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                    Sirens
-                  </TabsTrigger>
-                  <span className="w-px h-3 bg-border/60" />
-                  <TabsTrigger value="modkits" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                    ModKits
-                  </TabsTrigger>
-                  <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 text-[8px] text-muted-foreground/50 leading-none whitespace-nowrap pointer-events-none">
-                  </span>
-                </div>
-                <Separator orientation="vertical" className="h-4" />
-                <TabsTrigger value="carvariations" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                  CarVariations
-                </TabsTrigger>
-                <Separator orientation="vertical" className="h-4" />
-                <TabsTrigger value="vehiclelayouts" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                  Layouts
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+                <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 text-[8px] text-muted-foreground/50 leading-none whitespace-nowrap pointer-events-none">
+                </span>
+              </div>
+              <Separator orientation="vertical" className="h-4" />
+              <TabsTrigger value="carvariations" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                CarVariations
+              </TabsTrigger>
+              <Separator orientation="vertical" className="h-4" />
+              <TabsTrigger value="vehiclelayouts" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                Layouts
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
+
+      {/* Spacer — centers the mode selector */}
+      <div className="flex-1 min-w-1" data-tauri-drag-region />
+
+      {/* Right: actions + window controls — window controls ALWAYS visible */}
+      <div className="flex items-center h-full shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 gap-1 text-xs"
+          onClick={onOpenFile}
+          title="Open file"
+        >
+          <FolderOpen className="h-3.5 w-3.5" />
+          {showLabels && <span>Open</span>}
+        </Button>
+        {hasSelection && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 gap-1 text-xs"
+              onClick={onSaveFile}
+              title="Save file"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {showLabels && <span>Save</span>}
+            </Button>
+
+            {showEdit && (
+              <Button
+                variant={editorEditMode ? "default" : "ghost"}
+                size="sm"
+                className={`h-7 px-2 gap-1 text-xs ${editorEditMode ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30" : ""}`}
+                onClick={toggleEditorEditMode}
+                title={editorEditMode ? "Switch to read-only" : "Enable edit mode"}
+              >
+                <PenLine className="h-3.5 w-3.5" />
+                {showLabels && <span>{editorEditMode ? "Editing" : "Edit"}</span>}
+              </Button>
+            )}
+          </>
         )}
 
-        {/* Spacer to push right section */}
-        <div className="flex-1 min-w-2" data-tauri-drag-region />
-
-        {/* Right: actions + window controls — window controls always visible */}
-        <div className="flex items-center h-full shrink-0">
+        {showCodeToggle && (
           <Button
-            variant="ghost"
+            variant={codePreviewVisible ? "secondary" : "ghost"}
             size="sm"
-            className="h-7 px-2 gap-1 text-xs"
-            onClick={onOpenFile}
-            title="Open file"
+            className="h-7 px-2"
+            onClick={toggleCodePreview}
+            title={codePreviewVisible ? "Hide code preview" : "Show code preview"}
           >
-            <FolderOpen className="h-3.5 w-3.5" />
-            {showLabels && <span>Open</span>}
+            <Code className="h-3.5 w-3.5" />
           </Button>
-          {hasSelection && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 gap-1 text-xs"
-                onClick={onSaveFile}
-                title="Save file"
-              >
-                <Save className="h-3.5 w-3.5" />
-                {showLabels && <span>Save</span>}
-              </Button>
+        )}
 
-              {showEdit && (
-                <Button
-                  variant={editorEditMode ? "default" : "ghost"}
-                  size="sm"
-                  className={`h-7 px-2 gap-1 text-xs ${editorEditMode ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30" : ""}`}
-                  onClick={toggleEditorEditMode}
-                  title={editorEditMode ? "Switch to read-only" : "Enable edit mode"}
-                >
-                  <PenLine className="h-3.5 w-3.5" />
-                  {showLabels && <span>{editorEditMode ? "Editing" : "Edit"}</span>}
-                </Button>
-              )}
-            </>
-          )}
+        <Separator orientation="vertical" className="h-5" />
 
-          {showCodeToggle && (
-            <Button
-              variant={codePreviewVisible ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 px-2"
-              onClick={toggleCodePreview}
-              title={codePreviewVisible ? "Hide code preview" : "Show code preview"}
-            >
-              <Code className="h-3.5 w-3.5" />
-            </Button>
-          )}
-
-          <Separator orientation="vertical" className="h-5" />
-
-          <div className="flex items-center h-full">
-            <button
-              onClick={minimizeWindow}
-              className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
-              title="Minimize"
-            >
-              <Minus className="h-4 w-4 text-muted-foreground" />
-            </button>
-            <button
-              onClick={toggleMaximize}
-              className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
-              title="Maximize"
-            >
-              <Square className="h-3 w-3 text-muted-foreground" />
-            </button>
-            <button
-              onClick={closeWindow}
-              className="inline-flex items-center justify-center w-11 h-9 hover:bg-red-500 hover:text-white transition-colors"
-              title="Close"
-            >
-              <X className="h-4 w-4 text-muted-foreground hover:text-white" />
-            </button>
-          </div>
+        <div className="flex items-center h-full">
+          <button
+            onClick={minimizeWindow}
+            className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
+            title="Minimize"
+          >
+            <Minus className="h-4 w-4 text-muted-foreground" />
+          </button>
+          <button
+            onClick={toggleMaximize}
+            className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
+            title="Maximize"
+          >
+            <Square className="h-3 w-3 text-muted-foreground" />
+          </button>
+          <button
+            onClick={closeWindow}
+            className="inline-flex items-center justify-center w-11 h-9 hover:bg-red-500 hover:text-white transition-colors"
+            title="Close"
+          >
+            <X className="h-4 w-4 text-muted-foreground hover:text-white" />
+          </button>
         </div>
       </div>
     </div>
