@@ -1,6 +1,8 @@
 ![Cortex METAGEN UI](https://cdn.discordapp.com/attachments/745801357520535593/1469599903314481203/image.png?ex=69883f10&is=6986ed90&hm=e22a546de8ddf6a0c7463fa178a20bd9d504ec7fc822e51817a677c7e0bc34c5&animated=true)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C1C41TSVBX)
+
+
 **THIS PROJECT IS IN ACTIVE DEVELOPMENT**
 
 # How To Suggest Features
