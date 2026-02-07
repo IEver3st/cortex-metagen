@@ -1,3 +1,5 @@
+![Cortex METAGEN UI](https://cdn.discordapp.com/attachments/745801357520535593/1469599903314481203/image.png?ex=69883f10&is=6986ed90&hm=e22a546de8ddf6a0c7463fa178a20bd9d504ec7fc822e51817a677c7e0bc34c5&animated=true)
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
