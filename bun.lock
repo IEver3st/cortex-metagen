@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "cortex-metagen-app",
+      "name": "cortex-metagen",
       "dependencies": {
         "@monaco-editor/react": "^4.7.0",
         "@tailwindcss/vite": "^4.1.18",
