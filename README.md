@@ -1,75 +1,28 @@
 ![Cortex METAGEN UI](https://cdn.discordapp.com/attachments/745801357520535593/1469599903314481203/image.png?ex=69883f10&is=6986ed90&hm=e22a546de8ddf6a0c7463fa178a20bd9d504ec7fc822e51817a677c7e0bc34c5&animated=true)
 
-# React + TypeScript + Vite
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C1C41TSVBX)
+**THIS PROJECT IS IN ACTIVE DEVELOPMENT**
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# How To Suggest Features
 
-Currently, two official plugins are available:
+We welcome community feedback and ideas! The best way to suggest a new feature or improvement is by opening an issue on GitHub. This allows us to track requests, discuss implementation details, and keep everything organized.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Steps to Submit a Feature Request:
 
-## React Compiler
+1. **Navigate to the Issues Tab:**
+Go to the main page of the repository and click on the **Issues** tab near the top.
+2. **Start a New Issue:**
+Click the green **New Issue** button on the right side.
+3. **Choose the Right Type:**
+If you see issue templates, select **Feature Request** (or similar). If not, simply open a blank issue.
+4. **Describe Your Idea:**
+* **Title:** Give it a clear, concise title (e.g., "Add Dark Mode Support").
+* **Description:** Explain what you want to achieve.
+* *What is the problem you are trying to solve?*
+* *How do you envision the solution working?*
+* *Screenshots or mockups are highly encouraged if applicable.*
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Expanding the ESLint configuration
+5. **Submit:**
+Click **Submit new issue** to post your suggestion.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
