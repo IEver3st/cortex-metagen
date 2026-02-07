@@ -58,7 +58,7 @@ export function PresetPicker() {
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 border-none bg-transparent shadow-none">
           <Car className="h-3.5 w-3.5" />
-          <span className="hidden @[700px]/toolbar:inline">Presets</span>
+          Presets
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-3 space-y-2" align="start">

@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useRef, useState, useEffect } from "react";
 import { useMetaStore, type MetaFileType } from "@/store/meta-store";
 import { VehicleDropdown } from "@/components/VehicleDropdown";
 import { PresetPicker } from "@/components/PresetPicker";
@@ -42,6 +42,15 @@ async function closeWindow() {
   } catch {}
 }
 
+// Progressive toolbar collapse tiers (ordered widest → narrowest)
+// full:    all labels + all elements
+// compact: icon-only buttons
+// narrow:  hide presets + edit button
+// mini:    hide center tabs entirely
+// tiny:    hide METAGEN text, code toggle
+const TIERS = ["full", "compact", "narrow", "mini", "tiny"] as const;
+type SizeTier = (typeof TIERS)[number];
+
 export const Toolbar = memo(function Toolbar({ onOpenFile, onSaveFile }: ToolbarProps) {
   const activeTab = useMetaStore((s) => s.activeTab);
   const setActiveTab = useMetaStore((s) => s.setActiveTab);
@@ -51,149 +60,201 @@ export const Toolbar = memo(function Toolbar({ onOpenFile, onSaveFile }: Toolbar
   const toggleEditorEditMode = useMetaStore((s) => s.toggleEditorEditMode);
   const hasSelection = useMetaStore((s) => s.activeVehicleId !== null);
 
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [tier, setTier] = useState<SizeTier>("tiny");
+  const prevWidthRef = useRef(0);
+
+  // On window resize: if growing, try stepping UP; the post-render check handles stepping DOWN
+  useEffect(() => {
+    const outer = toolbarRef.current;
+    if (!outer) return;
+    const ro = new ResizeObserver(() => {
+      const w = outer.clientWidth;
+      if (w > prevWidthRef.current) {
+        // Window grew — try showing more by stepping up one tier
+        setTier((prev) => {
+          const idx = TIERS.indexOf(prev);
+          return idx > 0 ? TIERS[idx - 1] : prev;
+        });
+      }
+      prevWidthRef.current = w;
+    });
+    ro.observe(outer);
+    prevWidthRef.current = outer.clientWidth;
+    return () => ro.disconnect();
+  }, []);
+
+  // After every render: if inner content overflows outer, step down one tier
+  useEffect(() => {
+    const outer = toolbarRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+    const id = requestAnimationFrame(() => {
+      if (inner.scrollWidth > outer.clientWidth + 2) {
+        setTier((prev) => {
+          const idx = TIERS.indexOf(prev);
+          return idx < TIERS.length - 1 ? TIERS[idx + 1] : prev;
+        });
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  });
+
+  const showLabels = tier === "full";
+  const showPresets = tier === "full" || tier === "compact";
+  const showEdit = tier === "full" || tier === "compact";
+  const showTabs = tier !== "mini" && tier !== "tiny";
+  const showCodeToggle = tier !== "tiny";
+  const showMetagen = tier !== "tiny";
+
   return (
     <div
-      className="@container/toolbar flex items-center gap-1 pl-3 pr-0 py-0 border-b bg-card select-none overflow-hidden"
+      ref={toolbarRef}
+      className="flex items-center pl-3 pr-0 py-0 border-b bg-card select-none overflow-hidden"
       data-tauri-drag-region
     >
-      {/* Left: logo + vehicle controls */}
-      <div className="flex items-center gap-2 min-w-0 shrink" data-tauri-drag-region>
-        <div className="flex items-center gap-1 shrink-0 py-2" data-tauri-drag-region>
-          <span className="text-sm font-bold tracking-widest uppercase" style={{ color: "#2CD672", fontFamily: "var(--font-hud)" }}>
-            CORTEX
-          </span>
-          <span className="text-sm font-bold tracking-tight hidden @[500px]/toolbar:inline" style={{ color: "#2CD672", fontFamily: "var(--font-hud)" }}>
-            METAGEN
-          </span>
+      <div ref={innerRef} className="flex items-center gap-1 w-max" data-tauri-drag-region>
+        {/* Left: logo + vehicle controls */}
+        <div className="flex items-center gap-2 shrink-0" data-tauri-drag-region>
+          <div className="flex items-center gap-1 shrink-0 py-2" data-tauri-drag-region>
+            <span className="text-sm font-bold tracking-widest uppercase" style={{ color: "#2CD672", fontFamily: "var(--font-hud)" }}>
+              CORTEX
+            </span>
+            {showMetagen && (
+              <span className="text-sm font-bold tracking-tight" style={{ color: "#2CD672", fontFamily: "var(--font-hud)" }}>
+                METAGEN
+              </span>
+            )}
+          </div>
+
+          <Separator orientation="vertical" className="h-4" />
+          <VehicleDropdown />
+          {hasSelection && showPresets && (
+            <>
+              <Separator orientation="vertical" className="h-4" />
+              <PresetPicker />
+            </>
+          )}
         </div>
 
-        <Separator orientation="vertical" className="h-4 shrink-0" />
-        <VehicleDropdown />
-        {hasSelection && (
-          <div className="hidden @[700px]/toolbar:flex items-center gap-2 shrink-0">
-            <Separator orientation="vertical" className="h-4" />
-            <PresetPicker />
+        {/* Center: mode selector */}
+        {hasSelection && showTabs && (
+          <div className="flex items-center shrink-0" data-tauri-drag-region>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MetaFileType)}>
+              <TabsList variant="line" className="h-7 gap-0 bg-transparent p-0 rounded-none">
+                <TabsTrigger value="handling" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                  Handling
+                </TabsTrigger>
+                <Separator orientation="vertical" className="h-4" />
+                <TabsTrigger value="vehicles" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                  Vehicles
+                </TabsTrigger>
+                <Separator orientation="vertical" className="h-4" />
+                <div className="relative flex items-center mx-0.5 px-0.5">
+                  <TabsTrigger value="carcols" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                    Sirens
+                  </TabsTrigger>
+                  <span className="w-px h-3 bg-border/60" />
+                  <TabsTrigger value="modkits" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                    ModKits
+                  </TabsTrigger>
+                  <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 text-[8px] text-muted-foreground/50 leading-none whitespace-nowrap pointer-events-none">
+                  </span>
+                </div>
+                <Separator orientation="vertical" className="h-4" />
+                <TabsTrigger value="carvariations" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                  CarVariations
+                </TabsTrigger>
+                <Separator orientation="vertical" className="h-4" />
+                <TabsTrigger value="vehiclelayouts" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
+                  Layouts
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         )}
-      </div>
 
-      {/* Center: mode selector — hidden below 600px */}
-      {hasSelection && (
-        <div className="hidden @[600px]/toolbar:flex items-center shrink-0" data-tauri-drag-region>
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MetaFileType)}>
-            <TabsList variant="line" className="h-7 gap-0 bg-transparent p-0 rounded-none">
-              <TabsTrigger value="handling" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                Handling
-              </TabsTrigger>
-              <Separator orientation="vertical" className="h-4" />
-              <TabsTrigger value="vehicles" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                Vehicles
-              </TabsTrigger>
-              <Separator orientation="vertical" className="h-4" />
-              <div className="relative flex items-center mx-0.5 px-0.5">
-                <TabsTrigger value="carcols" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                  Sirens
-                </TabsTrigger>
-                <span className="w-px h-3 bg-border/60" />
-                <TabsTrigger value="modkits" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                  ModKits
-                </TabsTrigger>
-                <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 text-[8px] text-muted-foreground/50 leading-none whitespace-nowrap pointer-events-none">
-                  carcols.meta
-                </span>
-              </div>
-              <Separator orientation="vertical" className="h-4" />
-              <TabsTrigger value="carvariations" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                CarVariations
-              </TabsTrigger>
-              <Separator orientation="vertical" className="h-4" />
-              <TabsTrigger value="vehiclelayouts" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                Layouts
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      )}
+        {/* Spacer to push right section */}
+        <div className="flex-1 min-w-2" data-tauri-drag-region />
 
-      {/* Spacer to push right section */}
-      <div className="flex-1 min-w-1" data-tauri-drag-region />
-
-      {/* Right: actions + window controls — window controls always visible */}
-      <div className="flex items-center h-full shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 gap-1 text-xs"
-          onClick={onOpenFile}
-          title="Open file"
-        >
-          <FolderOpen className="h-3.5 w-3.5" />
-          <span className="hidden @[900px]/toolbar:inline">Open</span>
-        </Button>
-        {hasSelection && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 gap-1 text-xs"
-              onClick={onSaveFile}
-              title="Save file"
-            >
-              <Save className="h-3.5 w-3.5" />
-              <span className="hidden @[900px]/toolbar:inline">Save</span>
-            </Button>
-
-            <div className="hidden @[650px]/toolbar:block">
-              <Button
-                variant={editorEditMode ? "default" : "ghost"}
-                size="sm"
-                className={`h-7 px-2 gap-1 text-xs ${editorEditMode ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30" : ""}`}
-                onClick={toggleEditorEditMode}
-                title={editorEditMode ? "Switch to read-only" : "Enable edit mode"}
-              >
-                <PenLine className="h-3.5 w-3.5" />
-                <span className="hidden @[900px]/toolbar:inline">{editorEditMode ? "Editing" : "Edit"}</span>
-              </Button>
-            </div>
-          </>
-        )}
-
-        <div className="hidden @[550px]/toolbar:block">
+        {/* Right: actions + window controls — window controls always visible */}
+        <div className="flex items-center h-full shrink-0">
           <Button
-            variant={codePreviewVisible ? "secondary" : "ghost"}
+            variant="ghost"
             size="sm"
-            className="h-7 px-2"
-            onClick={toggleCodePreview}
-            title={codePreviewVisible ? "Hide code preview" : "Show code preview"}
+            className="h-7 px-2 gap-1 text-xs"
+            onClick={onOpenFile}
+            title="Open file"
           >
-            <Code className="h-3.5 w-3.5" />
+            <FolderOpen className="h-3.5 w-3.5" />
+            {showLabels && <span>Open</span>}
           </Button>
-        </div>
+          {hasSelection && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 gap-1 text-xs"
+                onClick={onSaveFile}
+                title="Save file"
+              >
+                <Save className="h-3.5 w-3.5" />
+                {showLabels && <span>Save</span>}
+              </Button>
 
-        <Separator orientation="vertical" className="h-5" />
+              {showEdit && (
+                <Button
+                  variant={editorEditMode ? "default" : "ghost"}
+                  size="sm"
+                  className={`h-7 px-2 gap-1 text-xs ${editorEditMode ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30" : ""}`}
+                  onClick={toggleEditorEditMode}
+                  title={editorEditMode ? "Switch to read-only" : "Enable edit mode"}
+                >
+                  <PenLine className="h-3.5 w-3.5" />
+                  {showLabels && <span>{editorEditMode ? "Editing" : "Edit"}</span>}
+                </Button>
+              )}
+            </>
+          )}
 
-        <div className="flex items-center h-full">
-          <button
-            onClick={minimizeWindow}
-            className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
-            title="Minimize"
-          >
-            <Minus className="h-4 w-4 text-muted-foreground" />
-          </button>
-          <button
-            onClick={toggleMaximize}
-            className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
-            title="Maximize"
-          >
-            <Square className="h-3 w-3 text-muted-foreground" />
-          </button>
-          <button
-            onClick={closeWindow}
-            className="inline-flex items-center justify-center w-11 h-9 hover:bg-red-500 hover:text-white transition-colors"
-            title="Close"
-          >
-            <X className="h-4 w-4 text-muted-foreground hover:text-white" />
-          </button>
+          {showCodeToggle && (
+            <Button
+              variant={codePreviewVisible ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-2"
+              onClick={toggleCodePreview}
+              title={codePreviewVisible ? "Hide code preview" : "Show code preview"}
+            >
+              <Code className="h-3.5 w-3.5" />
+            </Button>
+          )}
+
+          <Separator orientation="vertical" className="h-5" />
+
+          <div className="flex items-center h-full">
+            <button
+              onClick={minimizeWindow}
+              className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
+              title="Minimize"
+            >
+              <Minus className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <button
+              onClick={toggleMaximize}
+              className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
+              title="Maximize"
+            >
+              <Square className="h-3 w-3 text-muted-foreground" />
+            </button>
+            <button
+              onClick={closeWindow}
+              className="inline-flex items-center justify-center w-11 h-9 hover:bg-red-500 hover:text-white transition-colors"
+              title="Close"
+            >
+              <X className="h-4 w-4 text-muted-foreground hover:text-white" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
