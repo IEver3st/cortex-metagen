@@ -128,6 +128,23 @@ dist
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
+# Tauri / Rust
+src-tauri/target/
+
+# Vite build output
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
 # yarn v2
 .yarn/cache
 .yarn/unplugged
