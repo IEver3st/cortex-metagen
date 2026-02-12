@@ -1,0 +1,57 @@
+---
+title: Getting Started
+description: Install, run, and learn the basic workflow (open → edit → export).
+---
+
+## Install & run
+
+METAGEN is a Tauri desktop app.
+
+### Prerequisites (development)
+
+- **Bun** (used by the Tauri config as the dev/build runner)
+- **Rust toolchain** (for Tauri)
+- **Node.js** (for the frontend toolchain; Bun can cover most tasks, but Node is still commonly required by some tooling)
+
+### Dev
+
+From the project root:
+
+- Frontend only: `bun run dev`
+- Full desktop app: `bun run tauri:dev`
+
+### Build
+
+- Frontend bundle: `bun run build`
+- Desktop bundle: `bun run tauri:build`
+
+## First edit (5 minutes)
+
+1. Click the **+** next to the vehicle dropdown.
+2. Create a vehicle using **Blank**, **Preset**, or **Copy**.
+3. Use the tabs to edit:
+   - Handling → driving feel
+   - Vehicles → model links / class / flags
+4. Toggle the **code** icon to show the XML preview.
+5. Click **Save** (or press **Ctrl+S**) to export the active tab.
+
+## Importing existing meta files
+
+Use **Open** (or press **Ctrl+O**) and select a `.meta` or `.xml` file.
+
+On import METAGEN will:
+
+1. Run XML validation (errors/warnings appear in the Validation Panel)
+2. Detect the meta type based on the XML content (with a filename fallback)
+3. Parse it and merge it into the current vehicle list
+4. Switch you to the detected tab when possible
+
+## Saving/exporting
+
+Save always exports **the active tab** to a `.meta` (or `.xml`) file.
+
+Important details:
+
+- Export is *type-specific* (Saving in Handling exports handling XML, etc.)
+- Only vehicles with that meta type “loaded” are included
+- Layouts export merges data across all vehicles with layouts loaded

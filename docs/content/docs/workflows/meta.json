@@ -1,0 +1,9 @@
+{
+  "title": "Workflows",
+  "pages": [
+    "import-export",
+    "presets",
+    "validation-and-quickfixes",
+    "code-preview"
+  ]
+}

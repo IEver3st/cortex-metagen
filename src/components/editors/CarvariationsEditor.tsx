@@ -23,6 +23,10 @@ export function CarvariationsEditor() {
   );
   const updateCarvariations = useMetaStore((s) => s.updateCarvariations);
   const [openSections, setOpenSections] = useState<string[]>(ALL_CV_SECTIONS);
+  const update = useCallback((data: Record<string, any>) => {
+    if (!activeId) return;
+    updateCarvariations(activeId, data);
+  }, [updateCarvariations, activeId]);
 
   if (!vehicle || !activeId) {
     return (
@@ -33,8 +37,6 @@ export function CarvariationsEditor() {
   }
 
   const cv = vehicle.carvariations;
-  const update = useCallback((data: Record<string, any>) =>
-    updateCarvariations(activeId, data), [updateCarvariations, activeId]);
 
   const addColor = () => {
     update({

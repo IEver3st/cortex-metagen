@@ -194,7 +194,7 @@ export function CodePreview() {
   const vehicles = useMetaStore((s) => s.vehicles);
   const activeTab = useMetaStore((s) => s.activeTab);
   const editorEditMode = useMetaStore((s) => s.editorEditMode);
-  const loadVehicles = useMetaStore((s) => s.loadVehicles);
+  const replaceVehiclesFromEditor = useMetaStore((s) => s.replaceVehiclesFromEditor);
 
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
@@ -306,7 +306,7 @@ export function CodePreview() {
     try {
       const parsed = parseMetaFile(value, vehicles);
       if (Object.keys(parsed).length > 0) {
-        loadVehicles(parsed);
+        replaceVehiclesFromEditor(parsed);
       }
     } catch {
       // Ignore parse errors while user is typing

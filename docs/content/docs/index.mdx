@@ -1,0 +1,64 @@
+---
+title: Cortex METAGEN
+description: A fast desktop editor for GTA V / FiveM vehicle meta files with live XML preview, validation, and presets.
+---
+
+## What is METAGEN?
+
+Cortex METAGEN is a desktop app (Tauri + React) that helps you create and edit common GTA V vehicle configuration “meta” files with a structured UI and a live XML preview.
+
+It’s designed for modders who want:
+
+- A form-based editor for the most-used meta fields
+- A live XML view that stays in sync with the UI
+- Basic XML validation and Monaco quick-fixes for common errors
+- Presets to bootstrap believable handling + vehicles setups quickly
+
+## Supported meta types
+
+METAGEN organizes work into tabs. Each tab corresponds to one meta “type”:
+
+- **Handling** → `handling.meta`
+- **Vehicles** → `vehicles.meta`
+- **Sirens** → `carcols.meta` (Sirens + Kits)
+- **ModKits** → `modkits.meta` (Kits with visible/stat mods + slot names)
+- **CarVariations** → `carvariations.meta`
+- **Layouts** → `vehiclelayouts.meta`
+
+> Note: `carcols.meta` can contain both **Sirens** and **Kits**. METAGEN will read modkit information from the same file when present.
+
+## UI tour (high level)
+
+- **Top bar**: vehicle selector, “new vehicle”, presets, tabs, open/save, edit mode toggle, code preview toggle.
+- **Left panel**: the active editor tab.
+- **Right panel**: **Code Preview** (Monaco). Shows the XML output for the active tab.
+- **Validation panel** (appears after opening a file): shows XML warnings/errors detected on import.
+- **Status bar**: vehicle count, current tab, which meta types are loaded for the active vehicle, dirty/unsaved indicator, file breadcrumb.
+
+## Key concepts
+
+### Vehicles are “containers”
+
+Internally, METAGEN keeps a list of vehicles. Each vehicle stores the data for the different meta types (handling, vehicles, etc.).
+
+### “Loaded meta” controls what exports
+
+Each vehicle tracks which meta types are actually loaded/available for it. When you export, METAGEN only serializes vehicles that have that meta type marked as loaded.
+
+This prevents exporting empty/stub entries if you only imported one file type.
+
+### Layouts and ModKits behave more “global”
+
+- **Layouts** export merges together all cover offsets + look-around entries from all vehicles that have layouts loaded.
+- **ModKits** are typically a shared list; import assigns parsed modkits to the first suitable vehicle entry.
+
+If you want a single “global” ModKits/Layouts vehicle, it’s normal to keep it that way.
+
+## Recommended workflow
+
+1. Create or select a vehicle.
+2. Use **Presets** (optional) to bootstrap handling/vehicles.
+3. Import any existing `.meta` files you already have.
+4. Use the editor tabs for structured changes.
+5. Use **Code Preview** for sanity checks (and optionally edit raw XML in Edit Mode).
+6. Save/export the active tab to a new `.meta` file.

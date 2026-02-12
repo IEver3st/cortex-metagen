@@ -14,6 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, Copy, Trash2 } from "lucide-react";
 import { useMetaStore, type MetaFileType } from "@/store/meta-store";
 import { createDefaultVehicle, createVehicleFromPreset, presetConfigs, type PresetType } from "@/lib/presets";
@@ -21,7 +22,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type CreateMode = "blank" | "preset" | "copy";
 
-export function VehicleDropdown() {
+export function VehicleDropdown({ hideSelector = false }: { hideSelector?: boolean }) {
   const vehicles = useMetaStore((s) => s.vehicles);
   const activeVehicleId = useMetaStore((s) => s.activeVehicleId);
   const setActiveVehicle = useMetaStore((s) => s.setActiveVehicle);
@@ -43,8 +44,7 @@ export function VehicleDropdown() {
   const filteredPresets = useMemo(() => {
     const q = presetSearch.toLowerCase();
     return (Object.entries(presetConfigs) as [PresetType, typeof presetConfigs[PresetType]][]).filter(
-      ([, cfg]) =>
-        !q || cfg.label.toLowerCase().includes(q) || cfg.category.toLowerCase().includes(q)
+      ([, cfg]) => !q || cfg.label.toLowerCase().includes(q) || cfg.category.toLowerCase().includes(q)
     );
   }, [presetSearch]);
 
@@ -83,35 +83,42 @@ export function VehicleDropdown() {
       (createMode === "copy" && copySourceId !== null));
 
   return (
-    <div className="flex items-center gap-1">
-      <Select
-        value={activeVehicleId ?? ""}
-        onValueChange={setActiveVehicle}
-      >
-        <SelectTrigger className="w-[200px] h-8 text-sm border-none bg-transparent shadow-none">
-          <SelectValue placeholder="Select vehicle..." />
-        </SelectTrigger>
-        <SelectContent position="popper" sideOffset={4} className="max-h-60">
-          {vehicleList.map((v) => (
-            <SelectItem key={v.id} value={v.id}>
-              {v.name} — {v.vehicles.vehicleClass.replace("VC_", "")}
-            </SelectItem>
-          ))}
-          {vehicleList.length === 0 && (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              No vehicles — add one to get started
-            </div>
-          )}
-        </SelectContent>
-      </Select>
+    <TooltipProvider>
+      <div className="flex items-center gap-1">
+      {!hideSelector && (
+        <Select value={activeVehicleId ?? ""} onValueChange={setActiveVehicle}>
+          <SelectTrigger className="w-[200px] h-8 text-sm border-none bg-transparent shadow-none">
+            <SelectValue placeholder="Select vehicle..." />
+          </SelectTrigger>
+          <SelectContent position="popper" sideOffset={4} className="max-h-60">
+            {vehicleList.map((v) => (
+              <SelectItem key={v.id} value={v.id}>
+                {v.name} — {v.vehicles.vehicleClass.replace("VC_", "")}
+              </SelectItem>
+            ))}
+            {vehicleList.length === 0 && (
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                No vehicles — add one to get started
+              </div>
+            )}
+          </SelectContent>
+        </Select>
+      )}
 
       {/* Add Vehicle */}
       <Popover open={addOpen} onOpenChange={setAddOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 px-2">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </PopoverTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 px-2">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Add vehicle</TooltipContent>
+        </Tooltip>
         <PopoverContent className="w-80 p-3 space-y-2.5" align="start">
           <p className="text-xs font-medium">New Vehicle</p>
 
@@ -215,15 +222,22 @@ export function VehicleDropdown() {
       </Popover>
 
       {/* Delete Vehicle */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-8 px-2 text-destructive hover:text-destructive"
-        disabled={!activeVehicle}
-        onClick={() => setDeleteOpen(true)}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-destructive hover:text-destructive"
+              disabled={!activeVehicle}
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Delete vehicle</TooltipContent>
+      </Tooltip>
 
       <ConfirmDialog
         open={deleteOpen}
@@ -235,6 +249,7 @@ export function VehicleDropdown() {
         variant="destructive"
         onConfirm={handleDelete}
       />
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

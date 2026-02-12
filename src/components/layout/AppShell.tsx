@@ -9,8 +9,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMetaStore } from "@/store/meta-store";
 import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
-import { ValidationPanel } from "@/components/ValidationPanel";
 import type { ValidationIssue } from "@/lib/xml-validator";
+import { IdeSidebar } from "./IdeSidebar";
+import { SettingsView } from "./SettingsView";
+import { WorkspaceHome } from "./WorkspaceHome";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 
 const CodePreview = lazy(() => import("./CodePreview").then((m) => ({ default: m.CodePreview })));
 const HandlingEditor = lazy(() => import("@/components/editors/HandlingEditor").then((m) => ({ default: m.HandlingEditor })));
@@ -123,47 +126,124 @@ function EditorPanel() {
 
 interface AppShellProps {
   onOpenFile?: () => void;
+  onOpenFolder?: () => void;
   onSaveFile?: () => void;
+  onOpenRecentFile?: (path: string) => void;
+  onOpenRecentWorkspace?: (path: string) => void;
+  recentFiles?: string[];
+  recentWorkspaces?: string[];
   validationIssues?: ValidationIssue[];
   validationFileName?: string;
   onDismissValidation?: () => void;
+  isDragActive?: boolean;
+  workspacePath?: string | null;
+  workspaceMetaFileCount?: number;
+  onClearSession?: () => void;
 }
 
-export function AppShell({ onOpenFile, onSaveFile, validationIssues, validationFileName, onDismissValidation }: AppShellProps) {
+export function AppShell({
+  onOpenFile,
+  onOpenFolder,
+  onSaveFile,
+  onOpenRecentFile,
+  onOpenRecentWorkspace,
+  recentFiles,
+  recentWorkspaces,
+  validationIssues,
+  validationFileName,
+  onDismissValidation,
+  isDragActive,
+  workspacePath,
+  workspaceMetaFileCount,
+  onClearSession,
+}: AppShellProps) {
   const codePreviewVisible = useMetaStore((s) => s.codePreviewVisible);
+  const vehicles = useMetaStore((s) => s.vehicles);
+  const hasVehicles = Object.keys(vehicles).length > 0;
+  const uiView = useMetaStore((s) => s.uiView);
+  const setUIView = useMetaStore((s) => s.setUIView);
+  const sidebarCollapsed = useMetaStore((s) => s.sidebarCollapsed);
+  const toggleSidebarCollapsed = useMetaStore((s) => s.toggleSidebarCollapsed);
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-background text-foreground">
-      <Toolbar onOpenFile={onOpenFile} onSaveFile={onSaveFile} />
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#040d1a] text-slate-100">
+      <Toolbar
+        onOpenFile={onOpenFile}
+        onOpenFolder={onOpenFolder}
+        onSaveFile={onSaveFile}
+        onOpenRecentFile={onOpenRecentFile}
+        recentFiles={recentFiles}
+        onGoHome={() => setUIView("home")}
+        onGoSettings={() => setUIView("settings")}
+        onToggleSidebar={toggleSidebarCollapsed}
+        sidebarCollapsed={sidebarCollapsed}
+        uiView={uiView}
+      />
 
-      {validationIssues && validationIssues.length > 0 && onDismissValidation && (
-        <ValidationPanel
-          issues={validationIssues}
-          fileName={validationFileName}
-          onDismiss={onDismissValidation}
+      <div className="flex-1 overflow-hidden flex" style={{ height: "100%" }}>
+        <IdeSidebar
+          collapsed={sidebarCollapsed}
+          onOpenFile={onOpenFile}
+          onOpenFolder={onOpenFolder}
+          uiView={uiView}
         />
-      )}
 
-      <div className="flex-1 overflow-hidden" style={{ height: "100%" }}>
-        <Group orientation="horizontal" id="metagen-panels" style={{ height: "100%" }}>
-          <Panel defaultSize={60} minSize={30}>
-            <EditorPanel />
-          </Panel>
-
-          {codePreviewVisible && (
-            <>
-              <ResizeHandle className="w-1.5 bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
-              <Panel defaultSize={40} minSize={20}>
-                <Suspense fallback={<EditorFallback />}>
-                  <CodePreview />
-                </Suspense>
+        <div className="flex-1 overflow-hidden">
+          {uiView === "settings" ? (
+            <SettingsView
+              onClearSession={onClearSession}
+            />
+          ) : uiView === "workspace" && hasVehicles ? (
+            <Group orientation="horizontal" id="metagen-panels" style={{ height: "100%" }}>
+              <Panel defaultSize={60} minSize={30}>
+                <div className="h-full flex flex-col overflow-hidden">
+                  <WorkspaceHeader />
+                  <div className="flex-1 overflow-hidden">
+                    <EditorPanel />
+                  </div>
+                </div>
               </Panel>
-            </>
+
+              {codePreviewVisible && (
+                <>
+                  <ResizeHandle className="w-1.5 bg-border hover:bg-primary/30 transition-colors cursor-col-resize" />
+                  <Panel defaultSize={40} minSize={20}>
+                    <Suspense fallback={<EditorFallback />}>
+                      <CodePreview />
+                    </Suspense>
+                  </Panel>
+                </>
+              )}
+            </Group>
+          ) : (
+            <WorkspaceHome
+              onOpenFolder={onOpenFolder}
+              onOpenFile={onOpenFile}
+              onOpenRecentFile={onOpenRecentFile}
+              onOpenRecentWorkspace={onOpenRecentWorkspace || onOpenFolder}
+              recentFiles={recentFiles ?? []}
+              recentWorkspaces={recentWorkspaces ?? []}
+              workspacePath={workspacePath}
+            />
           )}
-        </Group>
+        </div>
       </div>
 
-      <StatusBar />
+      <StatusBar
+        workspacePath={workspacePath}
+        workspaceMetaFileCount={workspaceMetaFileCount}
+        validationIssues={validationIssues}
+        validationFileName={validationFileName}
+        onDismissValidation={onDismissValidation}
+      />
+
+      {isDragActive && (
+        <div className="absolute inset-0 z-50 pointer-events-none bg-primary/10 border-2 border-dashed border-primary/60 flex items-center justify-center">
+          <div className="px-5 py-3 rounded-md border border-primary/40 bg-card/95 text-sm font-medium text-primary">
+            Drop a .meta or .xml file to import
+          </div>
+        </div>
+      )}
     </div>
   );
 }

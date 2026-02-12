@@ -1,0 +1,41 @@
+---
+title: Meta Types
+description: What each supported meta type does and how METAGEN reads/writes it.
+---
+
+## Handling
+
+- **Root**: `CHandlingDataMgr`
+- **Collection**: `HandlingData/Item`
+- **Identity**: `handlingName` (case-insensitive merge)
+
+## Vehicles
+
+- **Root**: `CVehicleModelInfo__InitDataList`
+- **Collection**: `InitDatas/Item`
+- **Identity**: `modelName`
+
+## CarCols (Sirens)
+
+- **Root**: `CVehicleModelInfoVarGlobal`
+- **Collections**:
+  - `Kits/Item` (id + kitName)
+  - `Sirens/Item` (siren definitions)
+
+## ModKits
+
+- **Root**: `CVehicleModelInfoVarGlobal`
+- **Collection**: `Kits/Item` with nested lists
+
+## CarVariations
+
+- **Root**: `CVehicleModelInfoVariation`
+- **Collection**: `variationData/Item`
+- **Identity**: `modelName`
+
+## VehicleLayouts
+
+- **Root**: `CVehicleMetadataMgr` (or other compatible roots)
+- **Collections**:
+  - `VehicleCoverBoundOffsetInfos/Item`
+  - `FirstPersonDriveByLookAroundData/Item`

@@ -1,15 +1,32 @@
-import { memo, useRef, useState, useEffect } from "react";
-import { useMetaStore, type MetaFileType } from "@/store/meta-store";
-import { VehicleDropdown } from "@/components/VehicleDropdown";
-import { PresetPicker } from "@/components/PresetPicker";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { memo, useMemo, useState } from "react";
+import { useMetaStore } from "@/store/meta-store";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Code, FolderOpen, Save, PenLine, Minus, Square, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Code, Save, Minus, Square, X, History, Undo2, Redo2, Settings, PanelLeft, Search } from "lucide-react";
+import { HiOutlineCode } from "react-icons/hi";
 
 interface ToolbarProps {
   onOpenFile?: () => void;
+  onOpenFolder?: () => void;
   onSaveFile?: () => void;
+  onOpenRecentFile?: (path: string) => void;
+  recentFiles?: string[];
+  onGoHome?: () => void;
+  onGoSettings?: () => void;
+  onToggleSidebar?: () => void;
+  sidebarCollapsed?: boolean;
+  uiView?: "home" | "workspace" | "settings";
 }
 
 // Cache the Tauri window API import to avoid repeated dynamic imports
@@ -42,206 +59,264 @@ async function closeWindow() {
   } catch {}
 }
 
-// Progressive toolbar collapse — uses CSS pixels (DPI-independent)
-// Breakpoints are generous to guarantee no overlap at any scale
-type SizeTier = "full" | "compact" | "narrow" | "mini" | "tiny";
-
-function pickTier(w: number, hasVehicle: boolean): SizeTier {
-  if (!hasVehicle) {
-    // Without a vehicle selected, very little content — always fits
-    return w >= 500 ? "full" : "tiny";
-  }
-  // Breakpoints measured generously to guarantee zero overlap:
-  // Logo(140) + Dropdown(260) + Presets(90) + Tabs(400) + Btns+Labels(160) + WinCtrl(140) ≈ 1190
-  // Each tier removes content; thresholds include generous safety margins
-  if (w >= 1280) return "full";     // everything with text labels
-  if (w >= 1150) return "compact";  // icon-only buttons (saves ~100px)
-  if (w >= 1050) return "narrow";   // hide presets + edit (saves ~130px more)
-  if (w >= 600) return "mini";      // hide center tabs (saves ~400px more)
-  return "tiny";                     // hide METAGEN + code toggle
-}
-
-export const Toolbar = memo(function Toolbar({ onOpenFile, onSaveFile }: ToolbarProps) {
-  const activeTab = useMetaStore((s) => s.activeTab);
-  const setActiveTab = useMetaStore((s) => s.setActiveTab);
+export const Toolbar = memo(function Toolbar({
+  onSaveFile,
+  onOpenRecentFile,
+  recentFiles = [],
+  onGoHome,
+  onGoSettings,
+  onToggleSidebar,
+  sidebarCollapsed = false,
+  uiView = "home",
+}: ToolbarProps) {
+  const vehicles = useMetaStore((s) => s.vehicles);
   const codePreviewVisible = useMetaStore((s) => s.codePreviewVisible);
   const toggleCodePreview = useMetaStore((s) => s.toggleCodePreview);
-  const editorEditMode = useMetaStore((s) => s.editorEditMode);
-  const toggleEditorEditMode = useMetaStore((s) => s.toggleEditorEditMode);
-  const hasSelection = useMetaStore((s) => s.activeVehicleId !== null);
+  const vehicleList = useMemo(() => Object.values(vehicles), [vehicles]);
+  const hasSelection = vehicleList.length > 0;
+  const isDirty = useMetaStore((s) => s.isDirty);
+  const undo = useMetaStore((s) => s.undo);
+  const redo = useMetaStore((s) => s.redo);
+  const canUndo = useMetaStore((s) => s.canUndo);
+  const canRedo = useMetaStore((s) => s.canRedo);
+  const reopenVehicleTab = useMetaStore((s) => s.reopenVehicleTab);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const [tier, setTier] = useState<SizeTier>(() =>
-    typeof window !== "undefined" ? pickTier(window.innerWidth, false) : "full"
-  );
-
-  useEffect(() => {
-    const el = toolbarRef.current;
-    if (!el) return;
-    const update = () => setTier(pickTier(el.clientWidth, hasSelection));
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [hasSelection]);
-
-  const showLabels = tier === "full";
-  const showPresets = tier === "full" || tier === "compact";
-  const showEdit = tier === "full" || tier === "compact";
-  const showTabs = tier !== "mini" && tier !== "tiny";
-  const showCodeToggle = tier !== "tiny";
-  const showMetagen = tier !== "tiny";
+  const searchMatches = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return [];
+    return vehicleList.filter((entry) => (
+      entry.name.toLowerCase().includes(query)
+      || entry.vehicles.modelName.toLowerCase().includes(query)
+      || entry.vehicles.handlingId.toLowerCase().includes(query)
+    ));
+  }, [searchTerm, vehicleList]);
 
   return (
-    <div
-      ref={toolbarRef}
-      className="flex items-center gap-1 pl-3 pr-0 py-0 border-b bg-card select-none overflow-hidden"
-      data-tauri-drag-region
-    >
-      {/* Left: logo + vehicle controls */}
-      <div className="flex items-center gap-2 shrink-0" data-tauri-drag-region>
-        <div className="flex items-center gap-1 shrink-0 py-2" data-tauri-drag-region>
-          <span className="text-sm font-bold tracking-widest uppercase" style={{ color: "#2CD672", fontFamily: "var(--font-hud)" }}>
-            CORTEX
-          </span>
-          {showMetagen && (
-            <span className="text-sm font-bold tracking-tight" style={{ color: "#2CD672", fontFamily: "var(--font-hud)" }}>
-              METAGEN
-            </span>
-          )}
-        </div>
+    <TooltipProvider>
+      <div
+        className="relative flex items-center gap-2 pl-3 pr-0 py-0 border-b border-[#131a2b] bg-[#050d21] select-none overflow-hidden"
+        data-tauri-drag-region
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className={`flex items-center gap-1 shrink-0 py-2 px-1 transition-colors ${uiView === "home" ? "bg-muted/40" : "hover:bg-muted/30"}`}
+              onClick={onGoHome}
+            >
+              <HiOutlineCode className="h-4 w-4" style={{ color: "#8eaad0" }} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Home</TooltipContent>
+        </Tooltip>
 
-        <Separator orientation="vertical" className="h-4" />
-        <VehicleDropdown />
-        {hasSelection && showPresets && (
-          <>
-            <Separator orientation="vertical" className="h-4" />
-            <PresetPicker />
-          </>
-        )}
-      </div>
+        {uiView === "workspace" && hasSelection && (
+          <div className="absolute left-1/2 top-1/2 w-full max-w-[520px] -translate-x-1/2 -translate-y-1/2 px-2">
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-8 w-8"
+                    onClick={undo}
+                    disabled={!canUndo()}
+                  >
+                    <Undo2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
+              </Tooltip>
 
-      {/* Spacer — centers the mode selector */}
-      <div className="flex-1 min-w-1" data-tauri-drag-region />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-8 w-8"
+                    onClick={redo}
+                    disabled={!canRedo()}
+                  >
+                    <Redo2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Redo (Ctrl+Y)</TooltipContent>
+              </Tooltip>
 
-      {/* Center: mode selector */}
-      {hasSelection && showTabs && (
-        <div className="flex items-center shrink-0" data-tauri-drag-region>
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MetaFileType)}>
-            <TabsList variant="line" className="h-7 gap-0 bg-transparent p-0 rounded-none">
-              <TabsTrigger value="handling" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                Handling
-              </TabsTrigger>
-              <Separator orientation="vertical" className="h-4" />
-              <TabsTrigger value="vehicles" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                Vehicles
-              </TabsTrigger>
-              <Separator orientation="vertical" className="h-4" />
-              <div className="relative flex items-center mx-0.5 px-0.5">
-                <TabsTrigger value="carcols" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                  Sirens
-                </TabsTrigger>
-                <span className="w-px h-3 bg-border/60" />
-                <TabsTrigger value="modkits" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                  ModKits
-                </TabsTrigger>
-                <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 text-[8px] text-muted-foreground/50 leading-none whitespace-nowrap pointer-events-none">
-                </span>
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    if (searchMatches.length === 0) return;
+                    reopenVehicleTab(searchMatches[0].id);
+                  }}
+                  placeholder="Search vehicles, models, handling IDs"
+                  className="h-8 border-[#2b3b56] bg-[#111d33] pl-8 pr-9 text-xs text-slate-100 placeholder:text-slate-500"
+                />
+                {searchTerm.trim().length > 0 && (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                    {searchMatches.length}
+                  </span>
+                )}
               </div>
-              <Separator orientation="vertical" className="h-4" />
-              <TabsTrigger value="carvariations" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                CarVariations
-              </TabsTrigger>
-              <Separator orientation="vertical" className="h-4" />
-              <TabsTrigger value="vehiclelayouts" className="text-xs h-6 px-2 rounded-none border-none bg-transparent whitespace-nowrap">
-                Layouts
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      )}
+            </div>
+          </div>
+        )}
 
-      {/* Spacer — centers the mode selector */}
-      <div className="flex-1 min-w-1" data-tauri-drag-region />
+        <div className="flex-1 min-w-0" data-tauri-drag-region />
 
-      {/* Right: actions + window controls — window controls ALWAYS visible */}
-      <div className="flex items-center h-full shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 gap-1 text-xs"
-          onClick={onOpenFile}
-          title="Open file"
-        >
-          <FolderOpen className="h-3.5 w-3.5" />
-          {showLabels && <span>Open</span>}
-        </Button>
+        <div className="flex items-center h-full shrink-0">
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-8 w-8"
+                    disabled={recentFiles.length === 0}
+                  >
+                    <History className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Recent files</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel>Recent files</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {recentFiles.length === 0 && (
+              <DropdownMenuItem disabled>No recent files</DropdownMenuItem>
+            )}
+            {recentFiles.map((path) => (
+              <DropdownMenuItem
+                key={path}
+                className="text-xs"
+                onClick={() => onOpenRecentFile?.(path)}
+                title={path}
+              >
+                {path}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {hasSelection && (
           <>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 gap-1 text-xs"
-              onClick={onSaveFile}
-              title="Save file"
-            >
-              <Save className="h-3.5 w-3.5" />
-              {showLabels && <span>Save</span>}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-8 w-8"
+                  onClick={onSaveFile}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Save</TooltipContent>
+            </Tooltip>
 
-            {showEdit && (
-              <Button
-                variant={editorEditMode ? "default" : "ghost"}
-                size="sm"
-                className={`h-7 px-2 gap-1 text-xs ${editorEditMode ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30" : ""}`}
-                onClick={toggleEditorEditMode}
-                title={editorEditMode ? "Switch to read-only" : "Enable edit mode"}
-              >
-                <PenLine className="h-3.5 w-3.5" />
-                {showLabels && <span>{editorEditMode ? "Editing" : "Edit"}</span>}
-              </Button>
+            {isDirty && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center justify-center w-2 h-2 rounded-full bg-yellow-400/80" />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Unsaved changes</TooltipContent>
+              </Tooltip>
             )}
           </>
         )}
 
-        {showCodeToggle && (
-          <Button
-            variant={codePreviewVisible ? "secondary" : "ghost"}
-            size="sm"
-            className="h-7 px-2"
-            onClick={toggleCodePreview}
-            title={codePreviewVisible ? "Hide code preview" : "Show code preview"}
-          >
-            <Code className="h-3.5 w-3.5" />
-          </Button>
-        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={cn("h-8 w-8", codePreviewVisible ? "text-primary" : "text-muted-foreground")}
+              onClick={toggleCodePreview}
+            >
+              <Code className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{codePreviewVisible ? "Hide code preview" : "Show code preview"}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={cn("h-8 w-8", uiView === "settings" ? "text-primary" : "text-muted-foreground")}
+              onClick={onGoSettings}
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Settings</TooltipContent>
+        </Tooltip>
 
         <Separator orientation="vertical" className="h-5" />
 
         <div className="flex items-center h-full">
-          <button
-            onClick={minimizeWindow}
-            className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
-            title="Minimize"
-          >
-            <Minus className="h-4 w-4 text-muted-foreground" />
-          </button>
-          <button
-            onClick={toggleMaximize}
-            className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
-            title="Maximize"
-          >
-            <Square className="h-3 w-3 text-muted-foreground" />
-          </button>
-          <button
-            onClick={closeWindow}
-            className="inline-flex items-center justify-center w-11 h-9 hover:bg-red-500 hover:text-white transition-colors"
-            title="Close"
-          >
-            <X className="h-4 w-4 text-muted-foreground hover:text-white" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onToggleSidebar}
+                className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
+              >
+                <PanelLeft className={`h-4 w-4 ${sidebarCollapsed ? "text-muted-foreground/80" : "text-foreground/80"}`} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={minimizeWindow}
+                className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
+              >
+                <Minus className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Minimize</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleMaximize}
+                className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
+              >
+                <Square className="h-3 w-3 text-muted-foreground" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Maximize</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={closeWindow}
+                className="inline-flex items-center justify-center w-11 h-9 hover:bg-red-500 hover:text-white transition-colors"
+              >
+                <X className="h-4 w-4 text-muted-foreground hover:text-white" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Close</TooltipContent>
+          </Tooltip>
         </div>
       </div>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 });

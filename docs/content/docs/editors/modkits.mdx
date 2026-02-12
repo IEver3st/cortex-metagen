@@ -1,0 +1,38 @@
+---
+title: ModKits
+description: Create modkit definitions with visible mods, stat mods, and slot name overrides.
+---
+
+## What you’re editing
+
+The ModKits tab exports `CVehicleModelInfoVarGlobal` with `Kits` entries containing:
+
+- `kitName`, `id`, `kitType`
+- `visibleMods`
+- `statMods`
+- `slotNames`
+
+## Visible Mods
+
+Visible mods are model-based upgrades (spoilers, bumpers, etc.).
+
+Common fields:
+
+- Model name + shop label
+- Mod type (VMT_*)
+- Bone + collision bone
+- Turn off bones (comma-separated list in the UI)
+
+## Stat Mods
+
+Stat mods describe upgrade levels for things like engine/brakes/gearbox.
+
+METAGEN provides defaults per stat type and a shortcut to add “standard upgrades”.
+
+## Slot name overrides
+
+Slot names let you rename certain Los Santos Customs categories.
+
+## Import note
+
+ModKits are typically parsed from the same `CVehicleModelInfoVarGlobal` file as CarCols. When you open a file that includes full kit definitions, METAGEN will populate the ModKits tab.

@@ -1,0 +1,24 @@
+---
+title: Tauri Backend
+description: File IO commands and where the desktop/native logic lives.
+---
+
+## Commands
+
+The backend provides two commands exposed to the frontend:
+
+- `read_meta_file(path: String) -> Result<String, String>`
+- `write_meta_file(path: String, content: String) -> Result<(), String>`
+
+They are used for Open/Save.
+
+## Plugins
+
+The app initializes:
+
+- Dialog plugin (open/save dialogs)
+- FS plugin
+
+## Security
+
+The current Tauri config disables CSP (`csp: null`). If you tighten security later, validate that Monaco and any dynamic imports still work.

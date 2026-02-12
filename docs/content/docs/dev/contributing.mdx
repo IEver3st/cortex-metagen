@@ -1,0 +1,27 @@
+---
+title: Contributing
+description: Conventions for adding features, editors, and meta type support.
+---
+
+## Adding a new field to an existing editor
+
+1. Add the field to the store type (if needed).
+2. Add parsing support in the XML parser.
+3. Add serialization support in the XML serializer.
+4. Add label/tooltip info in the dictionary.
+5. Add UI control to the editor.
+
+## Adding a new meta type
+
+You’ll typically need:
+
+- Type detection rule
+- Parser for import
+- Serializer for export
+- Store shape + editor UI
+
+## Code style
+
+- Keep serialization deterministic (stable ordering, consistent indentation)
+- Prefer safe parsing helpers (numbers/strings/attrs can vary between meta files)
+- Avoid breaking existing merge behavior (case-insensitive matching is important)

@@ -1,0 +1,53 @@
+---
+title: Architecture
+description: High-level overview of the frontend store, parsers, serializers, and UI.
+---
+
+## Runtime pieces
+
+- **Frontend**: React + Vite
+- **State**: Zustand store
+- **XML**: fast-xml-parser for parsing + custom serializer
+- **Desktop shell**: Tauri (Rust)
+
+## Data flow
+
+### Import
+
+1. Open dialog (Tauri)
+2. Read file contents via `read_meta_file`
+3. Validate XML
+4. Detect type
+5. Parse → merge into store
+
+### Edit
+
+- UI editors update the Zustand store and mark state dirty.
+- Code Preview renders a serialized snapshot of the active tab.
+
+### Export
+
+1. Save dialog (Tauri)
+2. Serialize active tab
+3. Write via `write_meta_file`
+
+## Store shape
+
+The store keeps a `vehicles` dictionary keyed by internal ids.
+
+Each vehicle contains:
+
+- A display name
+- Handling data
+- Vehicles data
+- CarCols + siren lights
+- CarVariations
+- VehicleLayouts
+- ModKits
+- A `loadedMeta` set to indicate which tabs should export
+
+## Where to add fields
+
+- UI help text and select options live in the dictionary module.
+- Parse support belongs in the XML parser.
+- Export support belongs in the XML serializer.

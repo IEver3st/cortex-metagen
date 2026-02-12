@@ -1,0 +1,38 @@
+---
+title: Vehicle Layouts
+description: Cover offsets and first-person drive-by look-around behavior.
+---
+
+## What you’re editing
+
+The Layouts tab edits data that exports as `CVehicleMetadataMgr`:
+
+- `VehicleCoverBoundOffsetInfos`
+- `FirstPersonDriveByLookAroundData`
+
+## Cover bound offsets
+
+Defines how far NPCs extend from the vehicle when using it as cover.
+
+Fields:
+
+- Name
+- Extra side / forward / backward / Z offsets
+
+## First-person look-around
+
+Defines how the camera moves when looking around in first person while driving.
+
+Each entry includes:
+
+- Name
+- Allow lookback
+- Heading limits (X/Y)
+- Left/right “side” data:
+  - Offset list (offset + blend angles)
+  - Extra relative pitch
+  - Angle-to-blend pitch
+
+## Export note
+
+Layouts export merges together all cover offsets and look-around entries from every vehicle that has layouts loaded.

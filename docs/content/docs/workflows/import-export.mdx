@@ -1,0 +1,53 @@
+---
+title: Import & Export
+description: How file detection, merging, and tab-based export work.
+---
+
+## Import (Open)
+
+When you open a file, METAGEN reads it through the Tauri backend and then:
+
+1. Validates the XML for common structural problems (tag mismatch, unescaped `&`, etc.)
+2. Detects the meta type (handling, vehicles, carcols, carvariations, vehiclelayouts)
+3. Parses the file and merges entries into the current state
+
+### Type detection
+
+Detection is content-first (e.g. `CHandlingDataMgr`, `CVehicleModelInfo__InitDataList`). If content doesn’t match, METAGEN falls back to the filename (e.g. contains `handling`, `vehicles`, `carvariations`, etc.).
+
+### Merge behavior
+
+- Handling merges by matching `handlingName` (case-insensitive).
+- Vehicles merges by matching `modelName`.
+- CarVariations merges by matching `modelName`.
+- CarCols (Sirens/Kits) tries to match by `sirenSettings` (from carvariations) where possible.
+- VehicleLayouts import assigns the layouts dataset to the first vehicle that doesn’t already have layouts loaded.
+
+### CarCols + ModKits
+
+If the imported `CVehicleModelInfoVarGlobal` contains full kit definitions (`visibleMods`, `statMods`, `slotNames`), METAGEN parses them and assigns the resulting ModKits list to the first vehicle that has `carcols` loaded and does not yet have `modkits` loaded.
+
+## Export (Save)
+
+Save exports the currently selected tab:
+
+- **Handling** → `CHandlingDataMgr` / `HandlingData`
+- **Vehicles** → `CVehicleModelInfo__InitDataList` / `InitDatas`
+- **Sirens (CarCols)** → `CVehicleModelInfoVarGlobal` with `Kits` and `Sirens`
+- **ModKits** → `CVehicleModelInfoVarGlobal` with `Kits` only
+- **CarVariations** → `CVehicleModelInfoVariation` / `variationData`
+- **Layouts** → `CVehicleMetadataMgr` merged output
+
+### Only “loaded” entries export
+
+METAGEN filters the vehicle list per meta type. If a vehicle doesn’t have that meta type marked as loaded, it is not included in output.
+
+This matters when you:
+
+- Imported only one type (e.g. handling) but have multiple vehicles present
+- Created vehicles that do not include a given meta type
+
+## Keyboard shortcuts
+
+- Open: **Ctrl+O**
+- Save: **Ctrl+S**

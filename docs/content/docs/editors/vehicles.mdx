@@ -1,0 +1,27 @@
+---
+title: Vehicles Editor
+description: Edit model links, class/type, layout, audio, and flags.
+---
+
+## What you’re editing
+
+The Vehicles tab edits entries inside `CVehicleModelInfo__InitDataList/InitDatas`.
+
+## Sections
+
+- **Identification & Links**: modelName, txdName, handlingId, gameName, make
+- **Visuals & Rendering**: LOD distances, diffuse tint, dirt min/max
+- **Character Interaction**: layout, driver source extension
+- **Audio & Effects**: audioNameHash
+- **Type & Class**: vehicle type + class selectors
+- **Flags**: grouped toggle list of common GTA vehicle flags
+
+## Linking to handling
+
+`handlingId` should match the `handlingName` from Handling.
+
+If you rename handling, update `handlingId` as well (or you’ll be linking to the wrong physics entry).
+
+## Flags
+
+Flags are stored as a list of string items in XML. METAGEN offers categorized toggles to manage them.

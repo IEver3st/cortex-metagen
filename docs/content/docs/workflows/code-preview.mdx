@@ -1,0 +1,32 @@
+---
+title: Code Preview
+description: Live XML output, edit mode, and how raw XML edits sync back into the UI.
+---
+
+## Live serialization
+
+The Code Preview panel shows the XML output for the active tab, regenerated from the current in-app state.
+
+Updates are debounced, so rapidly moving sliders doesn’t lock up the editor.
+
+## Edit Mode (raw XML editing)
+
+METAGEN can switch Code Preview into **Edit Mode**:
+
+- The editor becomes writable.
+- As you type, the app re-validates the XML.
+- METAGEN attempts to parse the XML and sync it back into the UI state.
+
+### When does sync happen?
+
+METAGEN tries to parse on every change, but it ignores parse failures while you’re typing. Once the XML is parseable, it merges the parsed result back into the vehicle list.
+
+### Practical advice
+
+- Use Edit Mode for small surgical changes that aren’t exposed in the UI yet.
+- Prefer the UI for bulk numeric changes (sliders/inputs are safer).
+- If you paste a large file, give it a moment for parsing/merging.
+
+## Read-only mode
+
+When Edit Mode is off, Code Preview is read-only and acts as a “source of truth” view of what will export.

@@ -1,0 +1,36 @@
+---
+title: Sirens (CarCols)
+description: Build siren light setups, sequencers, and environmental lighting.
+---
+
+## What you’re editing
+
+The Sirens tab edits data from `CVehicleModelInfoVarGlobal`:
+
+- `Kits` (basic kit id + name)
+- `Sirens` (siren entries and per-light data)
+
+## Siren lights
+
+Each siren entry can contain up to **32 lights**.
+
+Per-light fields:
+
+- Rotation (supports LED/rotator pattern)
+- Flashness
+- Delta
+- Color (ARGB hex like `0xFFFF0000`)
+- Scale
+- Sequencer (32-bit pattern)
+
+### Sequencer patterns
+
+METAGEN includes a set of sequencer presets (strobe, wig-wag, etc.). These are just convenience patterns; you can still type your own.
+
+## Light presets
+
+The editor includes a few “starter” light presets (red/blue pair, amber strobe, etc.). Presets append lights up to the 32-light limit.
+
+## Environmental light
+
+Some siren entries define an environmental light color/intensity. The editor exposes both fields.

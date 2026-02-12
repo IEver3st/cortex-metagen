@@ -1,0 +1,9 @@
+{
+  "title": "Developer",
+  "pages": [
+    "architecture",
+    "tauri-backend",
+    "build-and-release",
+    "contributing"
+  ]
+}

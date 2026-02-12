@@ -79,6 +79,16 @@ export const SliderField = memo(function SliderField({
                 Example: {field.example}
               </p>
             )}
+            {field.docsUrl && (
+              <a
+                href={field.docsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block text-primary hover:underline"
+              >
+                Open FiveM documentation
+              </a>
+            )}
           </PopoverContent>
         </Popover>
       </div>

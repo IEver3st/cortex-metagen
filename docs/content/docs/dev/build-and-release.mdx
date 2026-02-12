@@ -1,0 +1,22 @@
+---
+title: Build & Release
+description: Frontend build, Tauri build, and where bundle settings live.
+---
+
+## Frontend
+
+- Dev server: Vite
+- Build output: `dist/`
+
+## Tauri
+
+Tauri points to:
+
+- Dev URL: `http://localhost:5173`
+- Frontend dist: `../dist`
+
+The window is configured as frameless (`decorations: false`) with custom window controls in the toolbar.
+
+## Versioning
+
+App version is currently tracked in multiple places (frontend package + tauri config). Keep them aligned when cutting releases.

@@ -4,7 +4,10 @@ export interface FieldInfo {
   valueUp?: string;
   valueDown?: string;
   example?: string;
+  docsUrl?: string;
 }
+
+const HANDLING_DOCS = "https://docs.fivem.net/docs/game-references/handling/";
 
 export const handlingFields: Record<string, FieldInfo> = {
   fMass: {
@@ -13,6 +16,7 @@ export const handlingFields: Record<string, FieldInfo> = {
     valueUp: "Heavier — plows through obstacles but slower to accelerate/brake/turn.",
     valueDown: "Lighter — accelerates and stops quickly but easily knocked around.",
     example: "Semi-truck: 10,000+, Bicycle: very low",
+    docsUrl: HANDLING_DOCS,
   },
   fInitialDragCoeff: {
     name: "Drag Coefficient",
@@ -61,6 +65,7 @@ export const handlingFields: Record<string, FieldInfo> = {
     valueUp: "Faster acceleration — reaches top speed quicker.",
     valueDown: "Slower acceleration — feels sluggish.",
     example: "0.2 → 0.4 turns a sedan into a drag racer",
+    docsUrl: HANDLING_DOCS,
   },
   fInitialDriveMaxFlatVel: {
     name: "Top Speed",
@@ -81,6 +86,7 @@ export const handlingFields: Record<string, FieldInfo> = {
     valueUp: "1.0 = FWD. 0.5 = AWD.",
     valueDown: "0.0 = RWD. Best for drifting.",
     example: "0.0 = RWD (drift), 0.5 = AWD (off-road), 1.0 = FWD",
+    docsUrl: HANDLING_DOCS,
   },
   fBrakeForce: {
     name: "Brake Force",
@@ -108,6 +114,7 @@ export const handlingFields: Record<string, FieldInfo> = {
     valueUp: "Sticks to road like glue in corners.",
     valueDown: "Slides out very easily.",
     example: "2.5 = race car, 1.5 = driving on ice",
+    docsUrl: HANDLING_DOCS,
   },
   fTractionCurveMin: {
     name: "Min Traction",
@@ -136,6 +143,7 @@ export const handlingFields: Record<string, FieldInfo> = {
     valueUp: "Stiff — good for racing, may bounce on bumps.",
     valueDown: "Soft — smooth ride, but car sags and wallows.",
     example: "Sports cars: 3.0+, 1970s sedans: low",
+    docsUrl: HANDLING_DOCS,
   },
   fSuspensionCompDamp: {
     name: "Compression Damping",

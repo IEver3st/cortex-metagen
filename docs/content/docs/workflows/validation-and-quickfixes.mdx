@@ -1,0 +1,36 @@
+---
+title: Validation & Quick Fixes
+description: Understand the validator, warnings vs errors, and Monaco quick-fixes.
+---
+
+## Validation panel (on import)
+
+When you open a meta file, METAGEN runs a lightweight XML validator.
+
+- **Errors**: usually mean the XML is structurally broken (unclosed tags, mismatched brackets) and may not parse reliably.
+- **Warnings**: the file might still parse, but the XML is suspicious (unescaped `&`, unquoted attribute values, duplicate attributes).
+
+METAGEN will still attempt to parse even when warnings exist.
+
+## Code Preview markers
+
+The XML shown in Code Preview is validated continuously.
+
+- Errors/warnings become Monaco markers.
+- You can use the lightbulb / Code Actions for supported quick fixes.
+
+## Supported quick fixes
+
+Depending on what the validator detects, Monaco can offer:
+
+- Close comment block (`-->`)
+- Escape ampersand (`&` → `&amp;`)
+- Quote attribute values (`attr=value` → `attr="value"`)
+- Insert closing tag (`</tag>`)
+- Fix mismatched closing tag
+- Remove stray text line
+- Remove duplicate attribute occurrence
+
+## Limitations
+
+This validator is intentionally simple. It focuses on common meta-file problems and editor-friendly feedback; it is not a full XML schema validator for every GTA meta variant.

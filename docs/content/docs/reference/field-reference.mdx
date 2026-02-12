@@ -1,0 +1,48 @@
+---
+title: Field Reference
+description: A quick map from UI fields to the underlying data shape.
+---
+
+## Where do field descriptions come from?
+
+METAGEN includes an internal “dictionary” of fields used to drive labels, tooltips, and help text.
+
+If you want to improve explanations or add missing fields, start in the app’s dictionary module.
+
+## Handling fields (examples)
+
+- Mass (`fMass`)
+- Drag (`fInitialDragCoeff`)
+- Center of mass (`vecCentreOfMassOffset*`)
+- Inertia (`vecInertiaMultiplier*`)
+- Power (`fInitialDriveForce`)
+- Top speed (`fInitialDriveMaxFlatVel`)
+- Traction (`fTractionCurveMax`, `fTractionCurveMin`, …)
+
+## Vehicles fields (examples)
+
+- Model + textures (`modelName`, `txdName`)
+- Handling link (`handlingId`)
+- Presentation (`gameName`, `vehicleMakeName`)
+- Type/class/layout (`type`, `vehicleClass`, `layout`)
+- Flags (`flags[]`)
+
+## CarCols / Siren lights (examples)
+
+- Siren id (`id`) + kit name
+- Light list (`lights[]`): rotation, flashness, delta, color, scale, sequencer
+
+## ModKits (examples)
+
+- Kits list (`kits[]`) containing visible mods / stat mods / slot names
+
+## CarVariations (examples)
+
+- Color sets (`colors[]`)
+- Kits (`kits[]`)
+- Plate probabilities (`plateProbabilities[]`)
+
+## VehicleLayouts (examples)
+
+- Cover offsets (`coverBoundOffsets[]`)
+- Drive-by look-around entries (`driveByLookAroundData[]`)

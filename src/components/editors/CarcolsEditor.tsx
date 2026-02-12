@@ -267,6 +267,45 @@ export function CarcolsEditor() {
   const updateCarcols = useMetaStore((s) => s.updateCarcols);
   const [openSections, setOpenSections] = useState<string[]>(ALL_CARCOLS_SECTIONS);
   const [presetOpen, setPresetOpen] = useState(false);
+  const carcols = vehicle?.carcols;
+  const update = useCallback((data: Record<string, any>) => {
+    if (!activeId) return;
+    updateCarcols(activeId, data);
+  }, [updateCarcols, activeId]);
+
+  const addLight = useCallback(() => {
+    if (!carcols || carcols.lights.length >= 32) return;
+    const newLight: SirenLight = {
+      rotation: "0 0 0",
+      flashness: 1000,
+      delta: 0,
+      color: "0xFFFF0000",
+      scale: 0.15,
+      sequencer: "10101010101010101010101010101010",
+    };
+    update({ lights: [...carcols.lights, newLight] });
+  }, [carcols, update]);
+
+  const addPresetLights = useCallback((lights: SirenLight[]) => {
+    if (!carcols) return;
+    const remaining = 32 - carcols.lights.length;
+    const toAdd = lights.slice(0, remaining);
+    update({ lights: [...carcols.lights, ...toAdd] });
+    setPresetOpen(false);
+  }, [carcols, update]);
+
+  const updateLight = useCallback((index: number, data: Partial<SirenLight>) => {
+    if (!carcols) return;
+    const lights = carcols.lights.map((l, i) =>
+      i === index ? { ...l, ...data } : l
+    );
+    update({ lights });
+  }, [carcols, update]);
+
+  const removeLight = useCallback((index: number) => {
+    if (!carcols) return;
+    update({ lights: carcols.lights.filter((_, i) => i !== index) });
+  }, [carcols, update]);
 
   if (!vehicle || !activeId) {
     return (
@@ -277,38 +316,6 @@ export function CarcolsEditor() {
   }
 
   const c = vehicle.carcols;
-  const update = useCallback((data: Record<string, any>) => updateCarcols(activeId, data), [updateCarcols, activeId]);
-
-  const addLight = useCallback(() => {
-    if (c.lights.length >= 32) return;
-    const newLight: SirenLight = {
-      rotation: "0 0 0",
-      flashness: 1000,
-      delta: 0,
-      color: "0xFFFF0000",
-      scale: 0.15,
-      sequencer: "10101010101010101010101010101010",
-    };
-    update({ lights: [...c.lights, newLight] });
-  }, [c.lights, update]);
-
-  const addPresetLights = useCallback((lights: SirenLight[]) => {
-    const remaining = 32 - c.lights.length;
-    const toAdd = lights.slice(0, remaining);
-    update({ lights: [...c.lights, ...toAdd] });
-    setPresetOpen(false);
-  }, [c.lights, update]);
-
-  const updateLight = useCallback((index: number, data: Partial<SirenLight>) => {
-    const lights = c.lights.map((l, i) =>
-      i === index ? { ...l, ...data } : l
-    );
-    update({ lights });
-  }, [c.lights, update]);
-
-  const removeLight = useCallback((index: number) => {
-    update({ lights: c.lights.filter((_, i) => i !== index) });
-  }, [c.lights, update]);
 
   const lightCountColor = c.lights.length > 20
     ? c.lights.length > 32 ? "text-red-400" : "text-amber-400"

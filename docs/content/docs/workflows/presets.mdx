@@ -1,0 +1,34 @@
+---
+title: Presets
+description: Create vehicles from curated handling/vehicles presets.
+---
+
+## What presets do
+
+Presets are a fast way to generate sensible starter values for:
+
+- Handling (mass, drag, power, traction, suspension, etc.)
+- Vehicles (class, type, layout, audio hash)
+- CarVariations (some starter color sets)
+
+Presets do **not** automatically generate complex ModKits or VehicleLayouts data.
+
+## Ways to create from presets
+
+### 1) Presets button in the toolbar
+
+- Pick a category + preset
+- Name your vehicle
+- Create it
+
+### 2) New Vehicle popover (Source: Preset)
+
+The “New Vehicle” dialog supports creating from presets too.
+
+## Tips
+
+- Start with a close category (e.g. “SUV”, “Offroad”, “Emergency”) and then fine-tune.
+- After creating from a preset, verify:
+  - `modelName` + `txdName` match your asset names
+  - `handlingId` matches the Handling Name you want
+  - Vehicle flags match your gameplay expectations

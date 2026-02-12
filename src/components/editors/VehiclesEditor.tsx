@@ -87,6 +87,10 @@ export function VehiclesEditor() {
   );
   const updateVehicles = useMetaStore((s) => s.updateVehicles);
   const [openSections, setOpenSections] = useState<string[]>(ALL_VEHICLES_SECTIONS);
+  const update = useCallback((data: Record<string, any>) => {
+    if (!activeId) return;
+    updateVehicles(activeId, data);
+  }, [updateVehicles, activeId]);
 
   if (!vehicle || !activeId) {
     return (
@@ -97,7 +101,6 @@ export function VehiclesEditor() {
   }
 
   const d = vehicle.vehicles;
-  const update = useCallback((data: Record<string, any>) => updateVehicles(activeId, data), [updateVehicles, activeId]);
 
   const toggleFlag = useCallback((flag: string) => {
     const flags = d.flags.includes(flag)

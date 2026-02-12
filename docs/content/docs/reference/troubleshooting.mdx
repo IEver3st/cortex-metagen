@@ -1,0 +1,41 @@
+---
+title: Troubleshooting
+description: Common problems when importing, editing, or exporting meta files.
+---
+
+## Import shows errors/warnings
+
+Open triggers a validator. Common fixes:
+
+- **Unescaped `&`**: replace with `&amp;`
+- **Mismatched tags**: check closing tags and nesting
+- **Duplicate attributes**: remove the extra attribute
+
+If the file still imports despite warnings, verify output in Code Preview and re-export.
+
+## “No data loaded for this tab”
+
+This means the active vehicle does not have that meta type marked as loaded.
+
+Fix options:
+
+- Import the corresponding `.meta` file
+- Create a new vehicle from **Blank** (includes several types by default)
+- Switch to a tab that is loaded
+
+## Save exports an empty file
+
+Exports filter by “loaded meta”. If nothing is loaded for that type, you’ll export only the header/root with no items.
+
+## Edit Mode changes don’t stick
+
+Edit Mode sync relies on the parser being able to parse the current XML.
+
+- If you’re mid-edit and XML is invalid, sync is skipped.
+- Fix validation errors and wait a moment; the UI should update once parse succeeds.
+
+## Layouts/ModKits seem to apply to the “wrong vehicle”
+
+Layouts and ModKits are treated more like shared datasets. Import assigns them to the first suitable vehicle entry.
+
+If you prefer, keep a dedicated vehicle named something like `GLOBAL_LAYOUTS` / `GLOBAL_MODKITS` and store these there.

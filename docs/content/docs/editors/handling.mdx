@@ -1,0 +1,31 @@
+---
+title: Handling Editor
+description: Tune driving physics with grouped sliders and performance estimates.
+---
+
+## What you’re editing
+
+The Handling tab edits entries inside `CHandlingDataMgr/HandlingData`.
+
+Each vehicle maps to a `handlingName` entry.
+
+## Sections
+
+- **Physical Attributes**: mass, drag, center of mass, inertia
+- **Transmission & Engine**: power, top speed, gears, drive bias
+- **Brakes & Steering**: brake force/bias, steering lock
+- **Traction & Tires**: traction curves, off-road loss, low-speed loss
+- **Suspension**: stiffness + damping + anti-roll + ride height
+- **Damage & Misc**: collision/deformation multipliers + flags
+
+## Performance estimates
+
+The editor can show rough “performance estimates” to help you iterate faster.
+
+These are not game-accurate simulations; they’re intended as directional feedback.
+
+## Common tuning patterns
+
+- **More grip**: raise Max/Min traction, reduce traction loss mult
+- **More drift**: lower Min traction, raise low-speed traction loss, reduce drive bias front (toward RWD)
+- **Less roll**: increase anti-roll + suspension force, then dial damping to avoid bouncing

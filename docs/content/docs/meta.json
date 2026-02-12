@@ -1,0 +1,15 @@
+{
+  "title": "Cortex METAGEN",
+  "pages": [
+    "index",
+    "getting-started",
+    "---Using Metagen---",
+    "...workflows",
+    "---Editors---",
+    "...editors",
+    "---Reference---",
+    "...reference",
+    "---Developer---",
+    "...dev"
+  ]
+}
