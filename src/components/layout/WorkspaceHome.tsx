@@ -135,7 +135,7 @@ export function WorkspaceHome({
 
       {/* Footer Branding */}
       <div className="absolute bottom-12 left-0 right-0 flex justify-center pointer-events-none opacity-20">
-        <p className="text-[10px] uppercase tracking-[0.5em] text-slate-400">Cortex Labs Ecosystem</p>
+        <p className="text-[10px] uppercase tracking-[0.5em] text-slate-400">Cortex by Ever3st</p>
       </div>
 
       {/* Decorative lines at the bottom right like in the image */}
