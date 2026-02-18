@@ -1,5 +1,4 @@
 import { memo, useMemo, useState } from "react";
-import { motion } from "motion/react";
 import { useMetaStore } from "@/store/meta-store";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -43,21 +42,27 @@ async function minimizeWindow() {
   try {
     const { getCurrentWindow } = await getWindowApi();
     getCurrentWindow().minimize();
-  } catch {}
+  } catch (error) {
+    console.warn("Failed to minimize window:", error);
+  }
 }
 
 async function toggleMaximize() {
   try {
     const { getCurrentWindow } = await getWindowApi();
     getCurrentWindow().toggleMaximize();
-  } catch {}
+  } catch (error) {
+    console.warn("Failed to toggle maximize:", error);
+  }
 }
 
 async function closeWindow() {
   try {
     const { getCurrentWindow } = await getWindowApi();
     getCurrentWindow().close();
-  } catch {}
+  } catch (error) {
+    console.warn("Failed to close window:", error);
+  }
 }
 
 export const Toolbar = memo(function Toolbar({
@@ -103,7 +108,7 @@ export const Toolbar = memo(function Toolbar({
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-1 shrink-0 py-2 px-1 transition-colors"
+              className={`flex items-center gap-1 shrink-0 py-2 px-1 transition-colors ${uiView === "home" ? "bg-muted/40" : "hover:bg-muted/30"}`}
               onClick={onGoHome}
             >
               <HiOutlineCode className="h-4 w-4" style={{ color: "#8eaad0" }} />
@@ -259,13 +264,7 @@ export const Toolbar = memo(function Toolbar({
               className={cn("h-8 w-8", uiView === "settings" ? "text-primary" : "text-muted-foreground")}
               onClick={onGoSettings}
             >
-              <motion.div
-                whileHover={{ rotate: 90 }}
-                whileTap={{ rotate: 180, scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 280, damping: 18 }}
-              >
-                <Settings className="h-3.5 w-3.5" />
-              </motion.div>
+              <Settings className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">Settings</TooltipContent>

@@ -99,6 +99,64 @@ const defaultModkits: ModkitsData = {
   kits: [],
 };
 
+const SAFE_NAME_FALLBACK = "newvehicle";
+
+function normalizeVehicleNameToken(inputName: string): string {
+  const normalized = inputName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  const base = normalized || SAFE_NAME_FALLBACK;
+  const prefixed = /^[a-z]/.test(base) ? base : `veh_${base}`;
+  return prefixed.slice(0, 32);
+}
+
+function clampNumber(value: number, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeHandlingData(raw: HandlingData): HandlingData {
+  const fTractionCurveMax = clampNumber(raw.fTractionCurveMax, 0.1, 5, 2.2);
+  const desiredTractionMin = clampNumber(raw.fTractionCurveMin, 0.05, 5, 1.9);
+  const fTractionCurveMin = Math.min(desiredTractionMin, Math.max(0.05, fTractionCurveMax - 0.01));
+
+  return {
+    ...raw,
+    fMass: clampNumber(raw.fMass, 500, 15000, 1500),
+    fInitialDragCoeff: clampNumber(raw.fInitialDragCoeff, 0.1, 30, 8),
+    vecCentreOfMassOffsetX: clampNumber(raw.vecCentreOfMassOffsetX, -2, 2, 0),
+    vecCentreOfMassOffsetY: clampNumber(raw.vecCentreOfMassOffsetY, -2, 2, 0),
+    vecCentreOfMassOffsetZ: clampNumber(raw.vecCentreOfMassOffsetZ, -2, 2, 0),
+    vecInertiaMultiplierX: clampNumber(raw.vecInertiaMultiplierX, 0.05, 5, 1),
+    vecInertiaMultiplierY: clampNumber(raw.vecInertiaMultiplierY, 0.05, 5, 1),
+    vecInertiaMultiplierZ: clampNumber(raw.vecInertiaMultiplierZ, 0.05, 5, 1),
+    fInitialDriveForce: clampNumber(raw.fInitialDriveForce, 0.01, 2, 0.3),
+    fInitialDriveMaxFlatVel: clampNumber(raw.fInitialDriveMaxFlatVel, 50, 500, 140),
+    nInitialDriveGears: Math.round(clampNumber(raw.nInitialDriveGears, 1, 10, 6)),
+    fDriveBiasFront: clampNumber(raw.fDriveBiasFront, 0, 1, 0),
+    fBrakeForce: clampNumber(raw.fBrakeForce, 0.05, 3, 0.7),
+    fBrakeBiasFront: clampNumber(raw.fBrakeBiasFront, 0, 1, 0.65),
+    fSteeringLock: clampNumber(raw.fSteeringLock, 10, 75, 35),
+    fTractionCurveMax,
+    fTractionCurveMin,
+    fTractionLossMult: clampNumber(raw.fTractionLossMult, 0.05, 5, 1),
+    fLowSpeedTractionLossMult: clampNumber(raw.fLowSpeedTractionLossMult, 0, 5, 0),
+    fSuspensionForce: clampNumber(raw.fSuspensionForce, 0.05, 5, 2.2),
+    fSuspensionCompDamp: clampNumber(raw.fSuspensionCompDamp, 0.05, 5, 1.2),
+    fSuspensionReboundDamp: clampNumber(raw.fSuspensionReboundDamp, 0.05, 5, 1.8),
+    fAntiRollBarForce: clampNumber(raw.fAntiRollBarForce, 0, 5, 0.8),
+    fSuspensionRaise: clampNumber(raw.fSuspensionRaise, -0.5, 0.5, 0),
+    fCollisionDamageMult: clampNumber(raw.fCollisionDamageMult, 0.01, 10, 1),
+    fDeformationDamageMult: clampNumber(raw.fDeformationDamageMult, 0.01, 10, 0.8),
+    strModelFlags: raw.strModelFlags?.trim() || "440010",
+    strHandlingFlags: raw.strHandlingFlags?.trim() || "0",
+  };
+}
+
 export type PresetType =
   | "sedan" | "compact" | "coupe"
   | "sports" | "super" | "muscle"
@@ -764,20 +822,21 @@ export const presetConfigs: Record<PresetType, PresetConfig> = {
 let _vehicleIdCounter = 0;
 
 export function createDefaultVehicle(name: string, loadedMeta?: Set<MetaFileType>): VehicleEntry {
+  const nameToken = normalizeVehicleNameToken(name);
   const id = `vehicle_${Date.now()}_${_vehicleIdCounter++}`;
   return {
     id,
-    name,
-    handling: { ...defaultHandling, handlingName: name.toUpperCase() },
+    name: name.trim() || nameToken,
+    handling: normalizeHandlingData({ ...defaultHandling, handlingName: nameToken.toUpperCase() }),
     vehicles: {
       ...defaultVehicles,
-      modelName: name.toLowerCase(),
-      txdName: name.toLowerCase(),
-      handlingId: name.toUpperCase(),
-      gameName: name.toUpperCase(),
+      modelName: nameToken,
+      txdName: nameToken,
+      handlingId: nameToken.toUpperCase(),
+      gameName: nameToken.toUpperCase(),
     },
     carcols: { ...defaultCarcols },
-    carvariations: { ...defaultCarvariations, modelName: name.toLowerCase() },
+    carvariations: { ...defaultCarvariations, modelName: nameToken },
     vehiclelayouts: { ...defaultVehicleLayouts },
     modkits: { ...defaultModkits, kits: [] },
     loadedMeta: loadedMeta ?? new Set<MetaFileType>(),
@@ -788,25 +847,33 @@ export function createVehicleFromPreset(
   name: string,
   preset: PresetType
 ): VehicleEntry {
+  const nameToken = normalizeVehicleNameToken(name);
   const allTypes = new Set<MetaFileType>(["handling", "vehicles", "carcols", "carvariations"]);
   const base = createDefaultVehicle(name, allTypes);
   const config = presetConfigs[preset];
+  const handling = normalizeHandlingData({
+    ...base.handling,
+    ...config.handling,
+    handlingName: nameToken.toUpperCase(),
+  });
+
   return {
     ...base,
-    handling: { ...base.handling, ...config.handling, handlingName: name.toUpperCase() },
+    name: name.trim() || nameToken,
+    handling,
     vehicles: {
       ...base.vehicles,
       ...config.vehicles,
-      modelName: name.toLowerCase(),
-      txdName: name.toLowerCase(),
-      handlingId: name.toUpperCase(),
-      gameName: name.toUpperCase(),
+      modelName: nameToken,
+      txdName: nameToken,
+      handlingId: nameToken.toUpperCase(),
+      gameName: nameToken.toUpperCase(),
     },
     carcols: { ...base.carcols, ...config.carcols },
     carvariations: {
       ...base.carvariations,
       ...config.carvariations,
-      modelName: name.toLowerCase(),
+      modelName: nameToken,
     },
     vehiclelayouts: { ...base.vehiclelayouts },
     modkits: { ...base.modkits },

@@ -46,19 +46,9 @@ function getTextContent(node: any, fallback: string = ""): string {
   if (node === undefined || node === null) return fallback;
   if (typeof node === "string") return node;
   if (typeof node === "number") return String(node);
-  if (Array.isArray(node)) {
-    const first = node[0];
-    if (typeof first === "string") return first;
-    if (typeof first === "number") return String(first);
-    if (typeof first === "object" && first !== null) {
-      if ("#text" in first) return String(first["#text"]);
-      if ("@_value" in first) return String(first["@_value"]);
-    }
-    return fallback;
-  }
   if (typeof node === "object" && "#text" in node) return String(node["#text"]);
   if (typeof node === "object" && "@_value" in node) return String(node["@_value"]);
-  return fallback;
+  return String(node) || fallback;
 }
 
 // Smart helper: rotation can be vec3 attrs <rotation x="0" y="0" z="0"/>

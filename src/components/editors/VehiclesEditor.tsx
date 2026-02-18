@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/popover";
 import { Info, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import type { FieldInfo } from "@/lib/dictionary";
+import type { VehiclesData } from "@/store/meta-store";
 
 const ALL_VEHICLES_SECTIONS = ["identity", "visuals", "interaction", "audio", "type", "flags"];
 
@@ -87,10 +88,17 @@ export function VehiclesEditor() {
   );
   const updateVehicles = useMetaStore((s) => s.updateVehicles);
   const [openSections, setOpenSections] = useState<string[]>(ALL_VEHICLES_SECTIONS);
-  const update = useCallback((data: Record<string, any>) => {
+  const update = useCallback((data: Partial<VehiclesData>) => {
     if (!activeId) return;
     updateVehicles(activeId, data);
   }, [updateVehicles, activeId]);
+  const toggleFlag = useCallback((flag: string) => {
+    const currentFlags = vehicle?.vehicles.flags ?? [];
+    const flags = currentFlags.includes(flag)
+      ? currentFlags.filter((f) => f !== flag)
+      : [...currentFlags, flag];
+    update({ flags });
+  }, [vehicle?.vehicles.flags, update]);
 
   if (!vehicle || !activeId) {
     return (
@@ -101,13 +109,6 @@ export function VehiclesEditor() {
   }
 
   const d = vehicle.vehicles;
-
-  const toggleFlag = useCallback((flag: string) => {
-    const flags = d.flags.includes(flag)
-      ? d.flags.filter((f) => f !== flag)
-      : [...d.flags, flag];
-    update({ flags });
-  }, [d.flags, update]);
 
   return (
     <motion.div

@@ -1,6 +1,5 @@
-import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import { getName, getVersion } from "@tauri-apps/api/app";
+import { useEffect, useState, type ReactNode } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { SquareToggle } from "@/components/SquareToggle";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -29,23 +28,34 @@ export function SettingsView({
   const toggleEditorEditMode = useMetaStore((s) => s.toggleEditorEditMode);
   const recentFiles = useMetaStore((s) => s.recentFiles);
   const clearRecentFiles = useMetaStore((s) => s.clearRecentFiles);
-
-  const [appInfo, setAppInfo] = useState({ name: "", version: "" });
+  const [appVersion, setAppVersion] = useState<string>("…");
 
   useEffect(() => {
-    Promise.all([getName(), getVersion()])
-      .then(([name, version]) => setAppInfo({ name, version }))
-      .catch(() => setAppInfo({ name: "Cortex Metagen", version: "" }));
+    let active = true;
+
+    getVersion()
+      .then((version) => {
+        if (!active) return;
+        setAppVersion(version);
+      })
+      .catch(() => {
+        if (!active) return;
+        setAppVersion("unknown");
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-[#040d1a] font-sans text-slate-100">
+    <div className="h-full w-full overflow-y-auto bg-background font-sans text-foreground">
       <div className="px-6 py-8">
         <div className="mx-auto max-w-3xl space-y-10">
           {/* Header */}
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               Configure your interface preferences and manage local session data.
             </p>
           </div>
@@ -54,7 +64,7 @@ export function SettingsView({
             {/* Interface Section */}
             <section className="space-y-4">
               <SectionHeader title="Interface" />
-              <div className="divide-y divide-white/10 rounded-md border border-white/10 bg-white/[0.02]">
+              <div className="divide-y divide-border rounded-md border border-border bg-card">
                 <SettingRow
                   icon={<PanelLeft className="size-4" />}
                   title="Compact Sidebar"
@@ -102,14 +112,14 @@ export function SettingsView({
             {/* Session Section */}
             <section className="space-y-4">
               <SectionHeader title="Session Data" />
-              <div className="rounded-md border border-white/10 bg-white/[0.02] p-4 space-y-4">
+              <div className="rounded-md border border-border bg-card p-4 space-y-4">
                 <div className="flex items-center justify-between gap-6">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <FileClock className="size-4 shrink-0 text-muted-foreground" />
                       <span className="text-sm font-medium">Recent file history</span>
                     </div>
-                    <p className="text-xs text-slate-500">{recentFiles.length} entries stored locally</p>
+                    <p className="text-xs text-muted-foreground">{recentFiles.length} entries stored locally</p>
                   </div>
 
                   <div className="flex shrink-0 gap-2">
@@ -132,9 +142,9 @@ export function SettingsView({
                   </div>
                 </div>
 
-                <Separator className="bg-white/10" />
+                <Separator className="bg-border" />
 
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Clearing history only removes recent-file entries. Resetting session clears the full local workspace snapshot.
                 </p>
               </div>
@@ -142,8 +152,8 @@ export function SettingsView({
           </div>
 
           {/* Footer Info */}
-          <div className="pt-4 border-t border-white/10 flex items-center justify-end text-[10px] uppercase tracking-widest text-slate-500">
-            <span>{appInfo.name} v{appInfo.version}</span>
+          <div className="pt-4 border-t border-border flex items-center justify-end text-[10px] uppercase tracking-widest text-muted-foreground">
+            <span>Cortex Metagen v{appVersion}</span>
           </div>
         </div>
       </div>
@@ -153,7 +163,7 @@ export function SettingsView({
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">{title}</h3>
+    <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground px-1">{title}</h3>
   );
 }
 
@@ -166,17 +176,17 @@ interface SettingRowProps {
 
 function SettingRow({ icon, title, description, control }: SettingRowProps) {
   return (
-    <div className="flex items-center justify-between p-4 transition-colors hover:bg-white/5">
+    <div className="flex items-center justify-between p-4 transition-colors hover:bg-muted/20">
       <div className="flex items-start gap-4">
-        <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded bg-white/5 border border-white/10">
+        <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded bg-muted/20 border border-border">
           {icon}
         </div>
         <div className="space-y-0.5">
           <h4 className="text-sm font-medium leading-none">{title}</h4>
-          <p className="text-xs text-slate-500">{description}</p>
+          <p className="text-xs text-muted-foreground">{description}</p>
         </div>
       </div>
-      <div className="flex items-center shrink-0">{control}</div>
+      <div className="shrink-0">{control}</div>
     </div>
   );
 }

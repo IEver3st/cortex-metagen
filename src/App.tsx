@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { useMetaStore, type MetaFileType, type VehicleEntry } from "@/store/meta-store";
+import { useMetaStore, type MetaFileType, type SessionSnapshot, type VehicleEntry } from "@/store/meta-store";
 import { parseMetaFile, detectMetaType } from "@/lib/xml-parser";
 import { validateMetaXml, type ValidationIssue } from "@/lib/xml-validator";
 import { serializeActiveTab } from "@/lib/xml-serializer";
@@ -10,6 +10,12 @@ import { RestoreSessionDialog } from "@/components/layout/RestoreSessionDialog";
 
 const SESSION_KEY = "cortex-metagen.session.v1";
 const ALL_META_TYPES: MetaFileType[] = ["handling", "vehicles", "carcols", "carvariations", "vehiclelayouts", "modkits"];
+
+interface InitialSessionState {
+  pendingSnapshot: SessionSnapshot | null;
+  recentFiles: string[];
+  recentWorkspaces: string[];
+}
 
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase();
@@ -51,6 +57,54 @@ function detectDuplicateEntryIssues(vehicles: Record<string, VehicleEntry>): Val
   return issues;
 }
 
+function isSessionSnapshot(value: unknown): value is SessionSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<SessionSnapshot>;
+  if (!candidate.vehicles || typeof candidate.vehicles !== "object") return false;
+  if (!Array.isArray(candidate.recentFiles)) return false;
+  if (!Array.isArray(candidate.recentWorkspaces)) return false;
+  return true;
+}
+
+function readInitialSessionState(): InitialSessionState {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) {
+      return {
+        pendingSnapshot: null,
+        recentFiles: [],
+        recentWorkspaces: [],
+      };
+    }
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!isSessionSnapshot(parsed)) {
+      return {
+        pendingSnapshot: null,
+        recentFiles: [],
+        recentWorkspaces: [],
+      };
+    }
+
+    const recentFiles = parsed.recentFiles.filter((recent): recent is string => typeof recent === "string");
+    const recentWorkspaces = parsed.recentWorkspaces.filter((recent): recent is string => typeof recent === "string");
+    const hasVehicles = Object.keys(parsed.vehicles).length > 0;
+
+    return {
+      pendingSnapshot: hasVehicles ? parsed : null,
+      recentFiles,
+      recentWorkspaces,
+    };
+  } catch (error) {
+    console.warn("Failed to read session snapshot:", error);
+    return {
+      pendingSnapshot: null,
+      recentFiles: [],
+      recentWorkspaces: [],
+    };
+  }
+}
+
 function App() {
   const setUIView = useMetaStore((s) => s.setUIView);
   const loadVehicles = useMetaStore((s) => s.loadVehicles);
@@ -80,8 +134,9 @@ function App() {
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
   const [validationFileName, setValidationFileName] = useState<string>("");
   const [isDragActive, setIsDragActive] = useState(false);
-  const [restoreOpen, setRestoreOpen] = useState(false);
-  const [pendingSnapshot, setPendingSnapshot] = useState<any>(null);
+  const [initialSession] = useState<InitialSessionState>(readInitialSessionState);
+  const [pendingSnapshot, setPendingSnapshot] = useState<SessionSnapshot | null>(initialSession.pendingSnapshot);
+  const [restoreOpen, setRestoreOpen] = useState(Boolean(initialSession.pendingSnapshot));
   const duplicateIssues = detectDuplicateEntryIssues(vehicles);
 
   const openMetaPath = useCallback(async (filePath: string) => {
@@ -222,9 +277,8 @@ function App() {
         multiple: false,
         filters: [{ name: "Meta Files", extensions: ["meta", "xml"] }],
       });
-      if (!selected) return;
-      const filePath = typeof selected === "string" ? selected : selected;
-      await openMetaPath(filePath as string);
+      if (!selected || typeof selected !== "string") return;
+      await openMetaPath(selected);
     } catch (err) {
       console.error("Failed to open file:", err);
     }
@@ -277,29 +331,13 @@ function App() {
 
   useEffect(() => {
     setUIView("home");
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) return;
-      const snapshot = JSON.parse(raw);
-
-      if (Array.isArray(snapshot?.recentFiles)) {
-        for (const recent of snapshot.recentFiles) {
-          if (typeof recent === "string") addRecentFile(recent);
-        }
-      }
-      if (Array.isArray(snapshot?.recentWorkspaces)) {
-        for (const recent of snapshot.recentWorkspaces) {
-          if (typeof recent === "string") addRecentWorkspace(recent);
-        }
-      }
-
-      if (!snapshot?.vehicles || Object.keys(snapshot.vehicles).length === 0) return;
-      setPendingSnapshot(snapshot);
-      setRestoreOpen(true);
-    } catch (error) {
-      console.warn("Failed to read session snapshot:", error);
+    for (const recent of initialSession.recentFiles) {
+      addRecentFile(recent);
     }
-  }, [setUIView, addRecentFile, addRecentWorkspace]);
+    for (const recent of initialSession.recentWorkspaces) {
+      addRecentWorkspace(recent);
+    }
+  }, [setUIView, addRecentFile, addRecentWorkspace, initialSession]);
 
   const restoreVehicleCount = pendingSnapshot?.vehicles ? Object.keys(pendingSnapshot.vehicles).length : 0;
   const restoreTimestamp = pendingSnapshot?.timestamp;
@@ -345,7 +383,9 @@ function App() {
       try {
         const snapshot = getSessionSnapshot();
         localStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
-      } catch {}
+      } catch (error) {
+        console.warn("Failed to persist snapshot before unload:", error);
+      }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);

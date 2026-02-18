@@ -35,42 +35,22 @@ const navItems: Array<{ key: MetaFileType; label: string; icon: ComponentType<{ 
   { key: "vehiclelayouts", label: "Layouts", icon: LayoutPanelTop },
 ];
 
-const sidebarVariants = {
-  collapsed: { width: 56 },
-  expanded: { width: 240 },
-};
-
-const contentVariants = {
-  hidden: { opacity: 0 },
+const sectionVariants = {
+  hidden: { opacity: 0, y: 8 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.03, delayChildren: 0.05 },
+    y: 0,
+    transition: {
+      staggerChildren: 0.04,
+      delayChildren: 0.04,
+      duration: 0.24,
+    },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, x: -8 },
-  show: {
-    opacity: 1,
-    x: 0,
-    transition: { type: "spring" as const, stiffness: 400, damping: 30 },
-  },
-};
-
-const labelVariants = {
-  hidden: { opacity: 0, width: 0, marginLeft: 0 },
-  show: {
-    opacity: 1,
-    width: "auto",
-    marginLeft: 10,
-    transition: { type: "spring" as const, stiffness: 400, damping: 30 },
-  },
-  exit: {
-    opacity: 0,
-    width: 0,
-    marginLeft: 0,
-    transition: { duration: 0.15 },
-  },
+  hidden: { opacity: 0, x: -5 },
+  show: { opacity: 1, x: 0, transition: { duration: 0.18 } },
 };
 
 export function IdeSidebar({
@@ -93,51 +73,53 @@ export function IdeSidebar({
     <TooltipProvider>
       <motion.aside
         initial={false}
-        animate={collapsed ? "collapsed" : "expanded"}
-        variants={sidebarVariants}
-        transition={{ type: "spring", stiffness: 350, damping: 32 }}
-        className="h-full border-r border-[#131a2b] bg-[#050d21] flex flex-col relative overflow-hidden"
+        animate={{ width: collapsed ? 56 : 288 }}
+        transition={{ duration: 0.24, ease: "easeOut" }}
+        className="h-full border-r border-[#131a2b] bg-[#050d21] flex flex-col"
       >
-        <div className={cn("px-2 py-2.5 flex flex-col gap-2", collapsed && "items-center")}>
-          <AnimatePresence mode="wait">
+        <div className={cn("px-2 py-2 flex flex-col gap-2", collapsed && "items-center")}>
+          <AnimatePresence initial={false}>
             {!collapsed && (
               <motion.span
                 key="workspace-label"
-                initial={{ opacity: 0, y: -4 }}
+                initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
-                transition={{ type: "spring", stiffness: 400, damping: 28 }}
-                className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-medium"
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18 }}
+                className="text-[11px] uppercase tracking-[0.2em] text-slate-400 whitespace-nowrap"
               >
                 Workspace
               </motion.span>
             )}
           </AnimatePresence>
 
-          <SidebarAction
-            collapsed={collapsed}
-            label="Explorer"
-            icon={Files}
-            active={effectiveExplorerVisible}
-            onClick={() => {
-              if (collapsed) {
-                setSidebarCollapsed(false);
-                setExplorerVisible(true);
-                return;
-              }
-              setExplorerVisible(!effectiveExplorerVisible);
-            }}
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant={effectiveExplorerVisible ? "secondary" : "ghost"}
+                size="icon-sm"
+                className="h-7 w-7"
+                onClick={() => {
+                  if (collapsed) {
+                    setSidebarCollapsed(false);
+                    setExplorerVisible(true);
+                    return;
+                  }
+
+                  setExplorerVisible(!effectiveExplorerVisible);
+                }}
+              >
+                <Files className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="border-[#2a3f60] bg-[#111c31] text-slate-100">
+              Explorer
+            </TooltipContent>
+          </Tooltip>
         </div>
 
-        <Separator className="bg-[#131a2b] shrink-0" />
-
-        <motion.div
-          variants={contentVariants}
-          initial="hidden"
-          animate="show"
-          className="px-2 py-2 space-y-0.5"
-        >
+        <motion.div variants={sectionVariants} initial="hidden" animate="show" className="px-2 pb-2 space-y-1">
           <motion.div variants={itemVariants}>
             <SidebarAction
               collapsed={collapsed}
@@ -156,48 +138,35 @@ export function IdeSidebar({
           </motion.div>
         </motion.div>
 
-        <AnimatePresence>
-          {!collapsed && (
+        {!collapsed && (
+          <>
+            <Separator className="bg-[#131a2b]" />
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0, transition: { duration: 0.15 } }}
-              transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              className="shrink-0"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="p-2 space-y-2"
             >
-              <Separator className="bg-[#131a2b]" />
-              <div className="p-2 space-y-2">
-                {hasSelection && <PresetPicker />}
-              </div>
+              {hasSelection && <PresetPicker />}
             </motion.div>
-          )}
-        </AnimatePresence>
+          </>
+        )}
 
-        <Separator className="bg-[#131a2b] shrink-0" />
+        <Separator className="bg-[#131a2b]" />
 
         {effectiveExplorerVisible ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-            className="flex-1 min-h-0 p-2"
-          >
+          <div className="flex-1 min-h-0 p-2">
             {!collapsed && (
               <div className="pb-2">
-                <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-medium">Explorer</span>
+                <span className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Explorer</span>
               </div>
             )}
             <div className="h-full min-h-0">
               <WorkspaceExplorer />
             </div>
-          </motion.div>
+          </div>
         ) : (
-          <motion.nav
-            variants={contentVariants}
-            initial="hidden"
-            animate="show"
-            className="p-2 space-y-0.5 overflow-y-auto flex-1"
-          >
+          <motion.nav variants={sectionVariants} initial="hidden" animate="show" className="p-2 space-y-1 overflow-y-auto">
             {navItems.map((item) => (
               <motion.div key={item.key} variants={itemVariants}>
                 <SidebarAction
@@ -240,40 +209,28 @@ interface SidebarActionProps {
 
 function SidebarAction({ collapsed, label, icon: Icon, onClick, active, disabled }: SidebarActionProps) {
   const button = (
-    <motion.div
-      layout
-      whileHover={{ x: 2 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-    >
+    <motion.div whileHover={{ x: 1.5 }} transition={{ duration: 0.16 }}>
       <Button
         variant="ghost"
         size="sm"
         className={cn(
-          "w-full h-8 border border-transparent text-slate-400",
-          "hover:bg-[#0d1a2d] hover:text-slate-200",
-          collapsed ? "px-0 justify-center" : "justify-start px-2",
-          active && "bg-[#0f2238] border-[#1e3a5f] text-[#a8d4ff] shadow-[inset_0_0_0_1px_rgba(56,139,253,0.15)]",
-          disabled && "opacity-40 pointer-events-none",
+          "w-full h-9 border border-transparent text-slate-300 hover:bg-[#14233b] hover:text-slate-100",
+          collapsed ? "px-0" : "justify-start px-2",
+          active && "bg-[#1b2c47] border-[#2a3f60] text-[#dbe8ff] shadow-[inset_0_0_0_1px_rgba(93,129,184,0.2)]",
         )}
         onClick={onClick}
         disabled={disabled}
       >
-        <motion.div
-          layout
-          className="flex items-center justify-center shrink-0"
-        >
-          <Icon className="h-4 w-4" />
-        </motion.div>
-        <AnimatePresence mode="wait">
+        <Icon className="h-4 w-4 shrink-0" />
+        <AnimatePresence initial={false}>
           {!collapsed && (
             <motion.span
               key="sidebar-label"
-              variants={labelVariants}
-              initial="hidden"
-              animate="show"
-              exit="exit"
-              className="text-[11px] font-medium tracking-wide whitespace-nowrap overflow-hidden"
+              initial={{ opacity: 0, x: -4 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -4 }}
+              transition={{ duration: 0.14 }}
+              className="ml-2 text-xs"
             >
               {label}
             </motion.span>
@@ -288,13 +245,7 @@ function SidebarAction({ collapsed, label, icon: Icon, onClick, active, disabled
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent
-        side="right"
-        sideOffset={8}
-        className="border-[#1e3a5f] bg-[#0a1628] text-slate-200 text-[11px] font-medium shadow-lg"
-      >
-        {label}
-      </TooltipContent>
+      <TooltipContent side="right" className="border-[#2a3f60] bg-[#111c31] text-slate-100">{label}</TooltipContent>
     </Tooltip>
   );
 }
