@@ -1,6 +1,6 @@
 [package]
 name = "cortex-metagen"
-version = "0.6.1"
+version = "0.6.2"
 description = "Meta file generator for FiveM developers"
 authors = ["Cortex Labs"]
 edition = "2021"
