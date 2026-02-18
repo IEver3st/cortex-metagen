@@ -266,7 +266,7 @@ export function VehiclesEditor() {
                     {catFlags.map((flag) => (
                       <div
                         key={flag.value}
-                        className={`flex items-start gap-2 p-1.5 rounded transition-colors cursor-pointer hover:bg-muted/50 ${
+                        className={`flex items-center gap-2 p-1.5 rounded transition-colors cursor-pointer hover:bg-muted/50 ${
                           d.flags.includes(flag.value) ? "bg-primary/5" : ""
                         }`}
                         onClick={() => toggleFlag(flag.value)}

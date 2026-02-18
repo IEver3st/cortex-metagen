@@ -15,58 +15,6 @@ function normalizeKey(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function mergeWithoutConflicts(
-  existing: Record<string, VehicleEntry>,
-  imported: Record<string, VehicleEntry>,
-): { merged: Record<string, VehicleEntry>; conflictIssues: ValidationIssue[] } {
-  const merged: Record<string, VehicleEntry> = { ...existing };
-  const conflictIssues: ValidationIssue[] = [];
-  const seenModel = new Map<string, string>();
-  const seenHandling = new Map<string, string>();
-
-  for (const [id, entry] of Object.entries(existing)) {
-    const model = normalizeKey(entry.vehicles.modelName);
-    const handling = normalizeKey(entry.vehicles.handlingId);
-    if (model) seenModel.set(model, id);
-    if (handling) seenHandling.set(handling, id);
-  }
-
-  for (const entry of Object.values(imported)) {
-    const model = normalizeKey(entry.vehicles.modelName);
-    const handling = normalizeKey(entry.vehicles.handlingId);
-
-    if (model && seenModel.has(model)) {
-      conflictIssues.push({
-        line: 1,
-        severity: "warning",
-        message: `Skipped import for modelName \"${entry.vehicles.modelName}\" (already exists)`,
-        context: "Conflict detection prevented overwrite of existing vehicle entry.",
-      });
-      continue;
-    }
-
-    if (handling && seenHandling.has(handling)) {
-      conflictIssues.push({
-        line: 1,
-        severity: "warning",
-        message: `Skipped import for handlingId \"${entry.vehicles.handlingId}\" (already exists)`,
-        context: "Conflict detection prevented overwrite of existing vehicle entry.",
-      });
-      continue;
-    }
-
-    let id = entry.id;
-    if (merged[id]) {
-      id = `${id}_${Date.now()}`;
-    }
-    merged[id] = { ...entry, id };
-    if (model) seenModel.set(model, id);
-    if (handling) seenHandling.set(handling, id);
-  }
-
-  return { merged, conflictIssues };
-}
-
 function detectDuplicateEntryIssues(vehicles: Record<string, VehicleEntry>): ValidationIssue[] {
   const modelGroups = new Map<string, string[]>();
   const handlingGroups = new Map<string, string[]>();
@@ -142,13 +90,15 @@ function App() {
     const validation = validateMetaXml(content);
     const fileName = filePath.split(/[/\\]/).pop() ?? "";
     const detectedType = detectMetaType(content, fileName);
-    const imported = parseMetaFile(content, {}, fileName);
-    const { merged, conflictIssues } = mergeWithoutConflicts(vehicles, imported);
+    const parsedVehicles = parseMetaFile(content, {}, fileName);
 
     setValidationFileName(fileName);
-    setValidationIssues([...validation.issues, ...conflictIssues]);
+    setValidationIssues(validation.issues);
 
-    loadVehicles(merged);
+    loadVehicles(parsedVehicles);
+    for (const type of ALL_META_TYPES) {
+      setSourceFilePath(type, null);
+    }
     if (detectedType) {
       setActiveTab(detectedType);
       setSourceFilePath(detectedType, filePath);
@@ -157,7 +107,7 @@ function App() {
     setWorkspace(null, []);
     addRecentFile(filePath);
     markClean();
-  }, [vehicles, loadVehicles, setActiveTab, setFilePath, setSourceFilePath, setWorkspace, addRecentFile, markClean]);
+  }, [loadVehicles, setActiveTab, setFilePath, setSourceFilePath, setWorkspace, addRecentFile, markClean]);
 
   const collectMetaFiles = useCallback(async (rootPath: string): Promise<string[]> => {
     return invoke<string[]>("list_workspace_meta_files", { path: rootPath });

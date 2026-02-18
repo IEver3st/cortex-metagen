@@ -46,9 +46,19 @@ function getTextContent(node: any, fallback: string = ""): string {
   if (node === undefined || node === null) return fallback;
   if (typeof node === "string") return node;
   if (typeof node === "number") return String(node);
+  if (Array.isArray(node)) {
+    const first = node[0];
+    if (typeof first === "string") return first;
+    if (typeof first === "number") return String(first);
+    if (typeof first === "object" && first !== null) {
+      if ("#text" in first) return String(first["#text"]);
+      if ("@_value" in first) return String(first["@_value"]);
+    }
+    return fallback;
+  }
   if (typeof node === "object" && "#text" in node) return String(node["#text"]);
   if (typeof node === "object" && "@_value" in node) return String(node["@_value"]);
-  return String(node) || fallback;
+  return fallback;
 }
 
 // Smart helper: rotation can be vec3 attrs <rotation x="0" y="0" z="0"/>
@@ -413,6 +423,8 @@ export function parseCarcolsMeta(
       delta: getAttrValue(l.delta, 0),
       color: getColorValue(l.color, "0xFFFF0000"),
       scale: getAttrValue(l.scale, 0.4),
+      coronaScale: getAttrValue(l.scale, 0.4),
+      coronaEnabled: getAttrValue(l.scale, 0.4) > 0,
       sequencer: getSequencerValue(l.sequencer, "10101010101010101010101010101010"),
     }));
 
@@ -495,6 +507,9 @@ export function parseCarcolsMeta(
           type: getTextContent(vm.type, "VMT_SPOILER"),
           bone: getTextContent(vm.bone, "chassis"),
           collisionBone: getTextContent(vm.collisionBone, "chassis"),
+          linkedGenerated: false,
+          linkedSource: "",
+          linkedBoneRef: "",
         };
       });
 

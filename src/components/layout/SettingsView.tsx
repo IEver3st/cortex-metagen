@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import { getName, getVersion } from "@tauri-apps/api/app";
 import { SquareToggle } from "@/components/SquareToggle";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -27,6 +29,14 @@ export function SettingsView({
   const toggleEditorEditMode = useMetaStore((s) => s.toggleEditorEditMode);
   const recentFiles = useMetaStore((s) => s.recentFiles);
   const clearRecentFiles = useMetaStore((s) => s.clearRecentFiles);
+
+  const [appInfo, setAppInfo] = useState({ name: "", version: "" });
+
+  useEffect(() => {
+    Promise.all([getName(), getVersion()])
+      .then(([name, version]) => setAppInfo({ name, version }))
+      .catch(() => setAppInfo({ name: "Cortex Metagen", version: "" }));
+  }, []);
 
   return (
     <div className="h-full w-full overflow-y-auto bg-[#040d1a] font-sans text-slate-100">
@@ -133,7 +143,7 @@ export function SettingsView({
 
           {/* Footer Info */}
           <div className="pt-4 border-t border-white/10 flex items-center justify-end text-[10px] uppercase tracking-widest text-slate-500">
-            <span>Cortex Metagen v{__APP_VERSION__}</span>
+            <span>{appInfo.name} v{appInfo.version}</span>
           </div>
         </div>
       </div>
@@ -166,7 +176,7 @@ function SettingRow({ icon, title, description, control }: SettingRowProps) {
           <p className="text-xs text-slate-500">{description}</p>
         </div>
       </div>
-      <div className="shrink-0">{control}</div>
+      <div className="flex items-center shrink-0">{control}</div>
     </div>
   );
 }

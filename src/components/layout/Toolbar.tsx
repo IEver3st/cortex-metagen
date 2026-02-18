@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from "react";
+import { motion } from "motion/react";
 import { useMetaStore } from "@/store/meta-store";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -26,7 +27,7 @@ interface ToolbarProps {
   onGoSettings?: () => void;
   onToggleSidebar?: () => void;
   sidebarCollapsed?: boolean;
-  uiView?: "home" | "workspace" | "settings";
+  uiView?: "home" | "workspace" | "settings" | "merge";
 }
 
 // Cache the Tauri window API import to avoid repeated dynamic imports
@@ -102,7 +103,7 @@ export const Toolbar = memo(function Toolbar({
           <TooltipTrigger asChild>
             <button
               type="button"
-              className={`flex items-center gap-1 shrink-0 py-2 px-1 transition-colors ${uiView === "home" ? "bg-muted/40" : "hover:bg-muted/30"}`}
+              className="flex items-center gap-1 shrink-0 py-2 px-1 transition-colors"
               onClick={onGoHome}
             >
               <HiOutlineCode className="h-4 w-4" style={{ color: "#8eaad0" }} />
@@ -258,7 +259,13 @@ export const Toolbar = memo(function Toolbar({
               className={cn("h-8 w-8", uiView === "settings" ? "text-primary" : "text-muted-foreground")}
               onClick={onGoSettings}
             >
-              <Settings className="h-3.5 w-3.5" />
+              <motion.div
+                whileHover={{ rotate: 90 }}
+                whileTap={{ rotate: 180, scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 280, damping: 18 }}
+              >
+                <Settings className="h-3.5 w-3.5" />
+              </motion.div>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">Settings</TooltipContent>

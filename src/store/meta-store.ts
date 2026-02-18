@@ -58,6 +58,8 @@ export interface SirenLight {
   delta: number;
   color: string;
   scale: number;
+  coronaEnabled?: boolean;
+  coronaScale?: number;
   sequencer: string;
 }
 
@@ -97,6 +99,9 @@ export interface VisibleMod {
   type: string;
   bone: string;
   collisionBone: string;
+  linkedGenerated?: boolean;
+  linkedSource?: string;
+  linkedBoneRef?: string;
 }
 
 export interface StatMod {
@@ -200,7 +205,7 @@ export interface SessionSnapshot {
   vehicles: Record<string, SerializedVehicleEntry>;
   activeVehicleId: string | null;
   activeTab: MetaFileType;
-  uiView: "home" | "workspace" | "settings";
+  uiView: "home" | "workspace" | "settings" | "merge";
   explorerVisible: boolean;
   filePath: string | null;
   workspacePath: string | null;
@@ -272,7 +277,7 @@ function normalizeRecentFiles(files: string[]): string[] {
 }
 
 export interface MetaStore {
-  uiView: "home" | "workspace" | "settings";
+  uiView: "home" | "workspace" | "settings" | "merge";
   sidebarCollapsed: boolean;
   explorerVisible: boolean;
   vehicles: Record<string, VehicleEntry>;
@@ -293,7 +298,7 @@ export interface MetaStore {
   future: StoreSnapshot[];
 
   startNewProject: () => void;
-  setUIView: (view: "home" | "workspace" | "settings") => void;
+  setUIView: (view: "home" | "workspace" | "settings" | "merge") => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebarCollapsed: () => void;
   toggleExplorerVisible: () => void;

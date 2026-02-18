@@ -1,4 +1,4 @@
-import { lazy, Suspense, memo } from "react";
+import { lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Panel,
@@ -22,6 +22,7 @@ const CarcolsEditor = lazy(() => import("@/components/editors/CarcolsEditor").th
 const CarvariationsEditor = lazy(() => import("@/components/editors/CarvariationsEditor").then((m) => ({ default: m.CarvariationsEditor })));
 const VehicleLayoutsEditor = lazy(() => import("@/components/editors/VehicleLayoutsEditor").then((m) => ({ default: m.VehicleLayoutsEditor })));
 const ModkitsEditor = lazy(() => import("@/components/editors/ModkitsEditor").then((m) => ({ default: m.ModkitsEditor })));
+const MetaMergingView = lazy(() => import("@/components/layout/MetaMergingView").then((m) => ({ default: m.MetaMergingView })));
 
 function PinwheelSpinner() {
   const blades = [0, 60, 120, 180, 240, 300];
@@ -193,6 +194,10 @@ export function AppShell({
             <SettingsView
               onClearSession={onClearSession}
             />
+          ) : uiView === "merge" ? (
+            <Suspense fallback={<EditorFallback />}>
+              <MetaMergingView />
+            </Suspense>
           ) : uiView === "workspace" && hasVehicles ? (
             <Group orientation="horizontal" id="metagen-panels" style={{ height: "100%" }}>
               <Panel defaultSize={60} minSize={30}>

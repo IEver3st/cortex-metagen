@@ -25,7 +25,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Package, Wrench, Gauge, Tag, Info } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Trash2, Package, Wrench, Gauge, Tag, Info } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 // ── Renameable mod shop slots ──────────────────────────────
@@ -61,6 +72,21 @@ function getStatModDefaults(type: string) {
   return statModDefaults[type] ?? { modifier: 0, audioApply: 1.0, weight: 0 };
 }
 
+function isRenameEligibleKitType(kitType: string): boolean {
+  return !kitType.toLowerCase().includes("bennys");
+}
+
+function parseLinkedModelsInput(raw: string): string[] {
+  const parts = raw
+    .split(/[\n,\s]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const unique = new Set<string>();
+  for (const part of parts) unique.add(part);
+  return [...unique];
+}
+
 // ── Tooltip helper ─────────────────────────────────────────
 function FieldTooltip({ fieldKey }: { fieldKey: string }) {
   const field = modkitsFields[fieldKey];
@@ -87,11 +113,13 @@ const VisibleModEditor = memo(function VisibleModEditor({
   index,
   onChange,
   onRemove,
+  onGenerateLinkedMods,
 }: {
   mod: VisibleMod;
   index: number;
   onChange: (data: Partial<VisibleMod>) => void;
   onRemove: () => void;
+  onGenerateLinkedMods: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -215,6 +243,16 @@ const VisibleModEditor = memo(function VisibleModEditor({
           className="h-6 text-xs font-mono flex-1"
           placeholder="(usually empty)"
         />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-6 px-2 text-[10px]"
+          onClick={onGenerateLinkedMods}
+          disabled={parseLinkedModelsInput(mod.linkedModels).length === 0}
+        >
+          Generate
+        </Button>
       </div>
     </div>
   );
@@ -420,6 +458,10 @@ const KitEditor = memo(function KitEditor({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [openSections, setOpenSections] = useState<string[]>(["header", "visibleMods", "statMods", "slotNames"]);
+  const [renamePromptOpen, setRenamePromptOpen] = useState(false);
+  const [renamePromptValue, setRenamePromptValue] = useState("");
+  const [pendingLinkedSourceIndex, setPendingLinkedSourceIndex] = useState<number | null>(null);
+  const [pendingLinkedBone, setPendingLinkedBone] = useState("chassis");
 
   const updateVisibleMod = (index: number, data: Partial<VisibleMod>) => {
     const mods = kit.visibleMods.map((m, i) => (i === index ? { ...m, ...data } : m));
@@ -439,8 +481,55 @@ const KitEditor = memo(function KitEditor({
       type: "VMT_SPOILER",
       bone: "chassis",
       collisionBone: "chassis",
+      linkedGenerated: false,
+      linkedSource: "",
+      linkedBoneRef: "",
     };
     onUpdate({ ...kit, visibleMods: [...kit.visibleMods, newMod] });
+  };
+
+  const openLinkedPrompt = (index: number) => {
+    setPendingLinkedSourceIndex(index);
+    setPendingLinkedBone(kit.visibleMods[index]?.bone || "chassis");
+  };
+
+  const generateLinkedMods = () => {
+    if (pendingLinkedSourceIndex === null) return;
+    const source = kit.visibleMods[pendingLinkedSourceIndex];
+    if (!source) return;
+
+    const linkedNames = parseLinkedModelsInput(source.linkedModels);
+    if (linkedNames.length === 0) {
+      setPendingLinkedSourceIndex(null);
+      return;
+    }
+
+    const existingKeys = new Set(
+      kit.visibleMods
+        .filter((mod) => mod.linkedGenerated)
+        .map((mod) => `${mod.modelName.toLowerCase()}|${mod.bone.toLowerCase()}`)
+    );
+
+    const generatedMods: VisibleMod[] = linkedNames
+      .filter((name) => !existingKeys.has(`${name.toLowerCase()}|${pendingLinkedBone.toLowerCase()}`))
+      .map((name) => ({
+        modelName: name,
+        modShopLabel: source.modShopLabel,
+        linkedModels: "",
+        turnOffBones: [],
+        type: source.type || "VMT_SPOILER",
+        bone: pendingLinkedBone,
+        collisionBone: pendingLinkedBone,
+        linkedGenerated: true,
+        linkedSource: source.modelName,
+        linkedBoneRef: pendingLinkedBone,
+      }));
+
+    if (generatedMods.length > 0) {
+      onUpdate({ ...kit, visibleMods: [...kit.visibleMods, ...generatedMods] });
+    }
+
+    setPendingLinkedSourceIndex(null);
   };
 
   const updateStatMod = (index: number, data: Partial<StatMod>) => {
@@ -559,7 +648,16 @@ const KitEditor = memo(function KitEditor({
               <div className="flex items-center gap-2">
                 <Label className="text-xs text-muted-foreground min-w-[100px]">Kit Type</Label>
                 <FieldTooltip fieldKey="kitType" />
-                <Select value={kit.kitType} onValueChange={(v) => onUpdate({ ...kit, kitType: v })}>
+                <Select
+                  value={kit.kitType}
+                  onValueChange={(v) => {
+                    onUpdate({ ...kit, kitType: v });
+                    if (isRenameEligibleKitType(v)) {
+                      setRenamePromptValue(kit.kitName || "");
+                      setRenamePromptOpen(true);
+                    }
+                  }}
+                >
                   <SelectTrigger className="h-6 text-xs flex-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -598,6 +696,7 @@ const KitEditor = memo(function KitEditor({
                   index={i}
                   onChange={(data) => updateVisibleMod(i, data)}
                   onRemove={() => removeVisibleMod(i)}
+                  onGenerateLinkedMods={() => openLinkedPrompt(i)}
                 />
               ))}
               <Button
@@ -692,6 +791,67 @@ const KitEditor = memo(function KitEditor({
           </AccordionItem>
         </Accordion>
       </div>
+
+      <AlertDialog open={renamePromptOpen} onOpenChange={setRenamePromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rename Eligible ModKit</AlertDialogTitle>
+            <AlertDialogDescription>
+              This modkit type supports slot naming. Rename the original (non-Bennys) modkit now?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor={`rename-kit-${kitIndex}`} className="text-xs text-muted-foreground">New Name</Label>
+            <Input
+              id={`rename-kit-${kitIndex}`}
+              value={renamePromptValue}
+              onChange={(e) => setRenamePromptValue(e.target.value)}
+              className="h-8 text-xs font-mono"
+              placeholder="custom_modkit_name"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Skip</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const trimmed = renamePromptValue.trim();
+                if (!trimmed) return;
+                onUpdate({ ...kit, kitName: trimmed });
+              }}
+            >
+              Rename Kit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingLinkedSourceIndex !== null} onOpenChange={(open) => !open && setPendingLinkedSourceIndex(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Attach Linked Mods to Bone</AlertDialogTitle>
+            <AlertDialogDescription>
+              Select which bone these linked models should reference, then generate linked mod entries at the bottom.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Bone</Label>
+            <Select value={pendingLinkedBone} onValueChange={setPendingLinkedBone}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Select bone..." />
+              </SelectTrigger>
+              <SelectContent>
+                {commonBones.map((bone) => (
+                  <SelectItem key={bone} value={bone} className="text-xs">{bone}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={generateLinkedMods}>Generate Linked Mods</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 });
@@ -703,6 +863,8 @@ export function ModkitsEditor() {
     s.activeVehicleId ? s.vehicles[s.activeVehicleId] : null
   );
   const updateModkits = useMetaStore((s) => s.updateModkits);
+  const [createMultiple, setCreateMultiple] = useState(false);
+  const [kitQuantity, setKitQuantity] = useState(2);
 
   if (!vehicle || !activeId) {
     return (
@@ -715,18 +877,37 @@ export function ModkitsEditor() {
   const m = vehicle.modkits;
 
   const addKit = () => {
-    const nextId = m.kits.length > 0
+    const nextIdBase = m.kits.length > 0
       ? Math.max(...m.kits.map((k) => k.id)) + 1
       : 2500;
-    const newKit: ModKit = {
-      kitName: `${nextId}_${vehicle.name.toLowerCase()}_modkit`,
-      id: nextId,
-      kitType: "MKT_STANDARD",
-      visibleMods: [],
-      statMods: [],
-      slotNames: [],
-    };
-    updateModkits(activeId, { kits: [...m.kits, newKit] });
+    const baseName = `${vehicle.name.toLowerCase()}_modkit`;
+    const existingNames = new Set(m.kits.map((kit) => kit.kitName.toLowerCase()));
+    const quantity = createMultiple ? Math.max(1, kitQuantity) : 1;
+
+    const created: ModKit[] = [];
+
+    for (let idx = 0; idx < quantity; idx += 1) {
+      const nextId = nextIdBase + idx;
+      const withSuffix = createMultiple ? `${baseName}_${idx + 1}` : `${nextId}_${baseName}`;
+      let candidate = withSuffix;
+      let suffix = 1;
+      while (existingNames.has(candidate.toLowerCase())) {
+        candidate = `${withSuffix}_${suffix}`;
+        suffix += 1;
+      }
+      existingNames.add(candidate.toLowerCase());
+
+      created.push({
+        kitName: candidate,
+        id: nextId,
+        kitType: "MKT_STANDARD",
+        visibleMods: [],
+        statMods: [],
+        slotNames: [],
+      });
+    }
+
+    updateModkits(activeId, { kits: [...m.kits, ...created] });
   };
 
   const updateKit = (index: number, kit: ModKit) => {
@@ -754,6 +935,27 @@ export function ModkitsEditor() {
             ({m.kits.length} kit{m.kits.length !== 1 ? "s" : ""})
           </span>
         </div>
+      </div>
+
+      <div className="border border-border/50 rounded-md p-3 space-y-2 bg-muted/20">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">Create multiple variants</Label>
+          <Switch checked={createMultiple} onCheckedChange={setCreateMultiple} />
+        </div>
+        {createMultiple && (
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground min-w-[100px]">Quantity</Label>
+            <Input
+              type="number"
+              value={kitQuantity}
+              min={1}
+              max={50}
+              onChange={(e) => setKitQuantity(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+              className="h-7 text-xs font-mono w-28"
+            />
+            <span className="text-[10px] text-muted-foreground">Names use `_1 ... _N` suffixes</span>
+          </div>
+        )}
       </div>
 
       {m.kits.length === 0 && (

@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -237,12 +238,24 @@ const LightEditor = memo(function LightEditor({
       </div>
       <SliderField
         field={carcolsFields.scale}
-        value={light.scale}
-        onChange={(v) => onChange({ scale: v })}
+        value={light.coronaScale ?? light.scale}
+        onChange={(v) => onChange({ scale: v, coronaScale: v })}
         min={0}
         max={2}
         step={0.01}
       />
+      <div className="flex items-center gap-3">
+        <Label className="text-xs text-muted-foreground min-w-[100px]">Corona</Label>
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={light.coronaEnabled !== false}
+            onCheckedChange={(checked) => onChange({ coronaEnabled: checked })}
+          />
+          <span className="text-[11px] text-muted-foreground">
+            {light.coronaEnabled === false ? "Disabled" : "Enabled"}
+          </span>
+        </div>
+      </div>
       <SequencerPicker value={light.sequencer} onChange={(v) => onChange({ sequencer: v })} />
     </motion.div>
   );
@@ -281,6 +294,8 @@ export function CarcolsEditor() {
       delta: 0,
       color: "0xFFFF0000",
       scale: 0.15,
+      coronaScale: 0.15,
+      coronaEnabled: true,
       sequencer: "10101010101010101010101010101010",
     };
     update({ lights: [...carcols.lights, newLight] });

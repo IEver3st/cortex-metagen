@@ -120,6 +120,9 @@ export function serializeCarcolsMeta(vehicles: VehicleEntry[]): string {
         const rx = parseFloat(rotParts[0]) || 0;
         const ry = parseFloat(rotParts[1]) || 0;
         const rz = parseFloat(rotParts[2]) || 0;
+        const resolvedScale = light.coronaEnabled === false
+          ? 0
+          : (light.coronaScale ?? light.scale);
         // Convert binary sequencer to decimal
         let seqVal = light.sequencer;
         if (/^[01]{32}$/.test(seqVal)) {
@@ -130,7 +133,7 @@ export function serializeCarcolsMeta(vehicles: VehicleEntry[]): string {
         lines.push(`${indent(5)}<flashness value="${light.flashness.toFixed(6)}" />`);
         lines.push(`${indent(5)}<delta value="${light.delta.toFixed(6)}" />`);
         lines.push(`${indent(5)}<color value="${light.color}" />`);
-        lines.push(`${indent(5)}<scale value="${light.scale.toFixed(6)}" />`);
+        lines.push(`${indent(5)}<scale value="${resolvedScale.toFixed(6)}" />`);
         lines.push(`${indent(5)}<sequencer value="${seqVal}" />`);
         lines.push(`${indent(4)}</Item>`);
       }

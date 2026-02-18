@@ -5,14 +5,15 @@ import { join } from "path";
 const iconsDir = join(import.meta.dirname, "..", "src-tauri", "icons");
 mkdirSync(iconsDir, { recursive: true });
 
-const green = "#2CD672";
+const accentBlue = "#14cdd0";
 const bg = "#1a1a2e";
 
 async function createIcon(size) {
   const svg = `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
     <rect width="${size}" height="${size}" rx="${Math.round(size * 0.15)}" fill="${bg}"/>
     <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle"
-      font-family="monospace" font-weight="bold" font-size="${Math.round(size * 0.4)}" fill="${green}">C</text>
+      font-family="'Share Tech Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+      font-weight="700" font-size="${Math.round(size * 0.34)}" fill="${accentBlue}">&lt;/&gt;</text>
   </svg>`;
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
