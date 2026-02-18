@@ -13,8 +13,47 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { SectionPresetPicker } from "@/components/SectionPresetPicker";
+import {
+  sectionFieldMap,
+  type SectionId,
+  type SectionPreset,
+} from "@/lib/section-presets";
+import type { HandlingData } from "@/store/meta-store";
 
-const ALL_SECTIONS = ["physical", "transmission", "brakes", "traction", "suspension", "damage"];
+const ALL_SECTIONS: SectionId[] = ["physical", "transmission", "brakes", "traction", "suspension", "damage"];
+
+function getSectionValues(h: HandlingData, sectionId: SectionId): Record<string, number> {
+  const fields = sectionFieldMap[sectionId];
+  const values: Record<string, number> = {};
+  for (const f of fields) {
+    const v = h[f];
+    if (typeof v === "number") values[f] = v;
+  }
+  return values;
+}
+
+interface SectionHeaderProps {
+  title: string;
+  sectionId: SectionId;
+  handling: HandlingData;
+  onApplyPreset: (sectionId: SectionId, preset: SectionPreset) => void;
+}
+
+function SectionHeader({ title, sectionId, handling, onApplyPreset }: SectionHeaderProps) {
+  const currentValues = getSectionValues(handling, sectionId);
+
+  return (
+    <div className="flex items-center justify-between w-full pr-2" onClick={(e) => e.stopPropagation()}>
+      <span>{title}</span>
+      <SectionPresetPicker
+        sectionId={sectionId}
+        currentValues={currentValues}
+        onApply={(preset) => onApplyPreset(sectionId, preset)}
+      />
+    </div>
+  );
+}
 
 export function HandlingEditor() {
   const activeId = useMetaStore((s) => s.activeVehicleId);
@@ -24,9 +63,18 @@ export function HandlingEditor() {
   const updateHandling = useMetaStore((s) => s.updateHandling);
   const [showPerf, setShowPerf] = useState(true);
   const [openSections, setOpenSections] = useState<string[]>(ALL_SECTIONS);
-  const update = useCallback((data: Record<string, any>) => {
+  const update = useCallback((data: Record<string, unknown>) => {
     if (activeId) updateHandling(activeId, data);
   }, [updateHandling, activeId]);
+
+  const applySectionPreset = useCallback(
+    (_sectionId: SectionId, preset: SectionPreset) => {
+      if (activeId) {
+        updateHandling(activeId, preset.values);
+      }
+    },
+    [updateHandling, activeId]
+  );
 
   if (!vehicle || !activeId) {
     return (
@@ -98,7 +146,12 @@ export function HandlingEditor() {
       >
         <AccordionItem value="physical" className="border rounded-md px-3">
           <AccordionTrigger className="text-sm font-medium py-2">
-            Physical Attributes
+            <SectionHeader
+              title="Physical Attributes"
+              sectionId="physical"
+              handling={h}
+              onApplyPreset={applySectionPreset}
+            />
           </AccordionTrigger>
           <AccordionContent className="pb-3 space-y-1">
             <SliderField field={handlingFields.fMass} value={h.fMass} onChange={(v) => update({ fMass: v })} min={500} max={15000} step={50} />
@@ -114,7 +167,12 @@ export function HandlingEditor() {
 
         <AccordionItem value="transmission" className="border rounded-md px-3">
           <AccordionTrigger className="text-sm font-medium py-2">
-            Transmission & Engine
+            <SectionHeader
+              title="Transmission & Engine"
+              sectionId="transmission"
+              handling={h}
+              onApplyPreset={applySectionPreset}
+            />
           </AccordionTrigger>
           <AccordionContent className="pb-3 space-y-1">
             <SliderField field={handlingFields.fInitialDriveForce} value={h.fInitialDriveForce} onChange={(v) => update({ fInitialDriveForce: v })} min={0} max={2} step={0.01} />
@@ -126,7 +184,12 @@ export function HandlingEditor() {
 
         <AccordionItem value="brakes" className="border rounded-md px-3">
           <AccordionTrigger className="text-sm font-medium py-2">
-            Brakes & Steering
+            <SectionHeader
+              title="Brakes & Steering"
+              sectionId="brakes"
+              handling={h}
+              onApplyPreset={applySectionPreset}
+            />
           </AccordionTrigger>
           <AccordionContent className="pb-3 space-y-1">
             <SliderField field={handlingFields.fBrakeForce} value={h.fBrakeForce} onChange={(v) => update({ fBrakeForce: v })} min={0} max={3} step={0.01} />
@@ -137,7 +200,12 @@ export function HandlingEditor() {
 
         <AccordionItem value="traction" className="border rounded-md px-3">
           <AccordionTrigger className="text-sm font-medium py-2">
-            Traction & Tires
+            <SectionHeader
+              title="Traction & Tires"
+              sectionId="traction"
+              handling={h}
+              onApplyPreset={applySectionPreset}
+            />
           </AccordionTrigger>
           <AccordionContent className="pb-3 space-y-1">
             <SliderField field={handlingFields.fTractionCurveMax} value={h.fTractionCurveMax} onChange={(v) => update({ fTractionCurveMax: v })} min={0} max={5} step={0.01} />
@@ -149,7 +217,12 @@ export function HandlingEditor() {
 
         <AccordionItem value="suspension" className="border rounded-md px-3">
           <AccordionTrigger className="text-sm font-medium py-2">
-            Suspension
+            <SectionHeader
+              title="Suspension"
+              sectionId="suspension"
+              handling={h}
+              onApplyPreset={applySectionPreset}
+            />
           </AccordionTrigger>
           <AccordionContent className="pb-3 space-y-1">
             <SliderField field={handlingFields.fSuspensionForce} value={h.fSuspensionForce} onChange={(v) => update({ fSuspensionForce: v })} min={0} max={5} step={0.01} />
@@ -162,7 +235,12 @@ export function HandlingEditor() {
 
         <AccordionItem value="damage" className="border rounded-md px-3">
           <AccordionTrigger className="text-sm font-medium py-2">
-            Damage & Miscellaneous
+            <SectionHeader
+              title="Damage & Miscellaneous"
+              sectionId="damage"
+              handling={h}
+              onApplyPreset={applySectionPreset}
+            />
           </AccordionTrigger>
           <AccordionContent className="pb-3 space-y-1">
             <SliderField field={handlingFields.fCollisionDamageMult} value={h.fCollisionDamageMult} onChange={(v) => update({ fCollisionDamageMult: v })} min={0} max={10} step={0.1} />
