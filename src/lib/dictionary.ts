@@ -1,6 +1,7 @@
 export interface FieldInfo {
   name: string;
   description: string;
+  unit?: string;
   valueUp?: string;
   valueDown?: string;
   example?: string;
@@ -11,7 +12,8 @@ const HANDLING_DOCS = "https://docs.fivem.net/docs/game-references/handling/";
 
 export const handlingFields: Record<string, FieldInfo> = {
   fMass: {
-    name: "Mass (kg)",
+    name: "Mass",
+    unit: "kg",
     description: "The weight of the vehicle in kilograms.",
     valueUp: "Heavier — plows through obstacles but slower to accelerate/brake/turn.",
     valueDown: "Lighter — accelerates and stops quickly but easily knocked around.",
@@ -20,6 +22,7 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fInitialDragCoeff: {
     name: "Drag Coefficient",
+    unit: "Cd",
     description: "Air resistance. Affects how much air slows the car as it speeds up.",
     valueUp: "More drag — lower top speed, decelerates faster.",
     valueDown: "Less drag — cuts through air, higher top speeds.",
@@ -27,14 +30,17 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   vecCentreOfMassOffsetX: {
     name: "Center of Mass X",
+    unit: "m",
     description: "Shifts center of gravity Left/Right.",
   },
   vecCentreOfMassOffsetY: {
     name: "Center of Mass Y",
+    unit: "m",
     description: "Shifts center of gravity Front/Rear.",
   },
   vecCentreOfMassOffsetZ: {
     name: "Center of Mass Z",
+    unit: "m",
     description: "Shifts center of gravity Up/Down.",
     valueUp: "Higher center — prone to tipping in corners.",
     valueDown: "Lower center — stays planted, almost impossible to flip.",
@@ -42,18 +48,21 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   vecInertiaMultiplierX: {
     name: "Inertia X (Pitch)",
+    unit: "×",
     description: "How hard it is to rotate the vehicle nose up/down.",
     valueUp: "Resists pitch — stable but sluggish.",
     valueDown: "Rotates easily — responsive but can nose-dive.",
   },
   vecInertiaMultiplierY: {
     name: "Inertia Y (Roll)",
+    unit: "×",
     description: "How hard it is to roll the vehicle side to side.",
     valueUp: "Resists roll — stable in corners.",
     valueDown: "Rolls easily — leans heavily in turns.",
   },
   vecInertiaMultiplierZ: {
     name: "Inertia Z (Yaw)",
+    unit: "×",
     description: "How hard it is to spin the vehicle left/right.",
     valueUp: "Resists spinning — stable but hard to turn.",
     valueDown: "Spins easily — twitchy, can spin out.",
@@ -61,6 +70,7 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fInitialDriveForce: {
     name: "Engine Power",
+    unit: "force",
     description: "The engine's power output (acceleration).",
     valueUp: "Faster acceleration — reaches top speed quicker.",
     valueDown: "Slower acceleration — feels sluggish.",
@@ -69,6 +79,7 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fInitialDriveMaxFlatVel: {
     name: "Top Speed",
+    unit: "kph",
     description: "Theoretical top speed of the vehicle.",
     valueUp: "Higher top speed.",
     valueDown: "Lower top speed.",
@@ -76,12 +87,14 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   nInitialDriveGears: {
     name: "Gear Count",
+    unit: "gears",
     description: "Number of gears in the transmission.",
     valueUp: "More gears (6-7) — stays in power band, shifts more.",
     valueDown: "Fewer gears (3-4) — longer gears, inconsistent acceleration.",
   },
   fDriveBiasFront: {
     name: "Drive Bias (Front)",
+    unit: "%",
     description: "Power distribution between front and rear wheels.",
     valueUp: "1.0 = FWD. 0.5 = AWD.",
     valueDown: "0.0 = RWD. Best for drifting.",
@@ -90,19 +103,22 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fBrakeForce: {
     name: "Brake Force",
+    unit: "force",
     description: "How strong the brakes are.",
     valueUp: "Shorter stopping distance. Too high = wheels lock up.",
     valueDown: "Weak brakes — takes long to stop.",
   },
   fBrakeBiasFront: {
     name: "Brake Bias (Front)",
+    unit: "%",
     description: "Balance of braking force between front and rear.",
     valueUp: ">0.5 = Front bias. Stable but understeer while braking.",
     valueDown: "<0.5 = Rear bias. Back end slides out (oversteer).",
     example: "0.6 is standard for street cars",
   },
   fSteeringLock: {
-    name: "Steering Lock (°)",
+    name: "Steering Lock",
+    unit: "°",
     description: "Maximum angle the front wheels can turn.",
     valueUp: "Tighter turning radius — great for city/drifting.",
     valueDown: "Wider turning radius — feels like a boat.",
@@ -110,6 +126,7 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fTractionCurveMax: {
     name: "Max Traction",
+    unit: "g",
     description: "Maximum cornering grip before sliding.",
     valueUp: "Sticks to road like glue in corners.",
     valueDown: "Slides out very easily.",
@@ -118,6 +135,7 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fTractionCurveMin: {
     name: "Min Traction",
+    unit: "g",
     description: "Grip levels after the car has started sliding.",
     valueUp: "Easy to recover from a slide.",
     valueDown: "Once sliding, very hard to regain control.",
@@ -125,6 +143,7 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fTractionLossMult: {
     name: "Off-Road Grip Loss",
+    unit: "×",
     description: "How much grip is lost on loose surfaces (dirt, grass).",
     valueUp: "Terrible grip on dirt.",
     valueDown: "Dirt grip almost as good as asphalt.",
@@ -132,6 +151,7 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fLowSpeedTractionLossMult: {
     name: "Low Speed Traction Loss",
+    unit: "×",
     description: "Reduces traction at low speeds (allows burnouts).",
     valueUp: "Wheels spin excessively from a stop.",
     valueDown: "Immediate grip off the line.",
@@ -139,6 +159,7 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fSuspensionForce: {
     name: "Suspension Stiffness",
+    unit: "N",
     description: "Stiffness of the springs.",
     valueUp: "Stiff — good for racing, may bounce on bumps.",
     valueDown: "Soft — smooth ride, but car sags and wallows.",
@@ -147,18 +168,21 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fSuspensionCompDamp: {
     name: "Compression Damping",
+    unit: "Ns/m",
     description: "Resistance when the wheel moves up (hitting a bump).",
     valueUp: "Bumps feel harsh.",
     valueDown: "Suspension compresses too easily, bottoming out.",
   },
   fSuspensionReboundDamp: {
     name: "Rebound Damping",
+    unit: "Ns/m",
     description: "Resistance when the wheel moves down (after a bump).",
     valueUp: "Keeps car planted after a bump.",
     valueDown: "Car bounces like a pogo stick after bumps.",
   },
   fAntiRollBarForce: {
     name: "Anti-Roll Bar",
+    unit: "N",
     description: "Prevents body lean in corners.",
     valueUp: "Car stays flat in corners. Too high = slides abruptly.",
     valueDown: "Heavy body roll when turning.",
@@ -166,18 +190,21 @@ export const handlingFields: Record<string, FieldInfo> = {
   },
   fSuspensionRaise: {
     name: "Ride Height",
+    unit: "m",
     description: "Visual and physical ride height adjustment.",
     valueUp: "Lifts the car (monster truck style).",
     valueDown: "Lowers the car (stance/lowrider style).",
   },
   fCollisionDamageMult: {
     name: "Collision Damage",
+    unit: "×",
     description: "How much damage the engine/body takes from crashes.",
     valueUp: "Fragile — engine fails after a few hits.",
     valueDown: "Tank — set to 0.0 for invincibility.",
   },
   fDeformationDamageMult: {
     name: "Deformation Damage",
+    unit: "×",
     description: "How much the bodywork crumples visually.",
     valueUp: "Body crumples like tin foil.",
     valueDown: "Body barely dents.",
@@ -246,6 +273,55 @@ export const vehiclesFields: Record<string, FieldInfo> = {
     description: "Maximum dirt accumulation.",
     valueUp: "Gets dirty very fast.",
     valueDown: "Stays clean longer.",
+  },
+  cameraName: {
+    name: "Camera Preset",
+    description: "Third-person camera profile used while driving.",
+    example: "DEFAULT_SCRIPTED_CAMERA",
+  },
+  plateType: {
+    name: "Plate Type",
+    description: "Number plate mount configuration for this vehicle.",
+    example: "VPT_FRONT_AND_BACK_PLATES",
+  },
+  dashboardType: {
+    name: "Dashboard Type",
+    description: "Interior dashboard UI profile used by first-person mode.",
+    example: "VDT_DEFAULT",
+  },
+  wheelType: {
+    name: "Wheel Type",
+    description: "Default wheel category for tuning and style groups.",
+    example: "VWT_SPORT",
+  },
+  wheelScale: {
+    name: "Front Wheel Scale",
+    description: "Visual wheel rim size scalar for front wheels.",
+    valueUp: "Larger blowout rim effect.",
+    valueDown: "Smaller blowout rim effect.",
+  },
+  wheelScaleRear: {
+    name: "Rear Wheel Scale",
+    description: "Visual wheel rim size scalar for rear wheels.",
+    valueUp: "Larger rear rim blowout effect.",
+    valueDown: "Smaller rear rim blowout effect.",
+  },
+  envEffScaleMin: {
+    name: "Env Effect Min",
+    description: "Minimum environment effect intensity (snow/rust/camo).",
+  },
+  envEffScaleMax: {
+    name: "Env Effect Max",
+    description: "Maximum environment effect intensity (snow/rust/camo).",
+  },
+  HDTextureDist: {
+    name: "HD Texture Distance",
+    description: "Distance where the *_hi.ytd texture set is used.",
+    unit: "m",
+  },
+  defaultBodyHealth: {
+    name: "Default Body Health",
+    description: "Spawn body health baseline before damage is applied.",
   },
 };
 
@@ -349,6 +425,34 @@ export const vehicleFlags: VehicleFlag[] = [
   { value: "FLAG_SPORTS", label: "Sports", description: "Handling category. Defaults to sports wheel type in mod shop.", category: "Mod Shop & Customization" },
   { value: "FLAG_MUSCLE", label: "Muscle", description: "Handling category. Defaults to muscle wheel type in mod shop.", category: "Mod Shop & Customization" },
   { value: "FLAG_OFFROAD", label: "Off-Road", description: "Handling category. Defaults to off-road wheel type in mod shop.", category: "Mod Shop & Customization" },
+];
+
+export const plateTypes = [
+  "VPT_FRONT_AND_BACK_PLATES",
+  "VPT_FRONT_PLATES",
+  "VPT_REAR_PLATES",
+  "VPT_NONE",
+];
+
+export const dashboardTypes = [
+  "VDT_DEFAULT",
+  "VDT_SPORT",
+  "VDT_SUPER",
+  "VDT_BIKE",
+  "VDT_PLANE",
+  "VDT_HELI",
+];
+
+export const wheelTypes = [
+  "VWT_SPORT",
+  "VWT_MUSCLE",
+  "VWT_LOWRIDER",
+  "VWT_SUV",
+  "VWT_OFFROAD",
+  "VWT_TUNER",
+  "VWT_BIKE",
+  "VWT_HIGHEND",
+  "VWT_STREET",
 ];
 
 export const vehicleTypes = [

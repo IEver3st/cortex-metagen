@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useMetaStore, type MetaFileType, type SessionSnapshot, type VehicleEntry } from "@/store/meta-store";
-import { parseMetaFile, detectMetaType } from "@/lib/xml-parser";
+import { parseMetaFile, detectMetaType, type ParseDiagnostic } from "@/lib/xml-parser";
 import { validateMetaXml, type ValidationIssue } from "@/lib/xml-validator";
 import { serializeActiveTab } from "@/lib/xml-serializer";
 import { invoke } from "@tauri-apps/api/core";
@@ -9,6 +9,7 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import { RestoreSessionDialog } from "@/components/layout/RestoreSessionDialog";
 
 const SESSION_KEY = "cortex-metagen.session.v1";
+const SESSION_MAX_BYTES = 2_500_000;
 const ALL_META_TYPES: MetaFileType[] = ["handling", "vehicles", "carcols", "carvariations", "vehiclelayouts", "modkits"];
 
 interface InitialSessionState {
@@ -21,35 +22,73 @@ function normalizeKey(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function isAbsolutePath(path: string): boolean {
+  return /^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(path);
+}
+
+function joinWorkspacePath(workspaceRoot: string, relativePath: string): string {
+  const root = workspaceRoot.replace(/[\\/]+$/, "");
+  const rel = relativePath.replace(/^[\\/]+/, "").replaceAll("\\", "/");
+  return `${root}/${rel}`;
+}
+
+function toWorkspaceRelativePath(workspaceRoot: string | null, path: string): string {
+  if (!workspaceRoot || !isAbsolutePath(path)) return path;
+  const normalizedRoot = workspaceRoot.replaceAll("\\", "/").replace(/\/+$/, "");
+  const normalizedPath = path.replaceAll("\\", "/");
+  if (!normalizedPath.toLowerCase().startsWith(`${normalizedRoot.toLowerCase()}/`)) {
+    return path;
+  }
+  return normalizedPath.slice(normalizedRoot.length + 1);
+}
+
+function resolveWorkspaceFilePath(workspaceRoot: string | null, storedPath: string | null): string | null {
+  if (!storedPath) return null;
+  if (isAbsolutePath(storedPath)) return storedPath;
+  if (!workspaceRoot) return storedPath;
+  return joinWorkspacePath(workspaceRoot, storedPath);
+}
+
 function detectDuplicateEntryIssues(vehicles: Record<string, VehicleEntry>): ValidationIssue[] {
-  const modelGroups = new Map<string, string[]>();
-  const handlingGroups = new Map<string, string[]>();
+  const modelGroups = new Map<string, VehicleEntry[]>();
+  const handlingGroups = new Map<string, VehicleEntry[]>();
 
   for (const vehicle of Object.values(vehicles)) {
     const model = normalizeKey(vehicle.vehicles.modelName);
     const handling = normalizeKey(vehicle.vehicles.handlingId);
-    if (model) modelGroups.set(model, [...(modelGroups.get(model) ?? []), vehicle.vehicles.modelName]);
-    if (handling) handlingGroups.set(handling, [...(handlingGroups.get(handling) ?? []), vehicle.vehicles.handlingId]);
+    if (model) modelGroups.set(model, [...(modelGroups.get(model) ?? []), vehicle]);
+    if (handling) handlingGroups.set(handling, [...(handlingGroups.get(handling) ?? []), vehicle]);
   }
 
+  const describeSources = (entries: VehicleEntry[]): string => {
+    const sources = new Set<string>();
+    for (const entry of entries) {
+      for (const source of Object.values(entry.provenance?.byType ?? {})) {
+        if (source) sources.add(source);
+      }
+    }
+    if (sources.size === 0) return "Source file provenance unavailable.";
+    return `Sources: ${[...sources].slice(0, 4).join(", ")}${sources.size > 4 ? "..." : ""}`;
+  };
+
   const issues: ValidationIssue[] = [];
-  for (const [key, values] of modelGroups.entries()) {
-    if (values.length > 1) {
+  for (const [key, entries] of modelGroups.entries()) {
+    if (entries.length > 1) {
       issues.push({
         line: 1,
         severity: "warning",
         message: `Duplicate modelName detected: ${key}`,
-        context: "Each vehicle entry should use a unique modelName.",
+        context: `${describeSources(entries)} Each vehicle entry should use a unique modelName.`,
       });
     }
   }
-  for (const [key, values] of handlingGroups.entries()) {
-    if (values.length > 1) {
+  for (const [key, entries] of handlingGroups.entries()) {
+    if (entries.length > 1) {
       issues.push({
         line: 1,
         severity: "warning",
         message: `Duplicate handlingId detected: ${key}`,
-        context: "Each vehicle entry should use a unique handlingId.",
+        context: `${describeSources(entries)} Each vehicle entry should use a unique handlingId.`,
       });
     }
   }
@@ -145,10 +184,22 @@ function App() {
     const validation = validateMetaXml(content);
     const fileName = filePath.split(/[/\\]/).pop() ?? "";
     const detectedType = detectMetaType(content, fileName);
-    const parsedVehicles = parseMetaFile(content, {}, fileName);
+    const parseDiagnostics: ParseDiagnostic[] = [];
+    const parsedVehicles = parseMetaFile(content, {}, fileName, {
+      sourcePath: filePath,
+      diagnostics: parseDiagnostics,
+    });
 
     setValidationFileName(fileName);
-    setValidationIssues(validation.issues);
+    setValidationIssues([
+      ...validation.issues,
+      ...parseDiagnostics.map((diagnostic) => ({
+        line: 1,
+        severity: diagnostic.severity,
+        message: diagnostic.message,
+        context: diagnostic.context,
+      } satisfies ValidationIssue)),
+    ]);
 
     loadVehicles(parsedVehicles);
     for (const type of ALL_META_TYPES) {
@@ -191,32 +242,46 @@ function App() {
       let firstDetectedType: typeof activeTab | null = null;
       const nextSourceFileByType: Partial<Record<MetaFileType, string>> = {};
 
-      for (const path of metaPaths) {
+      for (const relativePath of metaPaths) {
         try {
-          const content = await invoke<string>("read_meta_file", { path });
-          const fileName = path.split(/[/\\]/).pop() ?? "";
+          const absolutePath = joinWorkspacePath(folderPath, relativePath);
+          const content = await invoke<string>("read_meta_file", { path: absolutePath });
+          const fileName = relativePath.split(/[/\\]/).pop() ?? "";
           const detectedType = detectMetaType(content, fileName);
           if (!detectedType) continue;
 
           const validation = validateMetaXml(content);
-          mergedVehicles = parseMetaFile(content, mergedVehicles, fileName);
-          loadedWorkspaceFiles.push(path);
+          const parseDiagnostics: ParseDiagnostic[] = [];
+          mergedVehicles = parseMetaFile(content, mergedVehicles, fileName, {
+            sourcePath: relativePath,
+            diagnostics: parseDiagnostics,
+          });
+          loadedWorkspaceFiles.push(relativePath);
           if (!firstDetectedType) firstDetectedType = detectedType;
           if (!nextSourceFileByType[detectedType]) {
-            nextSourceFileByType[detectedType] = path;
+            nextSourceFileByType[detectedType] = relativePath;
           }
 
           for (const issue of validation.issues) {
             issues.push({
               ...issue,
-              message: `[${fileName}] ${issue.message}`,
+              message: `[${relativePath}] ${issue.message}`,
+            });
+          }
+
+          for (const diagnostic of parseDiagnostics) {
+            issues.push({
+              line: 1,
+              severity: diagnostic.severity,
+              message: `[${relativePath}] ${diagnostic.message}`,
+              context: diagnostic.context,
             });
           }
         } catch (error) {
           issues.push({
             line: 1,
             severity: "warning",
-            message: `Failed to load ${path.split(/[/\\]/).pop() ?? path}`,
+            message: `Failed to load ${relativePath}`,
             context: String(error),
           });
         }
@@ -284,9 +349,14 @@ function App() {
     }
   }, [openMetaPath]);
 
+  const handleOpenRecentFile = useCallback(async (path: string) => {
+    const resolved = resolveWorkspaceFilePath(workspacePath, path) ?? path;
+    await openMetaPath(resolved);
+  }, [openMetaPath, workspacePath]);
+
   const handleSaveFile = useCallback(async () => {
     try {
-      let targetPath = sourceFileByType[activeTab] ?? null;
+      let targetPath = resolveWorkspaceFilePath(workspacePath, sourceFileByType[activeTab] ?? null);
       if (!targetPath) {
         targetPath = await saveDialog({
           filters: [{ name: "Meta Files", extensions: ["meta", "xml"] }],
@@ -294,17 +364,20 @@ function App() {
         });
       }
       if (!targetPath) return;
+
       const vehicleList = Object.values(vehicles);
       const content = serializeActiveTab(activeTab, vehicleList);
       await invoke("write_meta_file", { path: targetPath, content });
-      setSourceFilePath(activeTab, targetPath);
-      setFilePath(targetPath);
+
+      const storedPath = toWorkspaceRelativePath(workspacePath, targetPath);
+      setSourceFilePath(activeTab, storedPath);
+      setFilePath(storedPath);
       addRecentFile(targetPath);
       markClean();
     } catch (err) {
       console.error("Failed to save file:", err);
     }
-  }, [vehicles, activeTab, sourceFileByType, setSourceFilePath, setFilePath, markClean, addRecentFile]);
+  }, [vehicles, activeTab, sourceFileByType, workspacePath, setSourceFilePath, setFilePath, markClean, addRecentFile]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -368,29 +441,73 @@ function App() {
   }, [setLastAutoSavedAt]);
 
   useEffect(() => {
-    const autosaveId = window.setInterval(() => {
-      if (!isDirty) return;
+    let pendingPersistHandle: number | null = null;
+
+    const persistSnapshot = (updateTimestamp: boolean) => {
       try {
         const snapshot = getSessionSnapshot();
-        localStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
-        setLastAutoSavedAt(Date.now());
+        const serialized = JSON.stringify(snapshot);
+
+        if (serialized.length > SESSION_MAX_BYTES) {
+          console.warn("Skipping session auto-save because snapshot is too large.");
+          return;
+        }
+
+        localStorage.setItem(SESSION_KEY, serialized);
+        if (updateTimestamp) {
+          setLastAutoSavedAt(Date.now());
+        }
       } catch (error) {
-        console.warn("Auto-save failed:", error);
+        console.warn("Session persistence failed:", error);
       }
+    };
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const cancelPendingPersist = () => {
+      if (pendingPersistHandle === null) return;
+      if (idleWindow.cancelIdleCallback) {
+        idleWindow.cancelIdleCallback(pendingPersistHandle);
+      } else {
+        clearTimeout(pendingPersistHandle);
+      }
+      pendingPersistHandle = null;
+    };
+
+    const schedulePersist = () => {
+      cancelPendingPersist();
+      if (idleWindow.requestIdleCallback) {
+        pendingPersistHandle = idleWindow.requestIdleCallback(() => {
+          pendingPersistHandle = null;
+          persistSnapshot(true);
+        }, { timeout: 1200 });
+        return;
+      }
+
+      pendingPersistHandle = setTimeout(() => {
+        pendingPersistHandle = null;
+        persistSnapshot(true);
+      }, 150);
+    };
+
+    const autosaveId = window.setInterval(() => {
+      if (!isDirty) return;
+      schedulePersist();
     }, 30_000);
 
     const handleBeforeUnload = () => {
-      try {
-        const snapshot = getSessionSnapshot();
-        localStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
-      } catch (error) {
-        console.warn("Failed to persist snapshot before unload:", error);
-      }
+      if (!isDirty) return;
+      cancelPendingPersist();
+      persistSnapshot(false);
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.clearInterval(autosaveId);
+      cancelPendingPersist();
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [isDirty, getSessionSnapshot, setLastAutoSavedAt]);
@@ -439,7 +556,7 @@ function App() {
         onOpenFile={handleOpenFile}
         onOpenFolder={handleOpenWorkspace}
         onSaveFile={handleSaveFile}
-        onOpenRecentFile={openMetaPath}
+        onOpenRecentFile={handleOpenRecentFile}
         onOpenRecentWorkspace={openWorkspacePath}
         recentFiles={recentFiles}
         recentWorkspaces={recentWorkspaces}

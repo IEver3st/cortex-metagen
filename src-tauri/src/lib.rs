@@ -1,4 +1,9 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
+
+const MAX_SCAN_DEPTH: usize = 32;
+const MAX_SCAN_FILES: usize = 20_000;
+const MAX_SCAN_DURATION: Duration = Duration::from_secs(8);
 
 #[tauri::command]
 fn read_meta_file(path: String) -> Result<String, String> {
@@ -10,24 +15,64 @@ fn write_meta_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| e.to_string())
 }
 
-fn collect_meta_files(dir: &Path, out: &mut Vec<String>) -> Result<(), String> {
-    let entries = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
+fn is_supported_meta_file(path: &Path) -> bool {
+    let ext = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default();
+    let lowered = ext.to_ascii_lowercase();
+    lowered == "meta" || lowered == "xml"
+}
 
-    for entry in entries {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let path = entry.path();
-        if path.is_dir() {
-            collect_meta_files(&path, out)?;
+fn normalize_relative_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+fn collect_meta_files(root: &Path, out: &mut Vec<String>) -> Result<(), String> {
+    let start = Instant::now();
+    let mut stack: Vec<(PathBuf, usize)> = vec![(root.to_path_buf(), 0)];
+
+    while let Some((dir, depth)) = stack.pop() {
+        if start.elapsed() > MAX_SCAN_DURATION {
+            return Err(
+                "Workspace scan timed out. Narrow the folder scope and try again.".to_string(),
+            );
+        }
+
+        if depth > MAX_SCAN_DEPTH {
             continue;
         }
 
-        if path.is_file() {
-            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                let ext = ext.to_ascii_lowercase();
-                if ext == "meta" || ext == "xml" {
-                    out.push(path.to_string_lossy().to_string());
-                }
+        let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
+        for entry_result in entries {
+            if out.len() >= MAX_SCAN_FILES {
+                return Err(
+                    "Workspace scan hit the file limit. Narrow the folder scope and try again."
+                        .to_string(),
+                );
             }
+
+            let entry = entry_result.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            let metadata = std::fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
+
+            if metadata.file_type().is_symlink() {
+                continue;
+            }
+
+            if metadata.is_dir() {
+                if depth < MAX_SCAN_DEPTH {
+                    stack.push((path, depth + 1));
+                }
+                continue;
+            }
+
+            if !metadata.is_file() || !is_supported_meta_file(&path) {
+                continue;
+            }
+
+            let relative = path.strip_prefix(root).unwrap_or(&path);
+            out.push(normalize_relative_path(relative));
         }
     }
 

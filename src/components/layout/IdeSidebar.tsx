@@ -35,6 +35,17 @@ const navItems: Array<{ key: MetaFileType; label: string; icon: ComponentType<{ 
   { key: "vehiclelayouts", label: "Layouts", icon: LayoutPanelTop },
 ];
 
+const prefetchByTab: Record<MetaFileType, () => Promise<unknown>> = {
+  handling: () => import("@/components/editors/HandlingEditor"),
+  vehicles: () => import("@/components/editors/VehiclesEditor"),
+  carcols: () => import("@/components/editors/CarcolsEditor"),
+  modkits: () => import("@/components/editors/ModkitsEditor"),
+  carvariations: () => import("@/components/editors/CarvariationsEditor"),
+  vehiclelayouts: () => import("@/components/editors/VehicleLayoutsEditor"),
+};
+
+const prefetchMergeView = () => import("@/components/layout/MetaMergingView");
+
 const sectionVariants = {
   hidden: { opacity: 0, y: 8 },
   show: {
@@ -77,49 +88,23 @@ export function IdeSidebar({
         transition={{ duration: 0.24, ease: "easeOut" }}
         className="h-full border-r border-[#131a2b] bg-[#050d21] flex flex-col"
       >
-        <div className={cn("px-2 py-2 flex flex-col gap-2", collapsed && "items-center")}>
-          <AnimatePresence initial={false}>
-            {!collapsed && (
-              <motion.span
-                key="workspace-label"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.18 }}
-                className="text-[11px] uppercase tracking-[0.2em] text-slate-400 whitespace-nowrap"
-              >
-                Workspace
-              </motion.span>
-            )}
-          </AnimatePresence>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant={effectiveExplorerVisible ? "secondary" : "ghost"}
-                size="icon-sm"
-                className="h-7 w-7"
-                onClick={() => {
-                  if (collapsed) {
-                    setSidebarCollapsed(false);
-                    setExplorerVisible(true);
-                    return;
-                  }
-
-                  setExplorerVisible(!effectiveExplorerVisible);
-                }}
-              >
-                <Files className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="border-[#2a3f60] bg-[#111c31] text-slate-100">
-              Explorer
-            </TooltipContent>
-          </Tooltip>
-        </div>
-
-        <motion.div variants={sectionVariants} initial="hidden" animate="show" className="px-2 pb-2 space-y-1">
+        <motion.div variants={sectionVariants} initial="hidden" animate="show" className="px-2 pt-2 pb-2 space-y-1">
+          <motion.div variants={itemVariants}>
+            <SidebarAction
+              collapsed={collapsed}
+              label="Workspace"
+              icon={Files}
+              active={effectiveExplorerVisible}
+              onClick={() => {
+                if (collapsed) {
+                  setSidebarCollapsed(false);
+                  setExplorerVisible(true);
+                  return;
+                }
+                setExplorerVisible(!effectiveExplorerVisible);
+              }}
+            />
+          </motion.div>
           <motion.div variants={itemVariants}>
             <SidebarAction
               collapsed={collapsed}
@@ -156,11 +141,6 @@ export function IdeSidebar({
 
         {effectiveExplorerVisible ? (
           <div className="flex-1 min-h-0 p-2">
-            {!collapsed && (
-              <div className="pb-2">
-                <span className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Explorer</span>
-              </div>
-            )}
             <div className="h-full min-h-0">
               <WorkspaceExplorer />
             </div>
@@ -175,6 +155,9 @@ export function IdeSidebar({
                   icon={item.icon}
                   active={uiView === "workspace" && activeTab === item.key}
                   disabled={!hasSelection}
+                  onMouseEnter={() => {
+                    void prefetchByTab[item.key]();
+                  }}
                   onClick={() => {
                     setActiveTab(item.key);
                     setUIView("workspace");
@@ -188,6 +171,9 @@ export function IdeSidebar({
                 label="Meta Merging"
                 icon={Files}
                 active={uiView === "merge"}
+                onMouseEnter={() => {
+                  void prefetchMergeView();
+                }}
                 onClick={() => setUIView("merge")}
               />
             </motion.div>
@@ -203,11 +189,12 @@ interface SidebarActionProps {
   label: string;
   icon: ComponentType<{ className?: string }>;
   onClick?: () => void;
+  onMouseEnter?: () => void;
   active?: boolean;
   disabled?: boolean;
 }
 
-function SidebarAction({ collapsed, label, icon: Icon, onClick, active, disabled }: SidebarActionProps) {
+function SidebarAction({ collapsed, label, icon: Icon, onClick, onMouseEnter, active, disabled }: SidebarActionProps) {
   const button = (
     <motion.div whileHover={{ x: 1.5 }} transition={{ duration: 0.16 }}>
       <Button
@@ -218,6 +205,7 @@ function SidebarAction({ collapsed, label, icon: Icon, onClick, active, disabled
           collapsed ? "px-0" : "justify-start px-2",
           active && "bg-[#1b2c47] border-[#2a3f60] text-[#dbe8ff] shadow-[inset_0_0_0_1px_rgba(93,129,184,0.2)]",
         )}
+        onMouseEnter={onMouseEnter}
         onClick={onClick}
         disabled={disabled}
       >
@@ -230,7 +218,7 @@ function SidebarAction({ collapsed, label, icon: Icon, onClick, active, disabled
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -4 }}
               transition={{ duration: 0.14 }}
-              className="ml-2 text-xs"
+              className="ml-2 text-xs whitespace-nowrap overflow-hidden"
             >
               {label}
             </motion.span>

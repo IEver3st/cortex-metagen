@@ -1,3 +1,5 @@
+import { XMLValidator } from "fast-xml-parser";
+
 export type QuickFixId =
   | "close-comment"
   | "escape-ampersand"
@@ -22,8 +24,36 @@ export interface ValidationResult {
   issues: ValidationIssue[];
 }
 
+function buildStrictXmlIssue(xml: string): ValidationIssue | null {
+  const strictResult = XMLValidator.validate(xml, {
+    allowBooleanAttributes: true,
+  });
+
+  if (strictResult === true) {
+    return null;
+  }
+
+  const err = (strictResult as { err?: { line?: number; col?: number; msg?: string } }).err;
+  const line = err?.line ?? 1;
+  const col = err?.col ?? 1;
+  const contextLine = xml.split("\n")[line - 1] ?? "";
+
+  return {
+    line,
+    column: col,
+    severity: "error",
+    message: err?.msg ?? "XML is not well-formed.",
+    context: contextLine.trim().slice(0, 120),
+  };
+}
+
 export function validateMetaXml(xml: string): ValidationResult {
   const issues: ValidationIssue[] = [];
+  const strictIssue = buildStrictXmlIssue(xml);
+  if (strictIssue) {
+    issues.push(strictIssue);
+  }
+
   const lines = xml.split("\n");
 
   // Track tag stack for matching

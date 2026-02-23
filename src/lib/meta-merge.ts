@@ -19,10 +19,12 @@ export interface MergeSummary {
   parsedEntries: number;
   uniqueEntries: number;
   duplicatesRemoved: number;
+  conflictsDetected: number;
   type: MetaFileType;
   preservedComments: number;
   handlingIdConsolidations: number;
 }
+
 
 export interface MergeResult {
   xml: string;
@@ -127,14 +129,10 @@ function pickCanonicalHandlingId(currentId: string, incomingId: string): string 
   const incomingLower = incoming.toLowerCase();
   if (currentLower === incomingLower) return current;
 
-  // If one looks like a variant/suffix of the other (e.g. DURANGO vs DURANGOSS), prefer the base/shorter ID.
-  if (incomingLower.startsWith(currentLower) || currentLower.startsWith(incomingLower)) {
-    return incoming.length < current.length ? incoming : current;
-  }
-
-  // Default to first-seen ID for deterministic behavior.
+  // Keep first-seen ID unless user explicitly opts in to consolidation.
   return current;
 }
+
 
 function canonicalHandlingIdBySimilarity(candidate: string, allIds: string[]): string {
   const cleanCandidate = candidate.trim();

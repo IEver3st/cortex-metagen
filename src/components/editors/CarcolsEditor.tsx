@@ -144,7 +144,12 @@ const LightEditor = memo(function LightEditor({
   onRemove: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const isRotator = light.rotation.trim() === "0 0 1";
+  const [rotationX, rotationY, rotationZ] = light.rotation
+    .trim()
+    .split(/\s+/)
+    .slice(0, 3)
+    .map((part) => Number.parseFloat(part) || 0);
+  const isRotator = Math.abs(rotationX) < 0.0001 && Math.abs(rotationY) < 0.0001 && Math.abs(rotationZ - 1) < 0.0001;
   const isLED = light.flashness >= 500;
 
   return (
@@ -198,11 +203,11 @@ const LightEditor = memo(function LightEditor({
           />
           <button
             type="button"
-            onClick={() => onChange({ rotation: light.rotation === "0 0 1" ? "0 0 0" : "0 0 1" })}
+            onClick={() => onChange({ rotation: isRotator ? "0 0 0" : "0 0 1" })}
             className="text-[9px] px-1.5 py-0.5 rounded border border-border hover:border-muted-foreground/50 transition-colors shrink-0"
             title="Toggle LED (0 0 0) / Rotator (0 0 1)"
           >
-            {light.rotation.trim() === "0 0 1" ? "→ LED" : "→ Rotator"}
+            {isRotator ? "→ LED" : "→ Rotator"}
           </button>
         </div>
       </div>

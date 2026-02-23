@@ -108,10 +108,10 @@ export const Toolbar = memo(function Toolbar({
           <TooltipTrigger asChild>
             <button
               type="button"
-              className={`flex items-center gap-1 shrink-0 py-2 px-1 transition-colors ${uiView === "home" ? "bg-muted/40" : "hover:bg-muted/30"}`}
+              className="flex items-center justify-center shrink-0 w-8 h-8 transition-opacity hover:opacity-80"
               onClick={onGoHome}
             >
-              <HiOutlineCode className="h-4 w-4" style={{ color: "#8eaad0" }} />
+              <HiOutlineCode className="h-5 w-5" style={{ color: "#8eaad0" }} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">Home</TooltipContent>

@@ -1,38 +1,112 @@
 import { create } from "zustand";
 
 export type MetaFileType = "handling" | "vehicles" | "carcols" | "carvariations" | "vehiclelayouts" | "modkits";
+export type PerformanceSpeedUnit = "mph" | "kph";
 
 export interface HandlingData {
   handlingName: string;
   fMass: number;
   fInitialDragCoeff: number;
+  fPercentSubmerged: number;
   vecCentreOfMassOffsetX: number;
   vecCentreOfMassOffsetY: number;
   vecCentreOfMassOffsetZ: number;
   vecInertiaMultiplierX: number;
   vecInertiaMultiplierY: number;
   vecInertiaMultiplierZ: number;
-  fInitialDriveForce: number;
-  fInitialDriveMaxFlatVel: number;
-  nInitialDriveGears: number;
   fDriveBiasFront: number;
+  nInitialDriveGears: number;
+  fInitialDriveForce: number;
+  fDriveInertia: number;
+  fClutchChangeRateScaleUpShift: number;
+  fClutchChangeRateScaleDownShift: number;
+  fInitialDriveMaxFlatVel: number;
   fBrakeForce: number;
   fBrakeBiasFront: number;
+  fHandBrakeForce: number;
   fSteeringLock: number;
   fTractionCurveMax: number;
   fTractionCurveMin: number;
+  fTractionCurveLateral: number;
+  fTractionSpringDeltaMax: number;
   fTractionLossMult: number;
   fLowSpeedTractionLossMult: number;
+  fCamberStiffnesss: number;
+  fTractionBiasFront: number;
   fSuspensionForce: number;
   fSuspensionCompDamp: number;
   fSuspensionReboundDamp: number;
+  fSuspensionUpperLimit: number;
+  fSuspensionLowerLimit: number;
   fAntiRollBarForce: number;
+  fAntiRollBarBiasFront: number;
   fSuspensionRaise: number;
+  fSuspensionBiasFront: number;
+  fRollCentreHeightFront: number;
+  fRollCentreHeightRear: number;
   fCollisionDamageMult: number;
+  fWeaponDamageMult: number;
   fDeformationDamageMult: number;
+  fEngineDamageMult: number;
+  fPetrolTankVolume: number;
+  fOilVolume: number;
+  fSeatOffsetDistX: number;
+  fSeatOffsetDistY: number;
+  fSeatOffsetDistZ: number;
+  nMonetaryValue: number;
   strModelFlags: string;
   strHandlingFlags: string;
+  strDamageFlags: string;
+  aiHandling: string;
+  fBackEndPopUpCarImpulseMult: number;
+  fBackEndPopUpBuildingImpulseMult: number;
+  fBackEndPopUpMaxDeltaSpeed: number;
 }
+
+export interface VehicleVec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface VehicleTxdRelationship {
+  parent: string;
+  child: string;
+}
+
+export interface VehicleDriver {
+  driverName: string;
+  npcName: string;
+}
+
+export interface VehicleDoorStiffnessMultiplier {
+  doorId: number;
+  stiffnessMult: number;
+}
+
+export interface VehicleUnknownXmlNode {
+  tag: string;
+  value: unknown;
+}
+
+export const FIRST_PERSON_IK_OFFSET_NAMES = [
+  "FirstPersonDriveByIKOffset",
+  "FirstPersonDriveByUnarmedIKOffset",
+  "FirstPersonProjectileDriveByIKOffset",
+  "FirstPersonProjectileDriveByPassengerIKOffset",
+  "FirstPersonProjectileDriveByRearLeftIKOffset",
+  "FirstPersonProjectileDriveByRearRightIKOffset",
+  "FirstPersonDriveByLeftPassengerIKOffset",
+  "FirstPersonDriveByRightPassengerIKOffset",
+  "FirstPersonDriveByRightRearPassengerIKOffset",
+  "FirstPersonDriveByLeftPassengerUnarmedIKOffset",
+  "FirstPersonDriveByRightPassengerUnarmedIKOffset",
+  "FirstPersonMobilePhoneOffset",
+  "FirstPersonPassengerMobilePhoneOffset",
+] as const;
+
+export type FirstPersonIkOffsetName =
+  (typeof FIRST_PERSON_IK_OFFSET_NAMES)[number];
 
 export interface VehiclesData {
   modelName: string;
@@ -40,16 +114,83 @@ export interface VehiclesData {
   handlingId: string;
   gameName: string;
   vehicleMakeName: string;
-  type: string;
-  vehicleClass: string;
+  expressionDictName: string;
+  expressionName: string;
+  animConvRoofDictName: string;
+  animConvRoofName: string;
+  animConvRoofWindowsAffected: string;
+  ptfxAssetName: string;
+  audioNameHash: string;
   layout: string;
   driverSourceExtension: string;
-  audioNameHash: string;
-  lodDistances: string;
-  diffuseTint: string;
+  coverBoundOffsets: string;
+  povTuningInfo: unknown | null;
+  explosionInfo: unknown | null;
+  scenarioLayout: string;
+  cameraName: string;
+  aimCameraName: string;
+  bonnetCameraName: string;
+  povCameraName: string;
+  firstPersonIkOffsets: Partial<Record<FirstPersonIkOffsetName, VehicleVec3>>;
+  povCameraOffset: VehicleVec3;
+  povCameraVerticalAdjustmentForRollCage: number;
+  povPassengerCameraOffset: VehicleVec3;
+  povRearPassengerCameraOffset: VehicleVec3;
+  firstPersonDrivebyData: unknown | null;
+  vfxInfoName: string;
+  shouldUseCinematicViewMode: boolean;
+  shouldCameraTransitionOnClimbUpDown: boolean;
+  shouldCameraIgnoreExiting: boolean;
+  allowPretendOccupants: boolean;
+  allowJoyriding: boolean;
+  allowSundayDriving: boolean;
+  allowBodyColorMapping: boolean;
+  wheelScale: number;
+  wheelScaleRear: number;
   dirtLevelMin: number;
   dirtLevelMax: number;
+  envEffScaleMin: number;
+  envEffScaleMax: number;
+  envEffScaleMin2: number;
+  envEffScaleMax2: number;
+  damageMapScale: number;
+  damageOffsetScale: number;
+  diffuseTint: string;
+  steerWheelMult: number;
+  HDTextureDist: number;
+  lodDistances: string;
+  minSeatHeight: number;
+  identicalModelSpawnDistance: number;
+  maxNumOfSameColor: number;
+  defaultBodyHealth: number;
+  pretendOccupantsScale: number;
+  visibleSpawnDistScale: number;
+  trackerPathWidth: number;
+  weaponForceMult: number;
+  frequency: number;
+  swankness: string;
+  maxNum: number;
   flags: string[];
+  type: string;
+  plateType: string;
+  dashboardType: string;
+  vehicleClass: string;
+  wheelType: string;
+  trailers: string;
+  additionalTrailers: string;
+  drivers: VehicleDriver[];
+  extraIncludes: string;
+  doorsWithCollisionWhenClosed: string;
+  driveableDoors: string;
+  doorStiffnessMultipliers: VehicleDoorStiffnessMultiplier[];
+  bumpersNeedToCollideWithMap: boolean;
+  needsRopeTexture: boolean;
+  requiredExtras: string;
+  residentTxd: string;
+  residentAnims: string;
+  txdRelationships: VehicleTxdRelationship[];
+  unknownNodes: VehicleUnknownXmlNode[];
+  unknownFileLevelNodes: VehicleUnknownXmlNode[];
 }
 
 export interface SirenLight {
@@ -179,6 +320,182 @@ function ensureVehicleLayouts(vl: any): VehicleLayoutsData {
   };
 }
 
+const ZERO_VEC3: VehicleVec3 = { x: 0, y: 0, z: 0 };
+
+function createDefaultIkOffsets(): Record<FirstPersonIkOffsetName, VehicleVec3> {
+  return Object.fromEntries(
+    FIRST_PERSON_IK_OFFSET_NAMES.map((name) => [name, { ...ZERO_VEC3 }])
+  ) as Record<FirstPersonIkOffsetName, VehicleVec3>;
+}
+
+const defaultVehiclesData: VehiclesData = {
+  modelName: "newvehicle",
+  txdName: "newvehicle",
+  handlingId: "NEWVEHICLE",
+  gameName: "NEWVEHICLE",
+  vehicleMakeName: "CUSTOM",
+  expressionDictName: "",
+  expressionName: "",
+  animConvRoofDictName: "",
+  animConvRoofName: "",
+  animConvRoofWindowsAffected: "",
+  ptfxAssetName: "",
+  audioNameHash: "ADDER",
+  layout: "LAYOUT_STANDARD",
+  driverSourceExtension: "feroci",
+  coverBoundOffsets: "",
+  povTuningInfo: null,
+  explosionInfo: null,
+  scenarioLayout: "",
+  cameraName: "DEFAULT_SCRIPTED_CAMERA",
+  aimCameraName: "DEFAULT_AIM_CAMERA",
+  bonnetCameraName: "BONNET_CAMERA",
+  povCameraName: "POV_CAMERA",
+  firstPersonIkOffsets: createDefaultIkOffsets(),
+  povCameraOffset: { ...ZERO_VEC3 },
+  povCameraVerticalAdjustmentForRollCage: 0,
+  povPassengerCameraOffset: { ...ZERO_VEC3 },
+  povRearPassengerCameraOffset: { ...ZERO_VEC3 },
+  firstPersonDrivebyData: null,
+  vfxInfoName: "VFXVEHICLEINFO_DEFAULT",
+  shouldUseCinematicViewMode: true,
+  shouldCameraTransitionOnClimbUpDown: false,
+  shouldCameraIgnoreExiting: false,
+  allowPretendOccupants: false,
+  allowJoyriding: true,
+  allowSundayDriving: true,
+  allowBodyColorMapping: false,
+  wheelScale: 1,
+  wheelScaleRear: 1,
+  dirtLevelMin: 0,
+  dirtLevelMax: 0.4,
+  envEffScaleMin: 0,
+  envEffScaleMax: 1,
+  envEffScaleMin2: 0,
+  envEffScaleMax2: 1,
+  damageMapScale: 1,
+  damageOffsetScale: 1,
+  diffuseTint: "0x00FFFFFF",
+  steerWheelMult: 1,
+  HDTextureDist: 60,
+  lodDistances: "15.0 30.0 60.0 120.0 500.0",
+  minSeatHeight: 0.2,
+  identicalModelSpawnDistance: 20,
+  maxNumOfSameColor: 5,
+  defaultBodyHealth: 700,
+  pretendOccupantsScale: 1,
+  visibleSpawnDistScale: 1,
+  trackerPathWidth: 2,
+  weaponForceMult: 1,
+  frequency: 20,
+  swankness: "SWANKNESS_3",
+  maxNum: 20,
+  flags: [],
+  type: "VEHICLE_TYPE_CAR",
+  plateType: "VPT_FRONT_AND_BACK_PLATES",
+  dashboardType: "VDT_DEFAULT",
+  vehicleClass: "VC_SPORT",
+  wheelType: "VWT_SPORT",
+  trailers: "",
+  additionalTrailers: "",
+  drivers: [],
+  extraIncludes: "",
+  doorsWithCollisionWhenClosed: "",
+  driveableDoors: "",
+  doorStiffnessMultipliers: [],
+  bumpersNeedToCollideWithMap: false,
+  needsRopeTexture: false,
+  requiredExtras: "",
+  residentTxd: "vehshare",
+  residentAnims: "",
+  txdRelationships: [],
+  unknownNodes: [],
+  unknownFileLevelNodes: [],
+};
+
+function ensureVec3(value: unknown, fallback: VehicleVec3): VehicleVec3 {
+  if (!value || typeof value !== "object") return { ...fallback };
+  const vec = value as Partial<VehicleVec3>;
+  return {
+    x: typeof vec.x === "number" ? vec.x : fallback.x,
+    y: typeof vec.y === "number" ? vec.y : fallback.y,
+    z: typeof vec.z === "number" ? vec.z : fallback.z,
+  };
+}
+
+function ensureVehiclesData(vehicles: unknown): VehiclesData {
+  const raw = vehicles && typeof vehicles === "object" ? (vehicles as Partial<VehiclesData>) : {};
+  const modelName = typeof raw.modelName === "string" && raw.modelName.trim()
+    ? raw.modelName.trim()
+    : defaultVehiclesData.modelName;
+  const txdName = typeof raw.txdName === "string" && raw.txdName.trim()
+    ? raw.txdName.trim()
+    : modelName;
+
+  const firstPersonIkOffsets: VehiclesData["firstPersonIkOffsets"] = {};
+  for (const offsetName of FIRST_PERSON_IK_OFFSET_NAMES) {
+    const currentOffset = raw.firstPersonIkOffsets?.[offsetName] ?? defaultVehiclesData.firstPersonIkOffsets[offsetName];
+    firstPersonIkOffsets[offsetName] = ensureVec3(currentOffset, ZERO_VEC3);
+  }
+
+  return {
+    ...defaultVehiclesData,
+    ...raw,
+    modelName,
+    txdName,
+    handlingId: typeof raw.handlingId === "string" && raw.handlingId.trim()
+      ? raw.handlingId.trim()
+      : modelName.toUpperCase(),
+    gameName: typeof raw.gameName === "string" && raw.gameName.trim()
+      ? raw.gameName.trim()
+      : modelName.toUpperCase(),
+    firstPersonIkOffsets,
+    povCameraOffset: ensureVec3(raw.povCameraOffset, defaultVehiclesData.povCameraOffset),
+    povPassengerCameraOffset: ensureVec3(raw.povPassengerCameraOffset, defaultVehiclesData.povPassengerCameraOffset),
+    povRearPassengerCameraOffset: ensureVec3(raw.povRearPassengerCameraOffset, defaultVehiclesData.povRearPassengerCameraOffset),
+    flags: Array.isArray(raw.flags) ? raw.flags.filter((flag): flag is string => typeof flag === "string") : [],
+    drivers: Array.isArray(raw.drivers)
+      ? raw.drivers
+        .filter((driver): driver is VehicleDriver => Boolean(driver) && typeof driver === "object")
+        .map((driver) => ({
+          driverName: typeof driver.driverName === "string" ? driver.driverName : "",
+          npcName: typeof driver.npcName === "string" ? driver.npcName : "",
+        }))
+      : [],
+    doorStiffnessMultipliers: Array.isArray(raw.doorStiffnessMultipliers)
+      ? raw.doorStiffnessMultipliers
+        .filter((item): item is VehicleDoorStiffnessMultiplier => Boolean(item) && typeof item === "object")
+        .map((item) => ({
+          doorId: typeof item.doorId === "number" ? item.doorId : 0,
+          stiffnessMult: typeof item.stiffnessMult === "number" ? item.stiffnessMult : 1,
+        }))
+      : [],
+    txdRelationships: Array.isArray(raw.txdRelationships)
+      ? raw.txdRelationships
+        .filter((item): item is VehicleTxdRelationship => Boolean(item) && typeof item === "object")
+        .map((item) => ({
+          parent: typeof item.parent === "string" && item.parent.trim() ? item.parent.trim() : defaultVehiclesData.residentTxd,
+          child: typeof item.child === "string" ? item.child.trim() : "",
+        }))
+        .filter((item) => item.child.length > 0)
+      : [{ parent: defaultVehiclesData.residentTxd, child: txdName }],
+    unknownNodes: Array.isArray(raw.unknownNodes)
+      ? raw.unknownNodes
+        .filter((node): node is VehicleUnknownXmlNode => Boolean(node) && typeof node === "object" && typeof (node as VehicleUnknownXmlNode).tag === "string")
+        .map((node) => ({ tag: node.tag, value: node.value }))
+      : [],
+    unknownFileLevelNodes: Array.isArray(raw.unknownFileLevelNodes)
+      ? raw.unknownFileLevelNodes
+        .filter((node): node is VehicleUnknownXmlNode => Boolean(node) && typeof node === "object" && typeof (node as VehicleUnknownXmlNode).tag === "string")
+        .map((node) => ({ tag: node.tag, value: node.value }))
+      : [],
+  };
+}
+
+export interface VehicleProvenance {
+  byType: Partial<Record<MetaFileType, string>>;
+}
+
 export interface VehicleEntry {
   id: string;
   name: string;
@@ -189,6 +506,7 @@ export interface VehicleEntry {
   vehiclelayouts: VehicleLayoutsData;
   modkits: ModkitsData;
   loadedMeta: Set<MetaFileType>;
+  provenance?: VehicleProvenance;
 }
 
 interface SerializedVehicleEntry extends Omit<VehicleEntry, "loadedMeta"> {
@@ -213,23 +531,34 @@ export interface SessionSnapshot {
   sourceFileByType: Partial<Record<MetaFileType, string>>;
   openVehicleIds: string[];
   sidebarCollapsed: boolean;
+  performanceSpeedUnit: PerformanceSpeedUnit;
   isDirty: boolean;
   recentFiles: string[];
   recentWorkspaces: string[];
   timestamp: number;
 }
 
-const HISTORY_LIMIT = 100;
+const HISTORY_LIMIT = 80;
+const HISTORY_MAX_BYTES = 8_000_000;
 const RECENT_FILES_LIMIT = 10;
+
+function deepClone<T>(value: T): T {
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 function serializeVehicles(vehicles: Record<string, VehicleEntry>): Record<string, SerializedVehicleEntry> {
   const result: Record<string, SerializedVehicleEntry> = {};
   for (const [id, entry] of Object.entries(vehicles)) {
+    const clone = deepClone({
+      ...entry,
+      loadedMeta: undefined,
+    });
+
     result[id] = {
-      ...JSON.parse(JSON.stringify({
-        ...entry,
-        loadedMeta: undefined,
-      })),
+      ...clone,
       loadedMeta: [...entry.loadedMeta],
     };
   }
@@ -239,11 +568,14 @@ function serializeVehicles(vehicles: Record<string, VehicleEntry>): Record<strin
 function deserializeVehicles(vehicles: Record<string, SerializedVehicleEntry>): Record<string, VehicleEntry> {
   const result: Record<string, VehicleEntry> = {};
   for (const [id, entry] of Object.entries(vehicles)) {
+    const clone = deepClone({
+      ...entry,
+      loadedMeta: undefined,
+    });
+
     result[id] = {
-      ...JSON.parse(JSON.stringify({
-        ...entry,
-        loadedMeta: undefined,
-      })),
+      ...clone,
+      vehicles: ensureVehiclesData(entry.vehicles),
       vehiclelayouts: ensureVehicleLayouts(entry.vehiclelayouts),
       loadedMeta: new Set(entry.loadedMeta ?? []),
     };
@@ -259,8 +591,28 @@ function makeSnapshot(state: MetaStore): StoreSnapshot {
   };
 }
 
+function estimateSnapshotSize(snapshot: StoreSnapshot): number {
+  try {
+    return JSON.stringify(snapshot).length;
+  } catch {
+    return 0;
+  }
+}
+
+function trimHistoryToBudget(history: StoreSnapshot[]): StoreSnapshot[] {
+  const trimmed = [...history].slice(-HISTORY_LIMIT);
+  let totalBytes = trimmed.reduce((sum, snapshot) => sum + estimateSnapshotSize(snapshot), 0);
+
+  while (trimmed.length > 1 && totalBytes > HISTORY_MAX_BYTES) {
+    const removed = trimmed.shift();
+    totalBytes -= removed ? estimateSnapshotSize(removed) : 0;
+  }
+
+  return trimmed;
+}
+
 function pushHistory(state: MetaStore): Pick<MetaStore, "past" | "future"> {
-  const nextPast = [...state.past, makeSnapshot(state)].slice(-HISTORY_LIMIT);
+  const nextPast = trimHistoryToBudget([...state.past, makeSnapshot(state)]);
   return { past: nextPast, future: [] };
 }
 
@@ -286,6 +638,7 @@ export interface MetaStore {
   activeTab: MetaFileType;
   codePreviewVisible: boolean;
   editorEditMode: boolean;
+  performanceSpeedUnit: PerformanceSpeedUnit;
   filePath: string | null;
   workspacePath: string | null;
   workspaceMetaFiles: string[];
@@ -313,6 +666,7 @@ export interface MetaStore {
   toggleCodePreview: () => void;
   setCodePreviewVisible: (visible: boolean) => void;
   toggleEditorEditMode: () => void;
+  setPerformanceSpeedUnit: (unit: PerformanceSpeedUnit) => void;
 
   addVehicle: (entry: VehicleEntry) => void;
   removeVehicle: (id: string) => void;
@@ -352,6 +706,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
   activeTab: "handling",
   codePreviewVisible: true,
   editorEditMode: false,
+  performanceSpeedUnit: "mph",
   filePath: null,
   workspacePath: null,
   workspaceMetaFiles: [],
@@ -385,6 +740,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
       recentWorkspaces: s.recentWorkspaces,
       sidebarCollapsed: s.sidebarCollapsed,
       explorerVisible: s.explorerVisible,
+      performanceSpeedUnit: s.performanceSpeedUnit,
     })),
 
   setUIView: (view) => set({ uiView: view }),
@@ -405,6 +761,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
   setCodePreviewVisible: (visible) => set({ codePreviewVisible: visible }),
   toggleEditorEditMode: () =>
     set((s) => ({ editorEditMode: !s.editorEditMode })),
+  setPerformanceSpeedUnit: (unit) => set({ performanceSpeedUnit: unit }),
 
   addVehicle: (entry) =>
     set((s) => ({
@@ -458,6 +815,8 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
     cloned.vehicles.modelName = newName.toLowerCase();
     cloned.vehicles.txdName = newName.toLowerCase();
     cloned.vehicles.handlingId = newName.toUpperCase();
+    cloned.vehicles.gameName = newName.toUpperCase();
+    cloned.vehicles.txdRelationships = [{ parent: cloned.vehicles.residentTxd, child: cloned.vehicles.txdName }];
     cloned.carvariations.modelName = newName.toLowerCase();
     set((s) => ({
       ...pushHistory(s),
@@ -589,7 +948,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
     // Normalize all vehicles to ensure vehiclelayouts has valid defaults
     const normalized: Record<string, VehicleEntry> = {};
     for (const [k, v] of Object.entries(entries)) {
-      normalized[k] = { ...v, vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts) };
+      normalized[k] = { ...v, vehicles: ensureVehiclesData(v.vehicles), vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts) };
     }
     set({
       vehicles: normalized,
@@ -606,7 +965,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
     set((s) => {
       const normalized: Record<string, VehicleEntry> = {};
       for (const [k, v] of Object.entries(entries)) {
-        normalized[k] = { ...v, vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts) };
+        normalized[k] = { ...v, vehicles: ensureVehiclesData(v.vehicles), vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts) };
       }
       const nextActive =
         s.activeVehicleId && normalized[s.activeVehicleId]
@@ -690,13 +1049,14 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
       explorerVisible: state.explorerVisible,
       filePath: state.filePath,
       workspacePath: state.workspacePath,
-      workspaceMetaFiles: state.workspaceMetaFiles,
+      workspaceMetaFiles: state.workspaceMetaFiles.slice(0, 2000),
       sourceFileByType: state.sourceFileByType,
       openVehicleIds: state.openVehicleIds,
       sidebarCollapsed: state.sidebarCollapsed,
+      performanceSpeedUnit: state.performanceSpeedUnit,
       isDirty: state.isDirty,
-      recentFiles: state.recentFiles,
-      recentWorkspaces: state.recentWorkspaces,
+      recentFiles: normalizeRecentFiles(state.recentFiles),
+      recentWorkspaces: normalizeRecentFiles(state.recentWorkspaces),
       timestamp: Date.now(),
     };
   },
@@ -713,6 +1073,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
       sourceFileByType: snapshot.sourceFileByType ?? {},
       openVehicleIds: snapshot.openVehicleIds ?? Object.keys(snapshot.vehicles ?? {}),
       sidebarCollapsed: snapshot.sidebarCollapsed ?? true,
+      performanceSpeedUnit: snapshot.performanceSpeedUnit === "kph" ? "kph" : "mph",
       isDirty: snapshot.isDirty,
       recentFiles: normalizeRecentFiles(snapshot.recentFiles ?? []),
       recentWorkspaces: normalizeRecentFiles(snapshot.recentWorkspaces ?? []),

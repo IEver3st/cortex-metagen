@@ -1,6 +1,6 @@
 import { useMemo, memo } from "react";
 import { motion } from "motion/react";
-import type { HandlingData } from "@/store/meta-store";
+import { useMetaStore, type HandlingData, type PerformanceSpeedUnit } from "@/store/meta-store";
 
 interface Stat {
   label: string;
@@ -9,16 +9,22 @@ interface Stat {
   color: string;
 }
 
-const MPH_TO_KNOTS = 0.868976;
+const MPH_TO_KPH = 1.60934;
+
+function formatSpeed(mph: number, unit: PerformanceSpeedUnit): string {
+  if (unit === "kph") {
+    return `${(mph * MPH_TO_KPH).toFixed(0)} kph`;
+  }
+  return `${mph.toFixed(0)} mph`;
+}
 
 function isAirVehicle(vehicleType: string): boolean {
   return vehicleType === "VEHICLE_TYPE_HELI" || vehicleType === "VEHICLE_TYPE_PLANE";
 }
 
-function computeGroundStats(h: HandlingData): Stat[] {
+function computeGroundStats(h: HandlingData, speedUnit: PerformanceSpeedUnit): Stat[] {
   // Top Speed: fInitialDriveMaxFlatVel * 0.9 ≈ mph (tested in-game)
   const topSpeedMph = h.fInitialDriveMaxFlatVel * 0.9;
-  const topSpeedKph = topSpeedMph * 1.60934;
   const topSpeedBar = Math.min((topSpeedMph / 200) * 100, 100);
 
   // Acceleration estimate: driveForce / mass * gears factor
@@ -52,7 +58,7 @@ function computeGroundStats(h: HandlingData): Stat[] {
     h.fDriveBiasFront > 0.5 ? "Front-biased AWD" : "Rear-biased AWD";
 
   return [
-    { label: "Top Speed", value: `${topSpeedMph.toFixed(0)} mph / ${topSpeedKph.toFixed(0)} kph`, bar: topSpeedBar, color: "#2CD672" },
+    { label: "Top Speed (Est.)", value: formatSpeed(topSpeedMph, speedUnit), bar: topSpeedBar, color: "#2CD672" },
     { label: "Acceleration", value: `${accelRaw.toFixed(2)}g (${h.nInitialDriveGears} gears)`, bar: accelBar, color: "#2CD672" },
     { label: "Braking", value: `${h.fBrakeForce.toFixed(2)} (bias ${(h.fBrakeBiasFront * 100).toFixed(0)}% front)`, bar: brakeBar, color: "#F59E0B" },
     { label: "Traction", value: `${tractionAvg.toFixed(2)} (${h.fTractionLossMult.toFixed(1)}x loss)`, bar: tractionBar, color: "#3B82F6" },
@@ -63,12 +69,11 @@ function computeGroundStats(h: HandlingData): Stat[] {
   ];
 }
 
-function computeAirStats(h: HandlingData, vehicleType: string): Stat[] {
+function computeAirStats(h: HandlingData, vehicleType: string, speedUnit: PerformanceSpeedUnit): Stat[] {
   const isHeli = vehicleType === "VEHICLE_TYPE_HELI";
 
-  // Top Speed in mph and knots (0.9 factor tested in-game)
+  // Top Speed in mph (0.9 factor tested in-game)
   const topSpeedMph = h.fInitialDriveMaxFlatVel * 0.9;
-  const topSpeedKnots = topSpeedMph * MPH_TO_KNOTS;
   const topSpeedBar = Math.min((topSpeedMph / 250) * 100, 100);
 
   // Thrust / engine power: driveForce scaled for aircraft
@@ -78,7 +83,6 @@ function computeAirStats(h: HandlingData, vehicleType: string): Stat[] {
   // Climb rate estimate: driveForce vs mass and drag
   const climbRaw = (h.fInitialDriveForce * 5000) / (h.fMass * Math.max(h.fInitialDragCoeff, 1));
   const climbMph = climbRaw * 15;
-  const climbKnots = climbMph * MPH_TO_KNOTS;
   const climbBar = Math.min((climbRaw / 2) * 100, 100);
 
   // Agility / yaw rate: steeringLock + inertia multipliers
@@ -106,9 +110,9 @@ function computeAirStats(h: HandlingData, vehicleType: string): Stat[] {
   const weightBar = Math.min((h.fMass / 10000) * 100, 100);
 
   return [
-    { label: "Top Speed", value: `${topSpeedMph.toFixed(0)} mph / ${topSpeedKnots.toFixed(0)} kts`, bar: topSpeedBar, color: "#2CD672" },
+    { label: "Top Speed (Est.)", value: formatSpeed(topSpeedMph, speedUnit), bar: topSpeedBar, color: "#2CD672" },
     { label: isHeli ? "Rotor Thrust" : "Engine Thrust", value: `${thrustRaw.toFixed(2)}g (${h.nInitialDriveGears} stage)`, bar: thrustBar, color: "#2CD672" },
-    { label: "Climb Rate", value: `~${climbMph.toFixed(0)} mph / ${climbKnots.toFixed(0)} kts vertical`, bar: climbBar, color: "#38BDF8" },
+    { label: "Climb Rate", value: `~${formatSpeed(climbMph, speedUnit)} vertical`, bar: climbBar, color: "#38BDF8" },
     { label: isHeli ? "Yaw Agility" : "Roll Agility", value: `${h.fSteeringLock.toFixed(0)}° authority`, bar: agilityBar, color: "#8B5CF6" },
     { label: "Stability", value: `${stabilityRaw.toFixed(2)} inertia avg`, bar: stabilityBar, color: "#06B6D4" },
     { label: "Drag Profile", value: `${h.fInitialDragCoeff.toFixed(1)} coeff`, bar: dragBar, color: "#F59E0B" },
@@ -124,10 +128,11 @@ interface PerformanceStatsProps {
 }
 
 export const PerformanceStats = memo(function PerformanceStats({ handling, vehicleType = "VEHICLE_TYPE_CAR" }: PerformanceStatsProps) {
+  const performanceSpeedUnit = useMetaStore((s) => s.performanceSpeedUnit);
   const isAir = isAirVehicle(vehicleType);
   const stats = useMemo(
-    () => isAir ? computeAirStats(handling, vehicleType) : computeGroundStats(handling),
-    [handling, vehicleType, isAir],
+    () => isAir ? computeAirStats(handling, vehicleType, performanceSpeedUnit) : computeGroundStats(handling, performanceSpeedUnit),
+    [handling, vehicleType, isAir, performanceSpeedUnit],
   );
 
   const typeLabel = vehicleType === "VEHICLE_TYPE_HELI" ? "Helicopter"

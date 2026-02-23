@@ -57,20 +57,27 @@ function PinwheelSpinner() {
 function EditorFallback() {
   return (
     <motion.div
-      className="flex items-center justify-center h-full text-muted-foreground text-sm"
+      className="h-full w-full p-4 space-y-3"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.2 }}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 text-muted-foreground text-sm">
         <PinwheelSpinner />
         <motion.span
           initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.15, duration: 0.3 }}
+          transition={{ delay: 0.1, duration: 0.2 }}
         >
-          Loading editor…
+          Loading editor...
         </motion.span>
+      </div>
+
+      <div className="space-y-2">
+        <div className="h-8 rounded border border-border/40 bg-muted/20 animate-pulse" />
+        <div className="h-24 rounded border border-border/40 bg-muted/20 animate-pulse" />
+        <div className="h-24 rounded border border-border/40 bg-muted/20 animate-pulse" />
+        <div className="h-24 rounded border border-border/40 bg-muted/20 animate-pulse" />
       </div>
     </motion.div>
   );
