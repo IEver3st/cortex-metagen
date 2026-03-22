@@ -1018,7 +1018,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
         activeVehicleId: previous.activeVehicleId,
         activeTab: previous.activeTab,
         past: s.past.slice(0, -1),
-        future: [current, ...s.future].slice(0, HISTORY_LIMIT),
+        future: trimHistoryToBudget([current, ...s.future]),
         isDirty: true,
       };
     }),
@@ -1032,7 +1032,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
         vehicles: restoredVehicles,
         activeVehicleId: next.activeVehicleId,
         activeTab: next.activeTab,
-        past: [...s.past, current].slice(-HISTORY_LIMIT),
+        past: trimHistoryToBudget([...s.past, current]),
         future: restFuture,
         isDirty: true,
       };

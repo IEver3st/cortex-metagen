@@ -14,6 +14,7 @@ import { IdeSidebar } from "./IdeSidebar";
 import { SettingsView } from "./SettingsView";
 import { WorkspaceHome } from "./WorkspaceHome";
 import { WorkspaceHeader } from "./WorkspaceHeader";
+import { ProblemsPanel } from "./ProblemsPanel";
 
 const CodePreview = lazy(() => import("./CodePreview").then((m) => ({ default: m.CodePreview })));
 const HandlingEditor = lazy(() => import("@/components/editors/HandlingEditor").then((m) => ({ default: m.HandlingEditor })));
@@ -136,6 +137,7 @@ interface AppShellProps {
   onOpenFile?: () => void;
   onOpenFolder?: () => void;
   onSaveFile?: () => void;
+  onExportAll?: () => Promise<void>;
   onOpenRecentFile?: (path: string) => void;
   onOpenRecentWorkspace?: (path: string) => void;
   recentFiles?: string[];
@@ -147,12 +149,15 @@ interface AppShellProps {
   workspacePath?: string | null;
   workspaceMetaFileCount?: number;
   onClearSession?: () => void;
+  problemsPanelVisible?: boolean;
+  onToggleProblemsPanel?: () => void;
 }
 
 export function AppShell({
   onOpenFile,
   onOpenFolder,
   onSaveFile,
+  onExportAll,
   onOpenRecentFile,
   onOpenRecentWorkspace,
   recentFiles,
@@ -164,6 +169,8 @@ export function AppShell({
   workspacePath,
   workspaceMetaFileCount,
   onClearSession,
+  problemsPanelVisible = true,
+  onToggleProblemsPanel,
 }: AppShellProps) {
   const codePreviewVisible = useMetaStore((s) => s.codePreviewVisible);
   const vehicles = useMetaStore((s) => s.vehicles);
@@ -179,7 +186,9 @@ export function AppShell({
         onOpenFile={onOpenFile}
         onOpenFolder={onOpenFolder}
         onSaveFile={onSaveFile}
+        onExportAll={onExportAll}
         onOpenRecentFile={onOpenRecentFile}
+        onOpenRecentWorkspace={onOpenRecentWorkspace}
         recentFiles={recentFiles}
         onGoHome={() => setUIView("home")}
         onGoSettings={() => setUIView("settings")}
@@ -241,12 +250,26 @@ export function AppShell({
         </div>
       </div>
 
+      <AnimatePresence>
+        {validationIssues && validationIssues.length > 0 && (
+          <ProblemsPanel
+            issues={validationIssues}
+            fileName={validationFileName}
+            onDismiss={onDismissValidation}
+            visible={problemsPanelVisible}
+            onToggleVisible={onToggleProblemsPanel}
+          />
+        )}
+      </AnimatePresence>
+
       <StatusBar
         workspacePath={workspacePath}
         workspaceMetaFileCount={workspaceMetaFileCount}
         validationIssues={validationIssues}
         validationFileName={validationFileName}
         onDismissValidation={onDismissValidation}
+        problemsPanelVisible={problemsPanelVisible}
+        onToggleProblemsPanel={onToggleProblemsPanel}
       />
 
       {isDragActive && (

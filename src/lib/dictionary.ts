@@ -279,6 +279,21 @@ export const vehiclesFields: Record<string, FieldInfo> = {
     description: "Third-person camera profile used while driving.",
     example: "DEFAULT_SCRIPTED_CAMERA",
   },
+  aimCameraName: {
+    name: "Aim Camera",
+    description: "Camera profile used while aiming from inside the vehicle.",
+    example: "DEFAULT_AIM_CAMERA",
+  },
+  bonnetCameraName: {
+    name: "Bonnet Camera",
+    description: "Camera profile used for hood or bonnet view.",
+    example: "BONNET_CAMERA",
+  },
+  povCameraName: {
+    name: "POV Camera",
+    description: "Camera profile used for first-person driving.",
+    example: "POV_CAMERA",
+  },
   plateType: {
     name: "Plate Type",
     description: "Number plate mount configuration for this vehicle.",
@@ -322,6 +337,27 @@ export const vehiclesFields: Record<string, FieldInfo> = {
   defaultBodyHealth: {
     name: "Default Body Health",
     description: "Spawn body health baseline before damage is applied.",
+  },
+  vfxInfoName: {
+    name: "VFX Info",
+    description: "Vehicle VFX profile used for sparks, smoke, and impact effects.",
+    example: "VFXVEHICLEINFO_DEFAULT",
+  },
+  trailers: {
+    name: "Trailers",
+    description: "Primary trailer model list this vehicle can pull.",
+  },
+  additionalTrailers: {
+    name: "Additional Trailers",
+    description: "Extra compatible trailer models.",
+  },
+  doorsWithCollisionWhenClosed: {
+    name: "Doors With Collision",
+    description: "Door IDs that keep collision enabled while closed.",
+  },
+  driveableDoors: {
+    name: "Driveable Doors",
+    description: "Door IDs that stay operable while driving.",
   },
 };
 

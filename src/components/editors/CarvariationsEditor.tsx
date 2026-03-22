@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import type { CarvariationsData } from "@/store/meta-store";
 
 const ALL_CV_SECTIONS = ["colors", "sirens", "kits", "plates"];
 
@@ -23,7 +24,7 @@ export function CarvariationsEditor() {
   );
   const updateCarvariations = useMetaStore((s) => s.updateCarvariations);
   const [openSections, setOpenSections] = useState<string[]>(ALL_CV_SECTIONS);
-  const update = useCallback((data: Record<string, any>) => {
+  const update = useCallback((data: Partial<CarvariationsData>) => {
     if (!activeId) return;
     updateCarvariations(activeId, data);
   }, [updateCarvariations, activeId]);
@@ -114,7 +115,7 @@ export function CarvariationsEditor() {
       >
         <AccordionItem value="colors" className="border rounded-md px-3">
           <AccordionTrigger className="text-sm font-medium py-2">
-            Color Combinations ({cv.colors.length})
+            Color Variations ({cv.colors.length})
           </AccordionTrigger>
           <AccordionContent className="pb-3 space-y-2">
             {cv.colors.map((color, i) => (
@@ -169,7 +170,7 @@ export function CarvariationsEditor() {
               className="w-full h-7 text-xs gap-1"
               onClick={addColor}
             >
-              <Plus className="h-3 w-3" /> Add Color Set
+              <Plus className="h-3 w-3" /> Add Color Variation
             </Button>
           </AccordionContent>
         </AccordionItem>

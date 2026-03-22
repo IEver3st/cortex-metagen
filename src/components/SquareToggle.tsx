@@ -37,7 +37,7 @@ export const SquareToggle = memo(function SquareToggle({
       {variant === "slider" ? (
         <motion.div
           className={cn(
-            "relative h-5 w-10 border flex items-center justify-start rounded-[3px]",
+            "relative h-5 w-10 rounded-[2px] border flex items-center",
             checked
               ? "bg-primary border-primary"
               : "bg-muted/30 border-border hover:bg-muted/40"
@@ -47,12 +47,12 @@ export const SquareToggle = memo(function SquareToggle({
         >
           <motion.div
             className={cn(
-              "size-[14px] rounded-[1px] border ml-[2px]",
+              "absolute top-0.5 size-4 rounded-[2px] border",
               checked
-                ? "bg-[#0b1424] border-primary/30"
+                ? "bg-background border-primary/30"
                 : "bg-background border-border"
             )}
-            animate={{ x: checked ? 20 : 0 }}
+            animate={{ x: checked ? 20 : 2 }}
             transition={{ type: "spring", stiffness: 420, damping: 28 }}
           />
         </motion.div>

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useMetaStore, type PerformanceSpeedUnit } from "@/store/meta-store";
+import { BugReportForm } from "./BugReportForm";
 import {
   ArchiveX,
   PanelLeft,
@@ -19,6 +20,7 @@ import {
   Code2,
   PencilLine,
   Trash2,
+  Bug,
 } from "lucide-react";
 
 interface SettingsViewProps {
@@ -187,6 +189,27 @@ export function SettingsView({
                 <p className="text-xs text-slate-500">
                   Clearing recent files only removes the recent file/workspace list. Resetting session clears the full local workspace snapshot.
                 </p>
+              </div>
+            </section>
+
+            {/* Support Section */}
+            <section className="space-y-4">
+              <SectionHeader title="Support" />
+              <div className="rounded-md border border-[#1b2b46] bg-[#0b1424]">
+                <div className="flex items-start gap-4 p-4 border-b border-[#1b2b46]">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded bg-white/[0.03] border border-white/5 text-slate-300">
+                    <Bug className="size-4" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-medium leading-none text-slate-200">Report a Bug</h4>
+                    <p className="text-xs text-slate-500">
+                      Found something broken? Submit a report and it will be filed directly on GitHub.
+                    </p>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <BugReportForm />
+                </div>
               </div>
             </section>
           </div>

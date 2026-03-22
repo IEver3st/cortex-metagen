@@ -3,10 +3,14 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useMetaStore, type MetaFileType, type SessionSnapshot, type VehicleEntry } from "@/store/meta-store";
 import { parseMetaFile, detectMetaType, type ParseDiagnostic } from "@/lib/xml-parser";
 import { validateMetaXml, type ValidationIssue } from "@/lib/xml-validator";
-import { serializeActiveTab } from "@/lib/xml-serializer";
+import { serializeActiveTab, serializeHandlingMeta, serializeVehiclesMeta, serializeCarcolsMeta, serializeCarvariationsMeta, serializeVehicleLayoutsMeta, serializeModkitsMeta } from "@/lib/xml-serializer";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { RestoreSessionDialog } from "@/components/layout/RestoreSessionDialog";
+import { VehiclesMetaEnhancementsPanel } from "@/components/layout/VehiclesMetaEnhancementsPanel";
+import { WorkspaceQuickActions } from "@/components/layout/WorkspaceQuickActions";
+import { CommandPalette } from "@/components/layout/CommandPalette";
+import { useWorkspaceStore } from "@/store/workspace-store";
 
 const SESSION_KEY = "cortex-metagen.session.v1";
 const SESSION_MAX_BYTES = 2_500_000;
@@ -170,9 +174,13 @@ function App() {
   const isDirty = useMetaStore((s) => s.isDirty);
   const setLastAutoSavedAt = useMetaStore((s) => s.setLastAutoSavedAt);
 
+  const toggleCommandPalette = useWorkspaceStore((s) => s.toggleCommandPalette);
+  const openWorkspaceFromFolder = useWorkspaceStore((s) => s.openWorkspaceFromFolder);
+
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
   const [validationFileName, setValidationFileName] = useState<string>("");
   const [isDragActive, setIsDragActive] = useState(false);
+  const [problemsPanelVisible, setProblemsPanelVisible] = useState(true);
   const [initialSession] = useState<InitialSessionState>(readInitialSessionState);
   const [pendingSnapshot, setPendingSnapshot] = useState<SessionSnapshot | null>(initialSession.pendingSnapshot);
   const [restoreOpen, setRestoreOpen] = useState(Boolean(initialSession.pendingSnapshot));
@@ -197,7 +205,7 @@ function App() {
         line: 1,
         severity: diagnostic.severity,
         message: diagnostic.message,
-        context: diagnostic.context,
+        context: diagnostic.context ?? "",
       } satisfies ValidationIssue)),
     ]);
 
@@ -274,7 +282,7 @@ function App() {
               line: 1,
               severity: diagnostic.severity,
               message: `[${relativePath}] ${diagnostic.message}`,
-              context: diagnostic.context,
+              context: diagnostic.context ?? "",
             });
           }
         } catch (error) {
@@ -316,10 +324,13 @@ function App() {
       setValidationIssues(issues);
       addRecentWorkspace(folderPath);
       markClean();
+
+      // Also register with workspace store for persistence
+      void openWorkspaceFromFolder(folderPath);
     } catch (err) {
       console.error("Failed to open workspace folder:", err);
     }
-  }, [collectMetaFiles, loadVehicles, setWorkspace, setFilePath, setSourceFilePath, setActiveTab, addRecentWorkspace, markClean]);
+  }, [collectMetaFiles, loadVehicles, setWorkspace, setFilePath, setSourceFilePath, setActiveTab, addRecentWorkspace, markClean, openWorkspaceFromFolder]);
 
   const handleOpenWorkspace = useCallback(async () => {
     try {
@@ -379,8 +390,40 @@ function App() {
     }
   }, [vehicles, activeTab, sourceFileByType, workspacePath, setSourceFilePath, setFilePath, markClean, addRecentFile]);
 
+  const handleExportAll = useCallback(async () => {
+    try {
+      const vehicleList = Object.values(vehicles);
+      if (vehicleList.length === 0) return;
+
+      const targetPath = await saveDialog({
+        filters: [{ name: "ZIP Archive", extensions: ["zip"] }],
+        defaultPath: "data.zip",
+      });
+      if (!targetPath) return;
+
+      const entries: { filename: string; content: string }[] = [
+        { filename: "handling.meta", content: serializeHandlingMeta(vehicleList) },
+        { filename: "vehicles.meta", content: serializeVehiclesMeta(vehicleList) },
+        { filename: "carcols.meta", content: serializeCarcolsMeta(vehicleList) },
+        { filename: "carvariations.meta", content: serializeCarvariationsMeta(vehicleList) },
+        { filename: "vehiclelayouts.meta", content: serializeVehicleLayoutsMeta(vehicleList) },
+        { filename: "modkits.meta", content: serializeModkitsMeta(vehicleList) },
+      ];
+
+      await invoke("write_zip_archive", { path: targetPath, entries });
+    } catch (err) {
+      console.error("Failed to export archive:", err);
+    }
+  }, [vehicles]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Command palette: Ctrl+Shift+P
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        toggleCommandPalette();
+        return;
+      }
       if (e.ctrlKey && e.key === "o") {
         e.preventDefault();
         handleOpenFile();
@@ -400,7 +443,7 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleOpenFile, handleSaveFile, undo, redo, canUndo, canRedo]);
+  }, [handleOpenFile, handleSaveFile, undo, redo, canUndo, canRedo, toggleCommandPalette]);
 
   useEffect(() => {
     setUIView("home");
@@ -550,23 +593,43 @@ function App() {
     };
   }, [openMetaPath]);
 
+  const allIssues = [...validationIssues, ...duplicateIssues];
+
   return (
     <>
       <AppShell
         onOpenFile={handleOpenFile}
         onOpenFolder={handleOpenWorkspace}
         onSaveFile={handleSaveFile}
+        onExportAll={handleExportAll}
         onOpenRecentFile={handleOpenRecentFile}
         onOpenRecentWorkspace={openWorkspacePath}
         recentFiles={recentFiles}
         recentWorkspaces={recentWorkspaces}
-        validationIssues={[...validationIssues, ...duplicateIssues]}
+        validationIssues={allIssues}
         validationFileName={validationFileName}
         onDismissValidation={() => setValidationIssues([])}
         isDragActive={isDragActive}
         workspacePath={workspacePath}
         workspaceMetaFileCount={workspaceMetaFiles.length}
         onClearSession={handleClearSessionSnapshot}
+        problemsPanelVisible={problemsPanelVisible}
+        onToggleProblemsPanel={() => setProblemsPanelVisible((v) => !v)}
+      />
+
+      <WorkspaceQuickActions
+        onOpenFile={handleOpenFile}
+        onSaveFile={handleSaveFile}
+      />
+
+      <VehiclesMetaEnhancementsPanel />
+
+      <CommandPalette
+        onOpenFile={handleOpenFile}
+        onOpenFolder={handleOpenWorkspace}
+        onSaveFile={handleSaveFile}
+        onExportAll={handleExportAll}
+        onOpenRecentWorkspace={openWorkspacePath}
       />
 
       <RestoreSessionDialog

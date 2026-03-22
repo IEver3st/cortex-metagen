@@ -1,9 +1,12 @@
 import { memo, useMemo, useState } from "react";
 import { useMetaStore } from "@/store/meta-store";
+import { useWorkspaceStore } from "@/store/workspace-store";
+import { createDefaultVehicle } from "@/lib/presets";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { serializeActiveTab } from "@/lib/xml-serializer";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -13,14 +16,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Code, Save, Minus, Square, X, History, Undo2, Redo2, Settings, PanelLeft, Search } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { BugReportForm } from "./BugReportForm";
+import { Code, Save, Minus, Square, X, History, Undo2, Redo2, Settings, PanelLeft, Search, PackageCheck, ChevronDown, Pin, FolderTree, Bug } from "lucide-react";
 import { HiOutlineCode } from "react-icons/hi";
-
+import type { MetaFileType } from "@/store/meta-store";
 interface ToolbarProps {
   onOpenFile?: () => void;
   onOpenFolder?: () => void;
   onSaveFile?: () => void;
+  onExportAll?: () => Promise<void>;
   onOpenRecentFile?: (path: string) => void;
+  onOpenRecentWorkspace?: (path: string) => void;
   recentFiles?: string[];
   onGoHome?: () => void;
   onGoSettings?: () => void;
@@ -29,7 +42,6 @@ interface ToolbarProps {
   uiView?: "home" | "workspace" | "settings" | "merge";
 }
 
-// Cache the Tauri window API import to avoid repeated dynamic imports
 let _windowApiPromise: Promise<typeof import("@tauri-apps/api/window")> | null = null;
 function getWindowApi() {
   if (!_windowApiPromise) {
@@ -52,7 +64,7 @@ async function toggleMaximize() {
     const { getCurrentWindow } = await getWindowApi();
     getCurrentWindow().toggleMaximize();
   } catch (error) {
-    console.warn("Failed to toggle maximize:", error);
+    console.warn("Failed to toggle maximize window:", error);
   }
 }
 
@@ -66,8 +78,12 @@ async function closeWindow() {
 }
 
 export const Toolbar = memo(function Toolbar({
+  onOpenFile,
+  onOpenFolder,
   onSaveFile,
+  onExportAll,
   onOpenRecentFile,
+  onOpenRecentWorkspace,
   recentFiles = [],
   onGoHome,
   onGoSettings,
@@ -76,9 +92,20 @@ export const Toolbar = memo(function Toolbar({
   uiView = "home",
 }: ToolbarProps) {
   const vehicles = useMetaStore((s) => s.vehicles);
+  const activeVehicleId = useMetaStore((s) => s.activeVehicleId);
+  const activeTab = useMetaStore((s) => s.activeTab);
+  const addVehicle = useMetaStore((s) => s.addVehicle);
+  const updateHandling = useMetaStore((s) => s.updateHandling);
+  const updateVehicles = useMetaStore((s) => s.updateVehicles);
+  const updateCarcols = useMetaStore((s) => s.updateCarcols);
+  const updateCarvariations = useMetaStore((s) => s.updateCarvariations);
+  const updateVehicleLayouts = useMetaStore((s) => s.updateVehicleLayouts);
+  const updateModkits = useMetaStore((s) => s.updateModkits);
   const codePreviewVisible = useMetaStore((s) => s.codePreviewVisible);
   const toggleCodePreview = useMetaStore((s) => s.toggleCodePreview);
+  const workspacePath = useMetaStore((s) => s.workspacePath);
   const vehicleList = useMemo(() => Object.values(vehicles), [vehicles]);
+  const activeVehicle = activeVehicleId ? vehicles[activeVehicleId] : null;
   const hasSelection = vehicleList.length > 0;
   const isDirty = useMetaStore((s) => s.isDirty);
   const undo = useMetaStore((s) => s.undo);
@@ -87,6 +114,14 @@ export const Toolbar = memo(function Toolbar({
   const canRedo = useMetaStore((s) => s.canRedo);
   const reopenVehicleTab = useMetaStore((s) => s.reopenVehicleTab);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [copiedXml, setCopiedXml] = useState(false);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
+
+  const descriptors = useWorkspaceStore((s) => s.descriptors);
+  const toggleCommandPalette = useWorkspaceStore((s) => s.toggleCommandPalette);
+
+  const workspaceName = workspacePath?.replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop();
 
   const searchMatches = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -97,6 +132,31 @@ export const Toolbar = memo(function Toolbar({
       || entry.vehicles.handlingId.toLowerCase().includes(query)
     ));
   }, [searchTerm, vehicleList]);
+
+  const handleCreateVehicle = () => {
+    const nextName = `vehicle_${String(vehicleList.length + 1).padStart(2, "0")}`;
+    const allTypes = new Set<MetaFileType>(["handling", "vehicles", "carcols", "carvariations", "vehiclelayouts", "modkits"]);
+    addVehicle(createDefaultVehicle(nextName, allTypes));
+  };
+
+  const handleCopyVehicle = async () => {
+    if (!hasSelection) return;
+    const content = serializeActiveTab(activeTab, vehicleList);
+    await navigator.clipboard.writeText(content);
+    setCopiedXml(true);
+    window.setTimeout(() => setCopiedXml(false), 1400);
+  };
+
+  const handleResetActiveTab = () => {
+    if (!activeVehicleId || !activeVehicle) return;
+    const baseline = createDefaultVehicle(activeVehicle.name, activeVehicle.loadedMeta);
+    if (activeTab === "handling") return void updateHandling(activeVehicleId, baseline.handling);
+    if (activeTab === "vehicles") return void updateVehicles(activeVehicleId, baseline.vehicles);
+    if (activeTab === "carcols") return void updateCarcols(activeVehicleId, baseline.carcols);
+    if (activeTab === "carvariations") return void updateCarvariations(activeVehicleId, baseline.carvariations);
+    if (activeTab === "vehiclelayouts") return void updateVehicleLayouts(activeVehicleId, baseline.vehiclelayouts);
+    updateModkits(activeVehicleId, baseline.modkits);
+  };
 
   return (
     <TooltipProvider>
@@ -116,6 +176,55 @@ export const Toolbar = memo(function Toolbar({
           </TooltipTrigger>
           <TooltipContent side="bottom">Home</TooltipContent>
         </Tooltip>
+
+        {/* Workspace switcher dropdown */}
+        {workspaceName && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2 h-7 rounded text-xs text-slate-300 hover:bg-[#14233b] hover:text-white transition-colors max-w-[180px]"
+              >
+                <span className="truncate font-medium">{workspaceName}</span>
+                <ChevronDown className="h-3 w-3 shrink-0 text-slate-500" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-72">
+              <DropdownMenuLabel className="text-xs">Switch Workspace</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {descriptors.length === 0 ? (
+                <DropdownMenuItem disabled className="text-xs">No workspaces</DropdownMenuItem>
+              ) : (
+                descriptors.slice(0, 10).map((ws) => {
+                  const rootPath = ws.roots[0] ?? "";
+                  return (
+                    <DropdownMenuItem
+                      key={ws.configPath}
+                      className="text-xs flex items-center gap-2"
+                      onClick={() => {
+                        if (rootPath) onOpenRecentWorkspace?.(rootPath);
+                      }}
+                    >
+                      {ws.pinned ? (
+                        <Pin className="size-3 text-primary shrink-0" />
+                      ) : (
+                        <FolderTree className="size-3 text-slate-400 shrink-0" />
+                      )}
+                      <span className="truncate">{ws.name}</span>
+                    </DropdownMenuItem>
+                  );
+                })
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-xs"
+                onClick={() => toggleCommandPalette()}
+              >
+                More workspaces...
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         {uiView === "workspace" && hasSelection && (
           <div className="absolute left-1/2 top-1/2 w-full max-w-[520px] -translate-x-1/2 -translate-y-1/2 px-2">
@@ -178,6 +287,35 @@ export const Toolbar = memo(function Toolbar({
         <div className="flex-1 min-w-0" data-tauri-drag-region />
 
         <div className="flex items-center h-full shrink-0">
+        {uiView === "workspace" && (
+          <div className="mr-2 flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px]" onClick={() => onOpenFile?.()}>Import</Button>
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px]" onClick={handleResetActiveTab} disabled={!activeVehicleId}>Reset</Button>
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px]" onClick={() => void handleCopyVehicle()} disabled={!activeVehicleId}>{copiedXml ? "Copied" : "Copy"}</Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-[11px]"
+              disabled={isExporting || !hasSelection}
+              onClick={async () => {
+                if (!onExportAll || isExporting) return;
+                setIsExporting(true);
+                try {
+                  await onExportAll();
+                } finally {
+                  setIsExporting(false);
+                }
+              }}
+            >
+              Download
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px]" onClick={handleCreateVehicle}>+ New</Button>
+            {onOpenFolder && (
+              <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px]" onClick={() => onOpenFolder()}>Folder</Button>
+            )}
+            <Separator orientation="vertical" className="mx-1 h-5" />
+          </div>
+        )}
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -239,6 +377,36 @@ export const Toolbar = memo(function Toolbar({
                 <TooltipContent side="bottom">Unsaved changes</TooltipContent>
               </Tooltip>
             )}
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className={cn(
+                    "h-8 w-8 transition-all duration-200",
+                    isExporting
+                      ? "text-primary animate-pulse cursor-not-allowed"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  disabled={isExporting}
+                  onClick={async () => {
+                    if (!onExportAll || isExporting) return;
+                    setIsExporting(true);
+                    try {
+                      await onExportAll();
+                    } finally {
+                      setIsExporting(false);
+                    }
+                  }}
+                >
+                  <PackageCheck className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {isExporting ? "Exporting…" : "Export all to data.zip"}
+              </TooltipContent>
+            </Tooltip>
           </>
         )}
 
@@ -255,6 +423,29 @@ export const Toolbar = memo(function Toolbar({
           </TooltipTrigger>
           <TooltipContent side="bottom">{codePreviewVisible ? "Hide code preview" : "Show code preview"}</TooltipContent>
         </Tooltip>
+
+        <Dialog open={bugReportOpen} onOpenChange={setBugReportOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                >
+                  <Bug className="h-3.5 w-3.5" />
+                </Button>
+              </DialogTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Report a bug</TooltipContent>
+          </Tooltip>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-slate-200">Report a Bug</DialogTitle>
+            </DialogHeader>
+            <BugReportForm />
+          </DialogContent>
+        </Dialog>
 
         <Tooltip>
           <TooltipTrigger asChild>

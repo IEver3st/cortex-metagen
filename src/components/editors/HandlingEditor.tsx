@@ -1,224 +1,241 @@
-import { useState, useCallback, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { useMetaStore } from "@/store/meta-store";
-import { SliderField } from "@/components/SliderField";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { ChevronDown, ChevronUp, CircleDot, CircleDotDashed, Gauge, RotateCcw, Scale3D, ShieldAlert, Waves } from "lucide-react";
+
 import { PerformanceStats } from "@/components/PerformanceStats";
-import { handlingFields } from "@/lib/dictionary";
+import { SectionPresetPicker } from "@/components/SectionPresetPicker";
+import { SliderField } from "@/components/SliderField";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  ChevronDown,
-  ChevronUp,
-  RotateCcw,
-  Scale3D,
-  Gauge,
-  CircleDot,
-  CircleDotDashed,
-  Waves,
-  ShieldAlert,
-} from "lucide-react";
-import { SectionPresetPicker } from "@/components/SectionPresetPicker";
+import { handlingFields } from "@/lib/dictionary";
+import { DEFAULT_HANDLING, HANDLING_FIELD_RANGES, SECTION_FIELD_GROUPS, SECTION_VISUALS } from "@/lib/handling-field-config";
+import { sectionFieldMap, sectionPresetConfigs, type SectionId, type SectionPreset } from "@/lib/section-presets";
 import { cn } from "@/lib/utils";
-import {
-  sectionFieldMap,
-  type SectionId,
-  type SectionPreset,
-} from "@/lib/section-presets";
-import {
-  HANDLING_FIELD_RANGES,
-  DEFAULT_HANDLING,
-  SECTION_VISUALS,
-} from "@/lib/handling-field-config";
-import type { HandlingData, PerformanceSpeedUnit } from "@/store/meta-store";
+import { useMetaStore, type HandlingData } from "@/store/meta-store";
 
-const ALL_SECTIONS: SectionId[] = ["physical", "transmission", "brakes", "traction", "suspension", "damage"];
+const ALL_SECTIONS: SectionId[] = [
+  "identity",
+  "physical",
+  "transmission",
+  "brakes",
+  "traction",
+  "suspension",
+  "damage",
+  "seatOffsets",
+  "flagsAi",
+  "subHandling",
+];
 
 const SECTION_ICONS: Record<SectionId, React.ComponentType<{ className?: string }>> = {
+  identity: Gauge,
   physical: Scale3D,
   transmission: Gauge,
   brakes: CircleDot,
   traction: CircleDotDashed,
   suspension: Waves,
   damage: ShieldAlert,
+  seatOffsets: Scale3D,
+  flagsAi: ShieldAlert,
+  subHandling: Gauge,
 };
 
-function getSectionValues(h: HandlingData, sectionId: SectionId): Record<string, number> {
-  const fields = sectionFieldMap[sectionId];
+function isFieldModified(handling: HandlingData, field: keyof HandlingData): boolean {
+  return DEFAULT_HANDLING[field] !== undefined && handling[field] !== DEFAULT_HANDLING[field];
+}
+
+function countSectionChanges(handling: HandlingData, sectionId: SectionId): number {
+  return sectionFieldMap[sectionId].filter((field) => isFieldModified(handling, field)).length;
+}
+
+function getSectionValues(handling: HandlingData, sectionId: SectionId): Record<string, number> {
   const values: Record<string, number> = {};
-  for (const f of fields) {
-    const v = h[f];
-    if (typeof v === "number") values[f] = v;
+  for (const field of sectionFieldMap[sectionId]) {
+    const value = handling[field];
+    if (typeof value === "number") values[field] = value;
   }
   return values;
 }
 
-function countSectionChanges(h: HandlingData, sectionId: SectionId): number {
-  const fields = sectionFieldMap[sectionId];
-  let count = 0;
-  for (const f of fields) {
-    const current = h[f];
-    const def = DEFAULT_HANDLING[f];
-    if (typeof current === "number" && typeof def === "number" && current !== def) {
-      count++;
-    }
-  }
-  return count;
+function FieldCluster({
+  label,
+  fields,
+  handling,
+  onUpdate,
+}: {
+  label: string;
+  fields: (keyof HandlingData)[];
+  handling: HandlingData;
+  onUpdate: (data: Partial<HandlingData>) => void;
+}) {
+  return (
+    <div className="rounded border border-slate-700/20 bg-white/[0.01]">
+      <div className="border-b border-slate-700/20 px-2 py-1">
+        <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500/80">{label}</span>
+      </div>
+      <div className="py-0.5">
+        {fields.map((field) => {
+          const info = handlingFields[field];
+          const range = HANDLING_FIELD_RANGES[field];
+          const value = handling[field];
+          if (!info || !range || typeof value !== "number") return null;
+          return (
+            <SliderField
+              key={field}
+              field={info}
+              value={value}
+              onChange={(nextValue) => onUpdate({
+                [field]: field === "nInitialDriveGears" || field === "nMonetaryValue"
+                  ? Math.round(nextValue)
+                  : nextValue,
+              })}
+              {...range}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
-interface SectionBlockProps {
+function SectionBlock({
+  sectionId,
+  handling,
+  onUpdate,
+}: {
   sectionId: SectionId;
   handling: HandlingData;
-  onUpdate: (data: Record<string, unknown>) => void;
-  onApplyPreset: (sectionId: SectionId, preset: SectionPreset) => void;
-  collapsed: boolean;
-  onToggle: () => void;
-  performanceSpeedUnit: PerformanceSpeedUnit;
-}
-
-function SectionBlock({ sectionId, handling, onUpdate, onApplyPreset, collapsed, onToggle, performanceSpeedUnit }: SectionBlockProps) {
-  const visual = SECTION_VISUALS[sectionId];
-  const Icon = SECTION_ICONS[sectionId];
-  const fields = sectionFieldMap[sectionId];
+  onUpdate: (data: Partial<HandlingData>) => void;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
   const changeCount = countSectionChanges(handling, sectionId);
-  const currentValues = getSectionValues(handling, sectionId);
+  const Icon = SECTION_ICONS[sectionId];
+  const fieldGroups = sectionId === "identity" ? [] : (SECTION_FIELD_GROUPS[sectionId] ?? []);
+  const groupedFields = new Set(fieldGroups.flatMap((group: { fields: (keyof HandlingData)[] }) => group.fields));
+  const standaloneFields = sectionFieldMap[sectionId].filter((field) => !groupedFields.has(field));
+  const hasPresets = sectionPresetConfigs[sectionId].presets.length > 0;
 
   const resetSection = useCallback(() => {
-    const resetData: Record<string, unknown> = {};
-    for (const f of fields) {
-      const def = DEFAULT_HANDLING[f];
-      if (def !== undefined) resetData[f] = def;
+    const nextData: Partial<HandlingData> = {};
+    for (const field of sectionFieldMap[sectionId]) {
+      const fallback = DEFAULT_HANDLING[field];
+      if (fallback !== undefined) nextData[field] = fallback as never;
     }
-    onUpdate(resetData);
-  }, [fields, onUpdate]);
+    onUpdate(nextData);
+  }, [onUpdate, sectionId]);
+
+  const applyPreset = useCallback((preset: SectionPreset) => {
+    onUpdate(preset.values);
+  }, [onUpdate]);
 
   return (
-    <div
-      className={cn(
-        "rounded-lg border border-slate-700/40 overflow-hidden transition-colors",
-        "border-l-[3px] border-l-slate-600/50"
-      )}
-    >
-      {/* Section header — fully neutral */}
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-white/[0.02] bg-white/[0.01]"
+    <div className="rounded-lg border border-slate-700/25 bg-[#07101f]/70">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setCollapsed((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setCollapsed((value) => !value);
+          }
+        }}
+        className="flex items-center gap-2 px-3 py-2"
       >
-        <Icon className="size-4 shrink-0 text-slate-400" />
-        <span className="text-sm font-semibold text-slate-200 flex-1 tracking-tight">
-          {visual.title}
-        </span>
-
-        {/* Change count badge — orange state indicator */}
+        <ChevronDown className={cn("size-3 text-slate-500 transition-transform", collapsed && "-rotate-90")} />
+        <Icon className="size-3.5 text-slate-400" />
+        <span className="text-xs font-semibold text-slate-200">{SECTION_VISUALS[sectionId].title}</span>
         {changeCount > 0 && (
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums bg-orange-500/15 text-orange-400">
-            {changeCount} {changeCount === 1 ? "change" : "changes"}
-          </span>
+          <span className="rounded-full bg-orange-500/15 px-1.5 py-0.5 text-[9px] font-bold text-orange-300">{changeCount}</span>
         )}
-
-        {/* Section preset picker */}
-        <div onClick={(e) => e.stopPropagation()}>
-          <SectionPresetPicker
-            sectionId={sectionId}
-            currentValues={currentValues}
-            onApply={(preset) => onApplyPreset(sectionId, preset)}
-          />
-        </div>
-
-        {/* Reset section — orange affordance, only when changes exist */}
+        <div className="flex-1" />
+        {hasPresets && (
+          <div onClick={(event) => event.stopPropagation()}>
+            <SectionPresetPicker sectionId={sectionId as SectionId} onApply={applyPreset} currentValues={getSectionValues(handling, sectionId)} />
+          </div>
+        )}
         {changeCount > 0 && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); resetSection(); }}
-            className="size-6 flex items-center justify-center rounded text-slate-500 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
-            title="Reset section to defaults"
+            onClick={(event) => {
+              event.stopPropagation();
+              resetSection();
+            }}
+            className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-slate-500 transition-colors hover:bg-white/[0.04] hover:text-orange-300"
           >
             <RotateCcw className="size-3" />
+            Reset
           </button>
         )}
+      </div>
 
-        {/* Expand/collapse chevron */}
-        <ChevronDown
-          className={cn(
-            "size-3.5 text-slate-500 transition-transform duration-200",
-            !collapsed && "rotate-180"
-          )}
-        />
-      </button>
-
-      {/* Section content */}
       <AnimatePresence initial={false}>
         {!collapsed && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             style={{ overflow: "hidden" }}
           >
-            <div className="px-2 pb-2 pt-1 space-y-0.5 border-t border-slate-700/30">
-              {sectionId === "damage" ? (
+            <div className="space-y-2 border-t border-slate-700/20 px-3 py-2">
+              {sectionId === "identity" ? (
+                <div className="flex items-center gap-2 rounded border border-slate-700/20 bg-white/[0.01] px-3 py-2">
+                  <Label className="w-[140px] shrink-0 text-[12px] text-slate-400">Handling Name</Label>
+                  <Input
+                    value={handling.handlingName}
+                    onChange={(event) => onUpdate({ handlingName: event.target.value.toUpperCase() })}
+                    className="h-7 flex-1 border-slate-700/40 bg-transparent text-xs font-mono uppercase"
+                  />
+                </div>
+              ) : sectionId === "flagsAi" ? (
                 <>
-                  {/* Slider fields */}
                   <SliderField
-                    field={handlingFields.fCollisionDamageMult}
-                    value={handling.fCollisionDamageMult}
-                    onChange={(v) => onUpdate({ fCollisionDamageMult: v })}
-                    defaultValue={DEFAULT_HANDLING.fCollisionDamageMult}
-                    {...HANDLING_FIELD_RANGES.fCollisionDamageMult}
+                    field={{ name: "Monetary Value", description: "In-game value used for repair and damage calculations." }}
+                    value={handling.nMonetaryValue}
+                    onChange={(value) => onUpdate({ nMonetaryValue: Math.round(value) })}
+                    {...HANDLING_FIELD_RANGES.nMonetaryValue}
                   />
-                  <SliderField
-                    field={handlingFields.fDeformationDamageMult}
-                    value={handling.fDeformationDamageMult}
-                    onChange={(v) => onUpdate({ fDeformationDamageMult: v })}
-                    defaultValue={DEFAULT_HANDLING.fDeformationDamageMult}
-                    {...HANDLING_FIELD_RANGES.fDeformationDamageMult}
-                  />
-                  {/* Flag inputs */}
-                  <div className="flex items-center gap-3 py-1.5 px-1">
-                    <Label className="text-sm text-slate-400 min-w-[180px]">Model Flags</Label>
-                    <Input
-                      value={handling.strModelFlags}
-                      onChange={(e) => onUpdate({ strModelFlags: e.target.value })}
-                      className="h-6 text-xs font-mono bg-transparent border-slate-700/50"
-                    />
-                  </div>
-                  <div className="flex items-center gap-3 py-1.5 px-1">
-                    <Label className="text-sm text-slate-400 min-w-[180px]">Handling Flags</Label>
-                    <Input
-                      value={handling.strHandlingFlags}
-                      onChange={(e) => onUpdate({ strHandlingFlags: e.target.value })}
-                      className="h-6 text-xs font-mono bg-transparent border-slate-700/50"
-                    />
-                  </div>
+                  {([
+                    ["strModelFlags", "Model Flags"],
+                    ["strHandlingFlags", "Handling Flags"],
+                    ["strDamageFlags", "Damage Flags"],
+                    ["aiHandling", "AI Handling"],
+                  ] as const).map(([field, label]) => (
+                    <div key={field} className="flex items-center gap-2 rounded border border-slate-700/20 bg-white/[0.01] px-3 py-2">
+                      <Label className="w-[140px] shrink-0 text-[12px] text-slate-400">{label}</Label>
+                      <Input
+                        value={handling[field]}
+                        onChange={(event) => onUpdate({ [field]: field === "aiHandling" ? event.target.value.toUpperCase() : event.target.value })}
+                        className={cn("h-7 flex-1 border-slate-700/40 bg-transparent text-xs font-mono", field === "aiHandling" && "uppercase")}
+                      />
+                    </div>
+                  ))}
                 </>
               ) : (
-                fields.map((fieldKey) => {
-                  const fieldInfo = handlingFields[fieldKey];
-                  const range = HANDLING_FIELD_RANGES[fieldKey];
-                  if (!fieldInfo || !range) return null;
-                  const val = handling[fieldKey];
-                  if (typeof val !== "number") return null;
-
-                  const topSpeedUnit = fieldKey === "fInitialDriveMaxFlatVel"
-                    ? (performanceSpeedUnit === "mph" ? "mph" : "kph")
-                    : undefined;
-
-                  return (
-                    <SliderField
-                      key={fieldKey}
-                      field={fieldInfo}
-                      value={val}
-                      onChange={(v) => {
-                        const updateVal = fieldKey === "nInitialDriveGears" ? Math.round(v) : v;
-                        onUpdate({ [fieldKey]: updateVal });
-                      }}
-                      defaultValue={DEFAULT_HANDLING[fieldKey] as number | undefined}
-                      displayUnit={topSpeedUnit}
-                      {...range}
-                    />
-                  );
-                })
+                <>
+                  {fieldGroups.map((group: { label: string; fields: (keyof HandlingData)[] }) => (
+                    <FieldCluster key={group.label} label={group.label} fields={group.fields} handling={handling} onUpdate={onUpdate} />
+                  ))}
+                  {standaloneFields.map((field) => {
+                    const info = handlingFields[field];
+                    const range = HANDLING_FIELD_RANGES[field];
+                    const value = handling[field];
+                    if (!info || !range || typeof value !== "number") return null;
+                    return (
+                      <SliderField
+                        key={field}
+                        field={info}
+                        value={value}
+                        onChange={(nextValue) => onUpdate({
+                          [field]: field === "nInitialDriveGears" || field === "nMonetaryValue"
+                            ? Math.round(nextValue)
+                            : nextValue,
+                        })}
+                        {...range}
+                      />
+                    );
+                  })}
+                </>
               )}
             </div>
           </motion.div>
@@ -229,191 +246,95 @@ function SectionBlock({ sectionId, handling, onUpdate, onApplyPreset, collapsed,
 }
 
 export function HandlingEditor() {
-  const activeId = useMetaStore((s) => s.activeVehicleId);
-  const vehicle = useMetaStore((s) =>
-    s.activeVehicleId ? s.vehicles[s.activeVehicleId] : null
-  );
-  const updateHandling = useMetaStore((s) => s.updateHandling);
-  const performanceSpeedUnit = useMetaStore((s) => s.performanceSpeedUnit);
-  const [showPerf, setShowPerf] = useState(true);
-  const [collapsedSections, setCollapsedSections] = useState<Set<SectionId>>(new Set());
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const activeId = useMetaStore((state) => state.activeVehicleId);
+  const vehicle = useMetaStore((state) => state.activeVehicleId ? state.vehicles[state.activeVehicleId] : null);
+  const updateHandling = useMetaStore((state) => state.updateHandling);
+  const [showPerf, setShowPerf] = useState(false);
+  const sectionRefs = useRef<Partial<Record<SectionId, HTMLDivElement | null>>>({});
 
-  const update = useCallback((data: Record<string, unknown>) => {
-    if (activeId) updateHandling(activeId, data);
-  }, [updateHandling, activeId]);
-
-  const applySectionPreset = useCallback(
-    (_sectionId: SectionId, preset: SectionPreset) => {
-      if (activeId) {
-        updateHandling(activeId, preset.values);
-      }
-    },
-    [updateHandling, activeId]
-  );
-
-  const toggleSection = useCallback((sectionId: SectionId) => {
-    setCollapsedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(sectionId)) {
-        next.delete(sectionId);
-      } else {
-        next.add(sectionId);
-      }
-      return next;
-    });
-  }, []);
-
-  const scrollToSection = useCallback((sectionId: SectionId) => {
-    // Expand if collapsed
-    setCollapsedSections((prev) => {
-      const next = new Set(prev);
-      next.delete(sectionId);
-      return next;
-    });
-    // Scroll into view
-    setTimeout(() => {
-      sectionRefs.current[sectionId]?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-  }, []);
-
-  // Total change count across all sections
-  const totalChanges = useMemo(() => {
-    if (!vehicle) return 0;
-    return ALL_SECTIONS.reduce((acc, s) => acc + countSectionChanges(vehicle.handling, s), 0);
-  }, [vehicle]);
-
-  const resetAll = useCallback(() => {
-    if (activeId) {
-      const resetData: Record<string, unknown> = {};
-      for (const [key, val] of Object.entries(DEFAULT_HANDLING)) {
-        resetData[key] = val;
-      }
-      updateHandling(activeId, resetData);
-    }
+  const update = useCallback((data: Partial<HandlingData>) => {
+    if (!activeId) return;
+    updateHandling(activeId, data);
   }, [activeId, updateHandling]);
 
+  const totalChanges = useMemo(() => {
+    if (!vehicle) return 0;
+    return ALL_SECTIONS.reduce((count, sectionId) => count + countSectionChanges(vehicle.handling, sectionId), 0);
+  }, [vehicle]);
+
+  const scrollToSection = useCallback((sectionId: SectionId) => {
+    sectionRefs.current[sectionId]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   if (!vehicle || !activeId) {
-    return (
-      <div className="flex items-center justify-center h-full text-slate-500 text-sm">
-        Select or create a vehicle to edit handling
-      </div>
-    );
+    return <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Select or create a vehicle to edit handling.meta</div>;
   }
 
-  const h = vehicle.handling;
+  const handling = vehicle.handling;
 
   return (
-    <motion.div
-      className="flex flex-col h-full"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.25 }}
-    >
-      {/* Sticky top bar: handling name + section nav + change summary */}
-      <div className="sticky top-0 z-10 bg-[#040d1a]/95 backdrop-blur-sm border-b border-slate-700/30 px-4 py-2.5 space-y-2.5">
-        {/* Handling name + change summary */}
+    <motion.div className="flex h-full flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+      <div className="sticky top-0 z-10 space-y-2 border-b border-slate-700/25 bg-[#040d1a]/95 px-4 py-2 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <Label className="text-xs text-slate-500 shrink-0">
-            Handling Name
-          </Label>
+          <Label className="shrink-0 text-[10px] uppercase tracking-wider text-slate-600">Handling</Label>
           <Input
-            value={h.handlingName}
-            onChange={(e) => update({ handlingName: e.target.value.toUpperCase() })}
-            className="h-6 text-xs font-mono uppercase max-w-[200px] bg-transparent border-slate-700/50"
+            value={handling.handlingName}
+            onChange={(event) => update({ handlingName: event.target.value.toUpperCase() })}
+            className="h-6 max-w-[220px] border-slate-700/40 bg-transparent text-xs font-mono uppercase"
           />
-
-          {/* Change summary — orange state indicator */}
           <div className="flex-1" />
-          {totalChanges > 0 && (
-            <div className="flex items-center gap-2.5">
-              <span className="text-[11px] text-orange-400/90 font-medium tabular-nums">
-                {totalChanges} {totalChanges === 1 ? "change" : "changes"}
-              </span>
-              <button
-                type="button"
-                onClick={resetAll}
-                className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-orange-400 transition-colors"
-              >
-                <RotateCcw className="size-3" />
-                Reset all
-              </button>
-            </div>
-          )}
+          {totalChanges > 0 && <span className="text-[10px] font-medium text-orange-300">{totalChanges} unsaved change{totalChanges === 1 ? "" : "s"}</span>}
         </div>
 
-        {/* Section nav tabs — fully neutral */}
-        <div className="flex items-center gap-1">
-          {ALL_SECTIONS.map((sectionId) => {
-            const visual = SECTION_VISUALS[sectionId];
-            const Icon = SECTION_ICONS[sectionId];
-            const changes = countSectionChanges(h, sectionId);
-            const isCollapsed = collapsedSections.has(sectionId);
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-1">
+            {ALL_SECTIONS.map((sectionId) => {
+              const Icon = SECTION_ICONS[sectionId];
+              const changes = countSectionChanges(handling, sectionId);
+              return (
+                <button
+                  key={sectionId}
+                  type="button"
+                  onClick={() => scrollToSection(sectionId)}
+                  className="flex items-center gap-1 rounded bg-white/[0.03] px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-slate-200"
+                >
+                  <Icon className="size-3" />
+                  <span>{SECTION_VISUALS[sectionId].title}</span>
+                  {changes > 0 && <span className="rounded-full bg-orange-500/15 px-1 py-0.5 text-[8px] font-bold text-orange-300">{changes}</span>}
+                </button>
+              );
+            })}
+          </div>
 
-            return (
-              <button
-                key={sectionId}
-                type="button"
-                onClick={() => scrollToSection(sectionId)}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all",
-                  isCollapsed
-                    ? "text-slate-500 hover:bg-white/[0.03] hover:text-slate-400"
-                    : "text-slate-300 bg-white/[0.04] hover:bg-white/[0.06]"
-                )}
-              >
-                <Icon className="size-3" />
-                <span className="hidden xl:inline">{visual.title}</span>
-                {changes > 0 && (
-                  <span className="size-4 flex items-center justify-center rounded-full text-[9px] font-bold tabular-nums bg-orange-500/20 text-orange-400">
-                    {changes}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            onClick={() => setShowPerf((value) => !value)}
+            className="flex items-center gap-1 text-[10px] font-medium text-slate-500 transition-colors hover:text-slate-300"
+          >
+            {showPerf ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+            Performance
+          </button>
         </div>
       </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {/* Performance stats toggle */}
-        <div className="flex items-center justify-between mb-1">
-          <button
-            type="button"
-            onClick={() => setShowPerf(!showPerf)}
-            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-colors"
-          >
-            {showPerf ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
-            Performance Estimates
-          </button>
-        </div>
-        <AnimatePresence>
+      <div className="flex-1 space-y-2 overflow-y-auto p-3">
+        <AnimatePresence initial={false}>
           {showPerf && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               style={{ overflow: "hidden" }}
             >
-              <PerformanceStats handling={h} vehicleType={vehicle.vehicles.type} />
+              <PerformanceStats handling={handling} vehicleType={vehicle.vehicles.type} />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Section blocks */}
         {ALL_SECTIONS.map((sectionId) => (
-          <div key={sectionId} ref={(el) => { sectionRefs.current[sectionId] = el; }}>
-            <SectionBlock
-              sectionId={sectionId}
-              handling={h}
-              onUpdate={update}
-              onApplyPreset={applySectionPreset}
-              collapsed={collapsedSections.has(sectionId)}
-              onToggle={() => toggleSection(sectionId)}
-              performanceSpeedUnit={performanceSpeedUnit}
-            />
+          <div key={sectionId} ref={(element) => { sectionRefs.current[sectionId] = element; }}>
+            <SectionBlock sectionId={sectionId} handling={handling} onUpdate={update} />
           </div>
         ))}
       </div>

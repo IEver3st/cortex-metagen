@@ -1,6 +1,16 @@
 import type { HandlingData } from "@/store/meta-store";
 
-export type SectionId = "physical" | "transmission" | "brakes" | "traction" | "suspension" | "damage";
+export type SectionId =
+  | "identity"
+  | "physical"
+  | "transmission"
+  | "brakes"
+  | "traction"
+  | "suspension"
+  | "damage"
+  | "seatOffsets"
+  | "flagsAi"
+  | "subHandling";
 
 export interface SectionPreset {
   id: string;
@@ -18,6 +28,11 @@ export interface SectionConfig {
 type SectionPresetConfig = Record<SectionId, SectionConfig>;
 
 export const sectionPresetConfigs: SectionPresetConfig = {
+  identity: {
+    title: "Identity",
+    icon: "Gauge",
+    presets: [],
+  },
   physical: {
     title: "Physical Attributes",
     icon: "Scale3D",
@@ -116,7 +131,7 @@ export const sectionPresetConfigs: SectionPresetConfig = {
   },
 
   transmission: {
-    title: "Transmission & Engine",
+    title: "Drive",
     icon: "Gauge",
     presets: [
       {
@@ -211,7 +226,7 @@ export const sectionPresetConfigs: SectionPresetConfig = {
   },
 
   brakes: {
-    title: "Brakes & Steering",
+    title: "Braking",
     icon: "CircleDot",
     presets: [
       {
@@ -475,7 +490,7 @@ export const sectionPresetConfigs: SectionPresetConfig = {
   },
 
   damage: {
-    title: "Damage & Miscellaneous",
+    title: "Damage",
     icon: "ShieldAlert",
     presets: [
       {
@@ -534,6 +549,21 @@ export const sectionPresetConfigs: SectionPresetConfig = {
       },
     ],
   },
+  seatOffsets: {
+    title: "Seat Offset",
+    icon: "Scale3D",
+    presets: [],
+  },
+  flagsAi: {
+    title: "Flags & AI",
+    icon: "ShieldAlert",
+    presets: [],
+  },
+  subHandling: {
+    title: "Sub Handling",
+    icon: "Gauge",
+    presets: [],
+  },
 };
 
 export function applySectionPreset(
@@ -545,9 +575,11 @@ export function applySectionPreset(
 }
 
 export const sectionFieldMap: Record<SectionId, (keyof HandlingData)[]> = {
+  identity: ["handlingName"],
   physical: [
     "fMass",
     "fInitialDragCoeff",
+    "fPercentSubmerged",
     "vecCentreOfMassOffsetX",
     "vecCentreOfMassOffsetY",
     "vecCentreOfMassOffsetZ",
@@ -557,23 +589,50 @@ export const sectionFieldMap: Record<SectionId, (keyof HandlingData)[]> = {
   ],
   transmission: [
     "fInitialDriveForce",
+    "fDriveInertia",
+    "fClutchChangeRateScaleUpShift",
+    "fClutchChangeRateScaleDownShift",
     "fInitialDriveMaxFlatVel",
     "nInitialDriveGears",
     "fDriveBiasFront",
   ],
-  brakes: ["fBrakeForce", "fBrakeBiasFront", "fSteeringLock"],
+  brakes: ["fBrakeForce", "fBrakeBiasFront", "fHandBrakeForce", "fSteeringLock"],
   traction: [
     "fTractionCurveMax",
     "fTractionCurveMin",
+    "fTractionCurveLateral",
+    "fTractionSpringDeltaMax",
     "fTractionLossMult",
     "fLowSpeedTractionLossMult",
+    "fCamberStiffnesss",
+    "fTractionBiasFront",
   ],
   suspension: [
     "fSuspensionForce",
     "fSuspensionCompDamp",
     "fSuspensionReboundDamp",
+    "fSuspensionUpperLimit",
+    "fSuspensionLowerLimit",
     "fAntiRollBarForce",
+    "fAntiRollBarBiasFront",
     "fSuspensionRaise",
+    "fSuspensionBiasFront",
+    "fRollCentreHeightFront",
+    "fRollCentreHeightRear",
   ],
-  damage: ["fCollisionDamageMult", "fDeformationDamageMult"],
+  damage: [
+    "fCollisionDamageMult",
+    "fWeaponDamageMult",
+    "fDeformationDamageMult",
+    "fEngineDamageMult",
+    "fPetrolTankVolume",
+    "fOilVolume",
+  ],
+  seatOffsets: ["fSeatOffsetDistX", "fSeatOffsetDistY", "fSeatOffsetDistZ"],
+  flagsAi: ["nMonetaryValue", "strModelFlags", "strHandlingFlags", "strDamageFlags", "aiHandling"],
+  subHandling: [
+    "fBackEndPopUpCarImpulseMult",
+    "fBackEndPopUpBuildingImpulseMult",
+    "fBackEndPopUpMaxDeltaSpeed",
+  ],
 };

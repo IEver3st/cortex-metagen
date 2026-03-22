@@ -12,6 +12,8 @@ interface StatusBarProps {
   validationIssues?: ValidationIssue[];
   validationFileName?: string;
   onDismissValidation?: () => void;
+  problemsPanelVisible?: boolean;
+  onToggleProblemsPanel?: () => void;
 }
 
 export const StatusBar = memo(function StatusBar({
@@ -20,6 +22,8 @@ export const StatusBar = memo(function StatusBar({
   validationIssues,
   validationFileName,
   onDismissValidation,
+  problemsPanelVisible = true,
+  onToggleProblemsPanel,
 }: StatusBarProps) {
   const vehicles = useMetaStore((s) => s.vehicles);
   const filePath = useMetaStore((s) => s.filePath);
@@ -76,6 +80,15 @@ export const StatusBar = memo(function StatusBar({
             onDismiss={onDismissValidation}
             placement="footer"
           />
+        )}
+        {validationIssues && validationIssues.length > 0 && onToggleProblemsPanel && (
+          <button
+            type="button"
+            onClick={onToggleProblemsPanel}
+            className="text-[10px] uppercase tracking-wide text-primary/80 hover:text-primary"
+          >
+            {problemsPanelVisible ? "Hide Problems" : "Show Problems"}
+          </button>
         )}
         <AnimatePresence>
           {isDirty && (

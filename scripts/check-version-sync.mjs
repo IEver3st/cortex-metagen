@@ -52,7 +52,7 @@ const checks = [
     value:
       (
         cargoLock.match(
-          /\[\[package\]\]\s*\nname\s*=\s*"cortex-metagen"\s*\nversion\s*=\s*"([^"]+)"/
+          /\[\[package\]\]\s*\r?\nname\s*=\s*"cortex-metagen"\s*\r?\nversion\s*=\s*"([^"]+)"/
         ) ?? []
       )[1],
   },

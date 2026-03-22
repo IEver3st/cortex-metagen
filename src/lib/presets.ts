@@ -11,7 +11,7 @@ import {
   type MetaFileType,
 } from "@/store/meta-store";
 
-const defaultHandling: HandlingData = {
+export const defaultHandling: HandlingData = {
   handlingName: "NEWVEHICLE",
   fMass: 1500.0,
   fInitialDragCoeff: 8.0,
@@ -164,7 +164,7 @@ export const defaultVehicles: VehiclesData = {
   unknownFileLevelNodes: [],
 };
 
-const defaultCarcols: CarcolsData = {
+export const defaultCarcols: CarcolsData = {
   id: 0,
   kitName: "0_default_modkit",
   sirenId: 0,
@@ -175,7 +175,7 @@ const defaultCarcols: CarcolsData = {
   environmentalLightIntensity: 0,
 };
 
-const defaultCarvariations: CarvariationsData = {
+export const defaultCarvariations: CarvariationsData = {
   modelName: "newvehicle",
   colors: [
     { primary: 0, secondary: 0, pearl: 0, wheels: 156, interior: 0, dashboard: 0 },
@@ -187,12 +187,12 @@ const defaultCarvariations: CarvariationsData = {
   plateProbabilities: [100, 0, 0],
 };
 
-const defaultVehicleLayouts: VehicleLayoutsData = {
+export const defaultVehicleLayouts: VehicleLayoutsData = {
   coverBoundOffsets: [],
   driveByLookAroundData: [],
 };
 
-const defaultModkits: ModkitsData = {
+export const defaultModkits: ModkitsData = {
   kits: [],
 };
 

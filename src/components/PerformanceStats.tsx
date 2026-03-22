@@ -122,6 +122,16 @@ function computeAirStats(h: HandlingData, vehicleType: string, speedUnit: Perfor
   ];
 }
 
+/** Color legend mapping for performance stat categories */
+const PERF_LEGEND: { color: string; label: string }[] = [
+  { color: "#2CD672", label: "Speed/Power" },
+  { color: "#F59E0B", label: "Braking" },
+  { color: "#3B82F6", label: "Traction" },
+  { color: "#8B5CF6", label: "Handling" },
+  { color: "#06B6D4", label: "Suspension" },
+  { color: "#EF4444", label: "Durability" },
+];
+
 interface PerformanceStatsProps {
   handling: HandlingData;
   vehicleType?: string;
@@ -141,55 +151,66 @@ export const PerformanceStats = memo(function PerformanceStats({ handling, vehic
 
   return (
     <motion.div
-      className="space-y-2 p-3 rounded-md border bg-card/50"
+      className="space-y-2 p-3 rounded-md border border-slate-700/30 bg-white/[0.01]"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "#2CD672" }}>
-          Estimated Performance
-        </h3>
-        {typeLabel && (
-          <motion.span
-            className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/25"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.25, delay: 0.1 }}
-          >
-            {typeLabel}
-          </motion.span>
-        )}
+        <div className="flex items-center gap-2">
+          <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Estimated Performance
+          </h3>
+          {typeLabel && (
+            <motion.span
+              className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 border border-slate-500/20"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.25, delay: 0.1 }}
+            >
+              {typeLabel}
+            </motion.span>
+          )}
+        </div>
+        {/* Color legend */}
+        <div className="flex items-center gap-2">
+          {PERF_LEGEND.map((item) => (
+            <div key={item.label} className="flex items-center gap-1">
+              <div className="size-1.5 rounded-full" style={{ backgroundColor: item.color, opacity: 0.8 }} />
+              <span className="text-[8px] text-slate-600">{item.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
       <motion.div
-        className="text-[10px] text-muted-foreground mb-2"
+        className="text-[9px] text-slate-600 mb-1"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.1, duration: 0.25 }}
       >
-        Mass: {handling.fMass.toFixed(0)} kg · Drag: {handling.fInitialDragCoeff.toFixed(1)}
-        {isAir && ` · Inertia: ${((handling.vecInertiaMultiplierX + handling.vecInertiaMultiplierY + handling.vecInertiaMultiplierZ) / 3).toFixed(2)} avg`}
+        Mass: {handling.fMass.toFixed(0)} kg &middot; Drag: {handling.fInitialDragCoeff.toFixed(1)}
+        {isAir && ` \u00B7 Inertia: ${((handling.vecInertiaMultiplierX + handling.vecInertiaMultiplierY + handling.vecInertiaMultiplierZ) / 3).toFixed(2)} avg`}
       </motion.div>
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         {stats.map((stat, i) => (
           <motion.div
             key={stat.label}
             className="space-y-0.5"
-            initial={{ opacity: 0, x: -12 }}
+            initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.25, delay: i * 0.04, ease: "easeOut" }}
+            transition={{ duration: 0.2, delay: i * 0.03, ease: "easeOut" }}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-foreground/80">{stat.label}</span>
-              <span className="text-[10px] text-muted-foreground font-mono">{stat.value}</span>
+              <span className="text-[10px] font-medium text-slate-400">{stat.label}</span>
+              <span className="text-[9px] text-slate-500 font-mono">{stat.value}</span>
             </div>
-            <div className="h-2 w-full bg-muted/40 overflow-hidden">
+            <div className="h-1.5 w-full bg-white/[0.04] rounded-sm overflow-hidden">
               <motion.div
-                className="h-full"
+                className="h-full rounded-sm"
                 initial={{ width: "2%" }}
                 animate={{ width: `${Math.max(stat.bar, 2)}%` }}
-                transition={{ duration: 0.5, delay: i * 0.04 + 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
-                style={{ backgroundColor: stat.color, opacity: 0.85 }}
+                transition={{ duration: 0.5, delay: i * 0.03 + 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
+                style={{ backgroundColor: stat.color, opacity: 0.75 }}
               />
             </div>
           </motion.div>

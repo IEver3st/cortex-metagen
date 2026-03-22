@@ -1,23 +1,14 @@
-import { XMLBuilder } from "fast-xml-parser";
-import {
-  FIRST_PERSON_IK_OFFSET_NAMES,
-  type VehicleEntry,
-  type VehicleUnknownXmlNode,
-} from "@/store/meta-store";
+import type { VehicleEntry } from "@/store/meta-store";
 
 function indent(level: number): string {
   return "  ".repeat(level);
 }
 
-function formatNumber(value: unknown, fallback: number, precision: number = 9): string {
+function formatNumber(value: unknown, fallback: number): string {
   const numeric = typeof value === "number" && Number.isFinite(value)
     ? value
     : (typeof value === "string" ? Number.parseFloat(value) : Number.NaN);
-  const resolved = Number.isFinite(numeric) ? numeric : fallback;
-  return resolved
-    .toFixed(precision)
-    .replace(/\.0+$/, ".0")
-    .replace(/(\.\d*?[1-9])0+$/, "$1");
+  return (Number.isFinite(numeric) ? numeric : fallback).toFixed(6);
 }
 
 function formatInteger(value: unknown, fallback: number): string {
@@ -25,7 +16,7 @@ function formatInteger(value: unknown, fallback: number): string {
     ? value
     : (typeof value === "string" ? Number.parseFloat(value) : Number.NaN);
   const resolved = Number.isFinite(numeric) ? numeric : fallback;
-  return String(Math.trunc(resolved));
+  return String(Math.round(resolved));
 }
 
 function formatText(value: unknown, fallback: string): string {
@@ -35,68 +26,6 @@ function formatText(value: unknown, fallback: string): string {
   }
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   return fallback;
-}
-
-function formatBoolean(value: unknown, fallback: boolean): string {
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "number") return value !== 0 ? "true" : "false";
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true" || normalized === "1") return "true";
-    if (normalized === "false" || normalized === "0") return "false";
-  }
-  return fallback ? "true" : "false";
-}
-
-const rawXmlBuilder = new XMLBuilder({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  suppressEmptyNode: false,
-  format: true,
-  indentBy: "  ",
-});
-
-function serializeUnknownNode(node: VehicleUnknownXmlNode, level: number): string[] {
-  const xml = rawXmlBuilder.build({ [node.tag]: node.value ?? "" });
-  return xml
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0)
-    .map((line) => `${indent(level)}${line}`);
-}
-
-function appendTextTag(lines: string[], level: number, tag: string, value: unknown, fallback: string): void {
-  lines.push(`${indent(level)}<${tag}>${formatText(value, fallback)}</${tag}>`);
-}
-
-function appendOptionalTextTag(lines: string[], level: number, tag: string, value: unknown): void {
-  const text = formatText(value, "");
-  if (!text) return;
-  lines.push(`${indent(level)}<${tag}>${text}</${tag}>`);
-}
-
-function appendValueTag(lines: string[], level: number, tag: string, value: unknown, fallback: number): void {
-  lines.push(`${indent(level)}<${tag} value="${formatNumber(value, fallback)}" />`);
-}
-
-function appendIntegerTag(lines: string[], level: number, tag: string, value: unknown, fallback: number): void {
-  lines.push(`${indent(level)}<${tag} value="${formatInteger(value, fallback)}" />`);
-}
-
-function appendBooleanTag(lines: string[], level: number, tag: string, value: unknown, fallback: boolean): void {
-  lines.push(`${indent(level)}<${tag} value="${formatBoolean(value, fallback)}" />`);
-}
-
-function appendVec3Tag(
-  lines: string[],
-  level: number,
-  tag: string,
-  value: { x: number; y: number; z: number } | undefined,
-  fallback: { x: number; y: number; z: number },
-): void {
-  const vec = value ?? fallback;
-  lines.push(
-    `${indent(level)}<${tag} x="${formatNumber(vec.x, fallback.x)}" y="${formatNumber(vec.y, fallback.y)}" z="${formatNumber(vec.z, fallback.z)}" />`
-  );
 }
 
 export function serializeHandlingMeta(vehicles: VehicleEntry[]): string {
@@ -179,229 +108,40 @@ export function serializeHandlingMeta(vehicles: VehicleEntry[]): string {
 export function serializeVehiclesMeta(vehicles: VehicleEntry[]): string {
   const filtered = vehicles.filter((v) => v.loadedMeta.has("vehicles"));
   const lines: string[] = [];
-
-  const residentTxd =
-    filtered.find((vehicle) => formatText(vehicle.vehicles.residentTxd, "").length > 0)?.vehicles.residentTxd ??
-    "vehshare";
-  const residentAnims =
-    filtered.find((vehicle) => vehicle.vehicles.residentAnims !== undefined)?.vehicles.residentAnims ??
-    "";
-
-  const relationshipMap = new Map<string, { parent: string; child: string }>();
-  for (const vehicle of filtered) {
-    for (const relationship of vehicle.vehicles.txdRelationships ?? []) {
-      const parent = formatText(relationship.parent, residentTxd);
-      const child = formatText(relationship.child, "");
-      if (!child) continue;
-      relationshipMap.set(`${parent}:${child}`, { parent, child });
-    }
-  }
-
-  if (relationshipMap.size === 0) {
-    for (const vehicle of filtered) {
-      const child = formatText(vehicle.vehicles.txdName, formatText(vehicle.vehicles.modelName, ""));
-      if (!child) continue;
-      relationshipMap.set(`${residentTxd}:${child}`, { parent: residentTxd, child });
-    }
-  }
-
-  const fileUnknownNodes: VehicleUnknownXmlNode[] = [];
-  const seenFileUnknownNodes = new Set<string>();
-  for (const vehicle of filtered) {
-    for (const node of vehicle.vehicles.unknownFileLevelNodes ?? []) {
-      const signature = `${node.tag}:${JSON.stringify(node.value)}`;
-      if (seenFileUnknownNodes.has(signature)) continue;
-      seenFileUnknownNodes.add(signature);
-      fileUnknownNodes.push(node);
-    }
-  }
-
   lines.push(`<?xml version="1.0" encoding="UTF-8"?>`);
   lines.push(`<CVehicleModelInfo__InitDataList>`);
-  appendTextTag(lines, 1, "residentTxd", residentTxd, "vehshare");
-
-  const residentAnimsText = formatText(residentAnims, "");
-  if (residentAnimsText) {
-    lines.push(`${indent(1)}<residentAnims>${residentAnimsText}</residentAnims>`);
-  } else {
-    lines.push(`${indent(1)}<residentAnims />`);
-  }
-
   lines.push(`${indent(1)}<InitDatas>`);
 
-  for (const vehicle of filtered) {
-    const d = vehicle.vehicles;
+  for (const v of filtered) {
+    const d = v.vehicles;
     lines.push(`${indent(2)}<Item>`);
-    appendTextTag(lines, 3, "modelName", d.modelName, "newvehicle");
-    appendTextTag(lines, 3, "txdName", d.txdName, formatText(d.modelName, "newvehicle"));
-    appendTextTag(lines, 3, "handlingId", d.handlingId, "NEWVEHICLE");
-    appendTextTag(lines, 3, "gameName", d.gameName, "NEWVEHICLE");
-    appendTextTag(lines, 3, "vehicleMakeName", d.vehicleMakeName, "CUSTOM");
-    appendOptionalTextTag(lines, 3, "expressionDictName", d.expressionDictName);
-    appendOptionalTextTag(lines, 3, "expressionName", d.expressionName);
-    appendOptionalTextTag(lines, 3, "animConvRoofDictName", d.animConvRoofDictName);
-    appendOptionalTextTag(lines, 3, "animConvRoofName", d.animConvRoofName);
-    appendOptionalTextTag(lines, 3, "animConvRoofWindowsAffected", d.animConvRoofWindowsAffected);
-    appendOptionalTextTag(lines, 3, "ptfxAssetName", d.ptfxAssetName);
-    appendTextTag(lines, 3, "audioNameHash", d.audioNameHash, "ADDER");
-    appendTextTag(lines, 3, "layout", d.layout, "LAYOUT_STANDARD");
-    appendTextTag(lines, 3, "driverSourceExtension", d.driverSourceExtension, "feroci");
-    appendOptionalTextTag(lines, 3, "coverBoundOffsets", d.coverBoundOffsets);
-
-    if (d.povTuningInfo !== null && d.povTuningInfo !== undefined) {
-      lines.push(...serializeUnknownNode({ tag: "POVTuningInfo", value: d.povTuningInfo }, 3));
-    }
-    if (d.explosionInfo !== null && d.explosionInfo !== undefined) {
-      lines.push(...serializeUnknownNode({ tag: "explosionInfo", value: d.explosionInfo }, 3));
-    }
-
-    appendOptionalTextTag(lines, 3, "scenarioLayout", d.scenarioLayout);
-    appendTextTag(lines, 3, "cameraName", d.cameraName, "DEFAULT_SCRIPTED_CAMERA");
-    appendTextTag(lines, 3, "aimCameraName", d.aimCameraName, "DEFAULT_AIM_CAMERA");
-    appendTextTag(lines, 3, "bonnetCameraName", d.bonnetCameraName, "BONNET_CAMERA");
-    appendTextTag(lines, 3, "povCameraName", d.povCameraName, "POV_CAMERA");
-
-    for (const offsetName of FIRST_PERSON_IK_OFFSET_NAMES) {
-      appendVec3Tag(lines, 3, offsetName, d.firstPersonIkOffsets[offsetName], { x: 0, y: 0, z: 0 });
-    }
-
-    appendVec3Tag(lines, 3, "PovCameraOffset", d.povCameraOffset, { x: 0, y: 0, z: 0 });
-    appendValueTag(
-      lines,
-      3,
-      "PovCameraVerticalAdjustmentForRollCage",
-      d.povCameraVerticalAdjustmentForRollCage,
-      0
-    );
-    appendVec3Tag(lines, 3, "PovPassengerCameraOffset", d.povPassengerCameraOffset, { x: 0, y: 0, z: 0 });
-    appendVec3Tag(
-      lines,
-      3,
-      "PovRearPassengerCameraOffset",
-      d.povRearPassengerCameraOffset,
-      { x: 0, y: 0, z: 0 }
-    );
-
-    if (d.firstPersonDrivebyData !== null && d.firstPersonDrivebyData !== undefined) {
-      lines.push(...serializeUnknownNode({ tag: "firstPersonDrivebyData", value: d.firstPersonDrivebyData }, 3));
-    }
-
-    appendTextTag(lines, 3, "vfxInfoName", d.vfxInfoName, "VFXVEHICLEINFO_DEFAULT");
-    appendBooleanTag(lines, 3, "shouldUseCinematicViewMode", d.shouldUseCinematicViewMode, true);
-    appendBooleanTag(
-      lines,
-      3,
-      "shouldCameraTransitionOnClimbUpDown",
-      d.shouldCameraTransitionOnClimbUpDown,
-      false
-    );
-    appendBooleanTag(lines, 3, "shouldCameraIgnoreExiting", d.shouldCameraIgnoreExiting, false);
-    appendBooleanTag(lines, 3, "AllowPretendOccupants", d.allowPretendOccupants, false);
-    appendBooleanTag(lines, 3, "AllowJoyriding", d.allowJoyriding, true);
-    appendBooleanTag(lines, 3, "AllowSundayDriving", d.allowSundayDriving, true);
-    appendBooleanTag(lines, 3, "AllowBodyColorMapping", d.allowBodyColorMapping, false);
-
-    appendValueTag(lines, 3, "wheelScale", d.wheelScale, 1);
-    appendValueTag(lines, 3, "wheelScaleRear", d.wheelScaleRear, 1);
-    appendValueTag(lines, 3, "dirtLevelMin", d.dirtLevelMin, 0);
-    appendValueTag(lines, 3, "dirtLevelMax", d.dirtLevelMax, 0.4);
-    appendValueTag(lines, 3, "envEffScaleMin", d.envEffScaleMin, 0);
-    appendValueTag(lines, 3, "envEffScaleMax", d.envEffScaleMax, 1);
-    appendValueTag(lines, 3, "envEffScaleMin2", d.envEffScaleMin2, 0);
-    appendValueTag(lines, 3, "envEffScaleMax2", d.envEffScaleMax2, 1);
-    appendValueTag(lines, 3, "damageMapScale", d.damageMapScale, 1);
-    appendValueTag(lines, 3, "damageOffsetScale", d.damageOffsetScale, 1);
-    lines.push(`${indent(3)}<diffuseTint value="${formatText(d.diffuseTint, "0x00FFFFFF")}" />`);
-    appendValueTag(lines, 3, "steerWheelMult", d.steerWheelMult, 1);
-    appendValueTag(lines, 3, "HDTextureDist", d.HDTextureDist, 60);
+    lines.push(`${indent(3)}<modelName>${d.modelName}</modelName>`);
+    lines.push(`${indent(3)}<txdName>${d.txdName}</txdName>`);
+    lines.push(`${indent(3)}<handlingId>${d.handlingId}</handlingId>`);
+    lines.push(`${indent(3)}<gameName>${d.gameName}</gameName>`);
+    lines.push(`${indent(3)}<vehicleMakeName>${d.vehicleMakeName}</vehicleMakeName>`);
+    lines.push(`${indent(3)}<type>${d.type}</type>`);
+    lines.push(`${indent(3)}<vehicleClass>${d.vehicleClass}</vehicleClass>`);
+    lines.push(`${indent(3)}<layout>${d.layout}</layout>`);
+    lines.push(`${indent(3)}<driverSourceExtension>${d.driverSourceExtension}</driverSourceExtension>`);
+    lines.push(`${indent(3)}<audioNameHash>${d.audioNameHash}</audioNameHash>`);
     lines.push(`${indent(3)}<lodDistances content="float_array">`);
-    lines.push(`${indent(4)}${formatText(d.lodDistances, "15.0 30.0 60.0 120.0 500.0")}`);
+    lines.push(`${indent(4)}${d.lodDistances}`);
     lines.push(`${indent(3)}</lodDistances>`);
-    appendValueTag(lines, 3, "minSeatHeight", d.minSeatHeight, 0.2);
-    appendValueTag(lines, 3, "identicalModelSpawnDistance", d.identicalModelSpawnDistance, 20);
-    appendIntegerTag(lines, 3, "maxNumOfSameColor", d.maxNumOfSameColor, 5);
-    appendIntegerTag(lines, 3, "defaultBodyHealth", d.defaultBodyHealth, 700);
-    appendValueTag(lines, 3, "pretendOccupantsScale", d.pretendOccupantsScale, 1);
-    appendValueTag(lines, 3, "visibleSpawnDistScale", d.visibleSpawnDistScale, 1);
-    appendValueTag(lines, 3, "trackerPathWidth", d.trackerPathWidth, 2);
-    appendValueTag(lines, 3, "weaponForceMult", d.weaponForceMult, 1);
-    appendIntegerTag(lines, 3, "frequency", d.frequency, 20);
-    appendTextTag(lines, 3, "swankness", d.swankness, "SWANKNESS_3");
-    appendIntegerTag(lines, 3, "maxNum", d.maxNum, 20);
-
-    const flags = (d.flags ?? [])
-      .map((flag) => formatText(flag, "").trim())
-      .filter(Boolean);
-    if (flags.length > 0) {
-      lines.push(`${indent(3)}<flags>${flags.join(" ")}</flags>`);
-    } else {
-      lines.push(`${indent(3)}<flags />`);
-    }
-
-    appendTextTag(lines, 3, "type", d.type, "VEHICLE_TYPE_CAR");
-    appendTextTag(lines, 3, "plateType", d.plateType, "VPT_FRONT_AND_BACK_PLATES");
-    appendTextTag(lines, 3, "dashboardType", d.dashboardType, "VDT_DEFAULT");
-    appendTextTag(lines, 3, "vehicleClass", d.vehicleClass, "VC_SPORT");
-    appendTextTag(lines, 3, "wheelType", d.wheelType, "VWT_SPORT");
-
-    appendOptionalTextTag(lines, 3, "trailers", d.trailers);
-    appendOptionalTextTag(lines, 3, "additionalTrailers", d.additionalTrailers);
-
-    if ((d.drivers?.length ?? 0) > 0) {
-      lines.push(`${indent(3)}<drivers>`);
-      for (const driver of d.drivers) {
-        lines.push(`${indent(4)}<Item>`);
-        appendTextTag(lines, 5, "driverName", driver.driverName, "");
-        appendTextTag(lines, 5, "npcName", driver.npcName, "");
-        lines.push(`${indent(4)}</Item>`);
+    lines.push(`${indent(3)}<diffuseTint value="${d.diffuseTint}" />`);
+    lines.push(`${indent(3)}<dirtLevelMin value="${d.dirtLevelMin.toFixed(6)}" />`);
+    lines.push(`${indent(3)}<dirtLevelMax value="${d.dirtLevelMax.toFixed(6)}" />`);
+    if (d.flags.length > 0) {
+      lines.push(`${indent(3)}<flags>`);
+      for (const flag of d.flags) {
+        lines.push(`${indent(4)}<Item>${flag}</Item>`);
       }
-      lines.push(`${indent(3)}</drivers>`);
-    } else {
-      lines.push(`${indent(3)}<drivers />`);
+      lines.push(`${indent(3)}</flags>`);
     }
-
-    appendOptionalTextTag(lines, 3, "extraIncludes", d.extraIncludes);
-    appendOptionalTextTag(lines, 3, "doorsWithCollisionWhenClosed", d.doorsWithCollisionWhenClosed);
-    appendOptionalTextTag(lines, 3, "driveableDoors", d.driveableDoors);
-
-    if ((d.doorStiffnessMultipliers?.length ?? 0) > 0) {
-      lines.push(`${indent(3)}<doorStiffnessMultipliers>`);
-      for (const multiplier of d.doorStiffnessMultipliers) {
-        lines.push(`${indent(4)}<Item>`);
-        appendIntegerTag(lines, 5, "doorId", multiplier.doorId, 0);
-        appendValueTag(lines, 5, "stiffnessMult", multiplier.stiffnessMult, 1);
-        lines.push(`${indent(4)}</Item>`);
-      }
-      lines.push(`${indent(3)}</doorStiffnessMultipliers>`);
-    } else {
-      lines.push(`${indent(3)}<doorStiffnessMultipliers />`);
-    }
-
-    appendBooleanTag(lines, 3, "bumpersNeedToCollideWithMap", d.bumpersNeedToCollideWithMap, false);
-    appendBooleanTag(lines, 3, "needsRopeTexture", d.needsRopeTexture, false);
-    appendOptionalTextTag(lines, 3, "requiredExtras", d.requiredExtras);
-
-    for (const node of d.unknownNodes ?? []) {
-      lines.push(...serializeUnknownNode(node, 3));
-    }
-
     lines.push(`${indent(2)}</Item>`);
   }
 
   lines.push(`${indent(1)}</InitDatas>`);
-  lines.push(`${indent(1)}<txdRelationships>`);
-  for (const relationship of relationshipMap.values()) {
-    lines.push(`${indent(2)}<Item>`);
-    appendTextTag(lines, 3, "parent", relationship.parent, residentTxd);
-    appendTextTag(lines, 3, "child", relationship.child, "");
-    lines.push(`${indent(2)}</Item>`);
-  }
-  lines.push(`${indent(1)}</txdRelationships>`);
-
-  for (const node of fileUnknownNodes) {
-    lines.push(...serializeUnknownNode(node, 1));
-  }
-
   lines.push(`</CVehicleModelInfo__InitDataList>`);
   return lines.join("\n");
 }
@@ -430,7 +170,7 @@ export function serializeCarcolsMeta(vehicles: VehicleEntry[]): string {
     lines.push(`${indent(2)}<Item>`);
     lines.push(`${indent(3)}<id value="${c.sirenId}" />`);
     lines.push(`${indent(3)}<sequencerBpm value="${c.sequencerBpm}" />`);
-    lines.push(`${indent(3)}<rotationLimit value="${formatNumber(c.rotationLimit, 0)}" />`);
+    lines.push(`${indent(3)}<rotationLimit value="${c.rotationLimit.toFixed(6)}" />`);
     if (c.lights.length > 0) {
       lines.push(`${indent(3)}<sirens>`);
       for (const light of c.lights) {
@@ -447,11 +187,11 @@ export function serializeCarcolsMeta(vehicles: VehicleEntry[]): string {
           seqVal = String(parseInt(seqVal, 2) >>> 0);
         }
         lines.push(`${indent(4)}<Item>`);
-        lines.push(`${indent(5)}<rotation x="${formatNumber(rx, 0)}" y="${formatNumber(ry, 0)}" z="${formatNumber(rz, 0)}" />`);
-        lines.push(`${indent(5)}<flashness value="${formatNumber(light.flashness, 0)}" />`);
-        lines.push(`${indent(5)}<delta value="${formatNumber(light.delta, 0)}" />`);
+        lines.push(`${indent(5)}<rotation x="${rx.toFixed(6)}" y="${ry.toFixed(6)}" z="${rz.toFixed(6)}" />`);
+        lines.push(`${indent(5)}<flashness value="${light.flashness.toFixed(6)}" />`);
+        lines.push(`${indent(5)}<delta value="${light.delta.toFixed(6)}" />`);
         lines.push(`${indent(5)}<color value="${light.color}" />`);
-        lines.push(`${indent(5)}<scale value="${formatNumber(resolvedScale, 0.4)}" />`);
+        lines.push(`${indent(5)}<scale value="${resolvedScale.toFixed(6)}" />`);
         lines.push(`${indent(5)}<sequencer value="${seqVal}" />`);
         lines.push(`${indent(4)}</Item>`);
       }
@@ -459,7 +199,7 @@ export function serializeCarcolsMeta(vehicles: VehicleEntry[]): string {
     }
     lines.push(`${indent(3)}<environmentalLight>`);
     lines.push(`${indent(4)}<color value="${c.environmentalLightColor}" />`);
-    lines.push(`${indent(4)}<intensity value="${formatNumber(c.environmentalLightIntensity, 50)}" />`);
+    lines.push(`${indent(4)}<intensity value="${c.environmentalLightIntensity.toFixed(6)}" />`);
     lines.push(`${indent(3)}</environmentalLight>`);
     lines.push(`${indent(2)}</Item>`);
   }
@@ -516,16 +256,16 @@ function serializeLookAroundSide(side: any, level: number): string[] {
     lines.push(`${indent(level)}<Offsets>`);
     for (const o of side.offsets) {
       lines.push(`${indent(level + 1)}<Item>`);
-      lines.push(`${indent(level + 2)}<Offset value="${formatNumber(o.offset, 0)}" />`);
-      lines.push(`${indent(level + 2)}<AngleToBlendInOffset x="${formatNumber(o.angleToBlendInOffsetX, 0)}" y="${formatNumber(o.angleToBlendInOffsetY, 0)}" />`);
+      lines.push(`${indent(level + 2)}<Offset value="${o.offset.toFixed(6)}" />`);
+      lines.push(`${indent(level + 2)}<AngleToBlendInOffset x="${o.angleToBlendInOffsetX.toFixed(6)}" y="${o.angleToBlendInOffsetY.toFixed(6)}" />`);
       lines.push(`${indent(level + 1)}</Item>`);
     }
     lines.push(`${indent(level)}</Offsets>`);
   } else {
     lines.push(`${indent(level)}<Offsets />`);
   }
-  lines.push(`${indent(level)}<ExtraRelativePitch x="${formatNumber(side.extraRelativePitchX, 0)}" y="${formatNumber(side.extraRelativePitchY, 0)}" />`);
-  lines.push(`${indent(level)}<AngleToBlendInExtraPitch x="${formatNumber(side.angleToBlendInExtraPitchX, 0)}" y="${formatNumber(side.angleToBlendInExtraPitchY, 0)}" />`);
+  lines.push(`${indent(level)}<ExtraRelativePitch x="${side.extraRelativePitchX.toFixed(6)}" y="${side.extraRelativePitchY.toFixed(6)}" />`);
+  lines.push(`${indent(level)}<AngleToBlendInExtraPitch x="${side.angleToBlendInExtraPitchX.toFixed(6)}" y="${side.angleToBlendInExtraPitchY.toFixed(6)}" />`);
   return lines;
 }
 
@@ -543,10 +283,10 @@ export function serializeVehicleLayoutsMeta(vehicles: VehicleEntry[]): string {
   for (const cover of allCovers) {
     lines.push(`${indent(2)}<Item type="CVehicleCoverBoundOffsetInfo">`);
     lines.push(`${indent(3)}<Name>${cover.name}</Name>`);
-    lines.push(`${indent(3)}<ExtraSideOffset value="${formatNumber(cover.extraSideOffset, 0)}" />`);
-    lines.push(`${indent(3)}<ExtraForwardOffset value="${formatNumber(cover.extraForwardOffset, 0)}" />`);
-    lines.push(`${indent(3)}<ExtraBackwardOffset value="${formatNumber(cover.extraBackwardOffset, 0)}" />`);
-    lines.push(`${indent(3)}<ExtraZOffset value="${formatNumber(cover.extraZOffset, 0)}" />`);
+    lines.push(`${indent(3)}<ExtraSideOffset value="${cover.extraSideOffset.toFixed(6)}" />`);
+    lines.push(`${indent(3)}<ExtraForwardOffset value="${cover.extraForwardOffset.toFixed(6)}" />`);
+    lines.push(`${indent(3)}<ExtraBackwardOffset value="${cover.extraBackwardOffset.toFixed(6)}" />`);
+    lines.push(`${indent(3)}<ExtraZOffset value="${cover.extraZOffset.toFixed(6)}" />`);
     lines.push(`${indent(3)}<CoverBoundInfos />`);
     lines.push(`${indent(2)}</Item>`);
   }
@@ -557,7 +297,7 @@ export function serializeVehicleLayoutsMeta(vehicles: VehicleEntry[]): string {
     lines.push(`${indent(2)}<Item type="CFirstPersonDriveByLookAroundData">`);
     lines.push(`${indent(3)}<Name>${entry.name}</Name>`);
     lines.push(`${indent(3)}<AllowLookback value="${entry.allowLookback}" />`);
-    lines.push(`${indent(3)}<HeadingLimits x="${formatNumber(entry.headingLimitsX, 0)}" y="${formatNumber(entry.headingLimitsY, 0)}" />`);
+    lines.push(`${indent(3)}<HeadingLimits x="${entry.headingLimitsX.toFixed(6)}" y="${entry.headingLimitsY.toFixed(6)}" />`);
     lines.push(`${indent(3)}<DataLeft>`);
     lines.push(...serializeLookAroundSide(entry.dataLeft, 4));
     lines.push(`${indent(3)}</DataLeft>`);
@@ -626,7 +366,7 @@ export function serializeModkitsMeta(vehicles: VehicleEntry[]): string {
             lines.push(`${indent(5)}<identifier />`);
           }
           lines.push(`${indent(5)}<modifier value="${mod.modifier}" />`);
-          lines.push(`${indent(5)}<audioApply value="${formatNumber(mod.audioApply, 1)}" />`);
+          lines.push(`${indent(5)}<audioApply value="${mod.audioApply.toFixed(6)}" />`);
           lines.push(`${indent(5)}<weight value="${mod.weight}" />`);
           lines.push(`${indent(5)}<type>${mod.type}</type>`);
           lines.push(`${indent(4)}</Item>`);

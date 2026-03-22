@@ -1,0 +1,36 @@
+diff --git a/dist/index.js b/dist/index.js
+index 1234567..abcdefg 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -68,8 +68,13 @@ function composeRefs(...refs) {
+   };
+ }
+ function useComposedRefs(...refs) {
+-  return React.useCallback(composeRefs(...refs), refs);
++  var refsRef = React.useRef(refs);
++  refsRef.current = refs;
++  return React.useCallback(function stableComposedRef(node) {
++    return composeRefs.apply(null, refsRef.current)(node);
++  }, []);
+ }
++
+ //# sourceMappingURL=index.js.map
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 1234567..abcdefg 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -31,8 +31,13 @@ function composeRefs(...refs) {
+   };
+ }
+ function useComposedRefs(...refs) {
+-  return React.useCallback(composeRefs(...refs), refs);
++  // Store the latest refs in a mutable ref to avoid re-creating the callback
++  // when inline arrow functions change identity (fixes React 19 infinite loop).
++  var refsRef = React.useRef(refs);
++  refsRef.current = refs;
++  return React.useCallback(function stableComposedRef(node) {
++    return composeRefs.apply(null, refsRef.current)(node);
++  }, []);
+ }
+ export {
+   composeRefs,

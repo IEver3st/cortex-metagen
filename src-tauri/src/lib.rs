@@ -1,3 +1,5 @@
+use std::env;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -13,6 +15,38 @@ fn read_meta_file(path: String) -> Result<String, String> {
 #[tauri::command]
 fn write_meta_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+#[derive(serde::Deserialize)]
+pub struct ArchiveEntry {
+    pub filename: String,
+    pub content: String,
+}
+
+#[tauri::command]
+fn write_zip_archive(path: String, entries: Vec<ArchiveEntry>) -> Result<(), String> {
+    let dest_path = Path::new(&path);
+    if let Some(parent) = dest_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+    }
+
+    let file = std::fs::File::create(dest_path).map_err(|e| e.to_string())?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .unix_permissions(0o644);
+
+    for entry in entries {
+        zip.start_file(&entry.filename, options)
+            .map_err(|e| e.to_string())?;
+        zip.write_all(entry.content.as_bytes())
+            .map_err(|e| e.to_string())?;
+    }
+
+    zip.finish().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn is_supported_meta_file(path: &Path) -> bool {
@@ -95,15 +129,85 @@ fn list_workspace_meta_files(path: String) -> Result<Vec<String>, String> {
     Ok(files)
 }
 
+// ---------------------------------------------------------------------------
+// GitHub bug-report integration
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+struct GitHubConfig {
+    pat: String,
+    owner: String,
+    repo: String,
+}
+
+#[tauri::command]
+async fn submit_bug_report(
+    title: String,
+    description: String,
+    steps: String,
+    state: tauri::State<'_, GitHubConfig>,
+) -> Result<(), String> {
+    let version = env!("CARGO_PKG_VERSION");
+    let os = std::env::consts::OS;
+
+    let body = format!(
+        "## Description\n{description}\n\n## Steps to reproduce\n{steps}\n\n---\n**App version:** {version}\n**Platform:** {os}\n**Reported via:** in-app bug report"
+    );
+
+    let payload = serde_json::json!({
+        "title": title,
+        "body": body,
+        "labels": ["bug", "user-report"]
+    });
+
+    let client = reqwest::Client::new();
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/issues",
+        state.owner, state.repo
+    );
+
+    let response = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", state.pat))
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .header("User-Agent", "cortex-metagen")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        return Err(format!("GitHub API error {status}: {text}"));
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = dotenv::dotenv();
+
+    let github_config = GitHubConfig {
+        pat: env::var("GITHUB_PAT").unwrap_or_default(),
+        owner: env::var("GITHUB_REPO_OWNER").unwrap_or_else(|_| "iever3st".to_string()),
+        repo: env::var("GITHUB_REPO_NAME").unwrap_or_else(|_| "cortex-metagen".to_string()),
+    };
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .manage(github_config)
         .invoke_handler(tauri::generate_handler![
             read_meta_file,
             write_meta_file,
-            list_workspace_meta_files
+            list_workspace_meta_files,
+            write_zip_archive,
+            submit_bug_report
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

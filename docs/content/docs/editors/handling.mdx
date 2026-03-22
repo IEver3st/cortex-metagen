@@ -11,12 +11,16 @@ Each vehicle maps to a `handlingName` entry.
 
 ## Sections
 
-- **Physical Attributes**: mass, drag, center of mass, inertia
-- **Transmission & Engine**: power, top speed, gears, drive bias
-- **Brakes & Steering**: brake force/bias, steering lock
-- **Traction & Tires**: traction curves, off-road loss, low-speed loss
-- **Suspension**: stiffness + damping + anti-roll + ride height
-- **Damage & Misc**: collision/deformation multipliers + flags
+- **Identity**: `handlingName`
+- **Physics**: mass, drag, percent submerged, center of mass, inertia
+- **Drive**: power, top speed, gears, drive bias
+- **Braking**: brake force, handbrake force, front bias, steering lock
+- **Traction**: traction curves, lateral grip, spring delta, bias, camber, low-speed loss
+- **Suspension**: stiffness, damping, travel limits, anti-roll, ride height, roll center
+- **Damage**: collision, weapon, deformation, engine, fuel, oil
+- **Seat Offset**: X/Y/Z driver seat position offsets
+- **Flags & AI**: monetary value, model/handling/damage flags, AI handling profile
+- **Sub Handling**: rear pop-up impulse tuning values
 
 ## Performance estimates
 

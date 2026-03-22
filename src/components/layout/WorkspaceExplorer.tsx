@@ -32,21 +32,14 @@ function getRelativePath(fullPath: string, workspacePath: string | null): string
 
 function metaTypeFromFileName(fileName: string): MetaFileType | null {
   const fn = fileName.toLowerCase();
-
-  const patterns: Array<[MetaFileType, RegExp]> = [
-    ["handling", /(?:^|[._-])handling(?:[._-]|$)/],
-    ["vehicles", /(?:^|[._-])vehicles(?:[._-]|$)/],
-    ["carcols", /(?:^|[._-])carcols(?:[._-]|$)/],
-    ["carvariations", /(?:^|[._-])carvariations?(?:[._-]|$)/],
-    ["vehiclelayouts", /(?:^|[._-])vehiclelayouts?(?:[._-]|$)/],
-    ["modkits", /(?:^|[._-])modkits?(?:[._-]|$)/],
-  ];
-
-  const matches = patterns.filter(([, pattern]) => pattern.test(fn));
-  if (matches.length !== 1) return null;
-  return matches[0][0];
+  if (fn.includes("handling")) return "handling";
+  if (fn.includes("vehicles")) return "vehicles";
+  if (fn.includes("carcols")) return "carcols";
+  if (fn.includes("carvariations") || fn.includes("carvariation")) return "carvariations";
+  if (fn.includes("vehiclelayout")) return "vehiclelayouts";
+  if (fn.includes("modkits") || fn.includes("modkit")) return "modkits";
+  return null;
 }
-
 
 function buildTree(paths: string[], workspacePath: string | null): TreeNode {
   const rootName = workspacePath ? normalizePath(workspacePath).split("/").filter(Boolean).pop() ?? "Workspace" : "Workspace";
@@ -113,14 +106,27 @@ function iconForMetaType(metaType: MetaFileType | null) {
   return { className: "text-primary", label: "Modkits" };
 }
 
-export function WorkspaceExplorer() {
+interface WorkspaceExplorerProps {
+  filterQuery?: string;
+}
+
+export function WorkspaceExplorer({ filterQuery = "" }: WorkspaceExplorerProps) {
   const workspacePath = useMetaStore((s) => s.workspacePath);
   const workspaceMetaFiles = useMetaStore((s) => s.workspaceMetaFiles);
   const activeTab = useMetaStore((s) => s.activeTab);
   const setActiveTab = useMetaStore((s) => s.setActiveTab);
   const setUIView = useMetaStore((s) => s.setUIView);
 
-  const tree = useMemo(() => buildTree(workspaceMetaFiles, workspacePath), [workspaceMetaFiles, workspacePath]);
+  const filteredWorkspaceMetaFiles = useMemo(() => {
+    const query = filterQuery.trim().toLowerCase();
+    if (!query) return workspaceMetaFiles;
+    return workspaceMetaFiles.filter((filePath) => {
+      const fileName = filePath.replace(/\\/g, "/").split("/").pop() ?? "";
+      return fileName.toLowerCase().includes(query);
+    });
+  }, [workspaceMetaFiles, filterQuery]);
+
+  const tree = useMemo(() => buildTree(filteredWorkspaceMetaFiles, workspacePath), [filteredWorkspaceMetaFiles, workspacePath]);
 
   const [openDirs, setOpenDirs] = useState<Record<string, boolean>>({
     root: true,

@@ -1,10 +1,13 @@
+import { useMemo, useState } from "react";
 import type { ComponentType } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PresetPicker } from "@/components/PresetPicker";
 import { useMetaStore, type MetaFileType } from "@/store/meta-store";
+import { useWorkspaceStore } from "@/store/workspace-store";
 import { cn } from "@/lib/utils";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
 import {
@@ -17,6 +20,8 @@ import {
   Palette,
   LayoutPanelTop,
   Files,
+  Search,
+  Command,
 } from "lucide-react";
 
 interface IdeSidebarProps {
@@ -34,6 +39,22 @@ const navItems: Array<{ key: MetaFileType; label: string; icon: ComponentType<{ 
   { key: "carvariations", label: "Variations", icon: Palette },
   { key: "vehiclelayouts", label: "Layouts", icon: LayoutPanelTop },
 ];
+
+const META_TYPE_PATTERNS: Array<[MetaFileType, RegExp]> = [
+  ["handling", /(?:^|[._-])handling(?:[._-]|$)/i],
+  ["vehicles", /(?:^|[._-])vehicles(?:[._-]|$)/i],
+  ["carcols", /(?:^|[._-])carcols(?:[._-]|$)/i],
+  ["carvariations", /(?:^|[._-])carvariations?(?:[._-]|$)/i],
+  ["vehiclelayouts", /(?:^|[._-])vehiclelayouts?(?:[._-]|$)/i],
+  ["modkits", /(?:^|[._-])modkits?(?:[._-]|$)/i],
+];
+
+function metaTypeFromFileName(fileName: string): MetaFileType | null {
+  const fn = fileName.toLowerCase();
+  const matches = META_TYPE_PATTERNS.filter(([, pattern]) => pattern.test(fn));
+  if (matches.length !== 1) return null;
+  return matches[0][0];
+}
 
 const prefetchByTab: Record<MetaFileType, () => Promise<unknown>> = {
   handling: () => import("@/components/editors/HandlingEditor"),
@@ -77,8 +98,35 @@ export function IdeSidebar({
   const explorerVisible = useMetaStore((s) => s.explorerVisible);
   const setExplorerVisible = useMetaStore((s) => s.setExplorerVisible);
   const setSidebarCollapsed = useMetaStore((s) => s.setSidebarCollapsed);
+  const workspacePath = useMetaStore((s) => s.workspacePath);
+  const workspaceMetaFiles = useMetaStore((s) => s.workspaceMetaFiles);
+
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
+  const toggleCommandPalette = useWorkspaceStore((s) => s.toggleCommandPalette);
+
+  const [explorerSearch, setExplorerSearch] = useState("");
 
   const effectiveExplorerVisible = explorerVisible && !collapsed;
+
+  // Derive workspace display name
+  const workspaceName = activeWorkspace?.name
+    ?? workspacePath?.replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop()
+    ?? null;
+
+  // Count meta files by type for nav badges
+  const metaTypeCounts = useMemo(() => {
+    const counts: Partial<Record<MetaFileType, number>> = {};
+    for (const filePath of workspaceMetaFiles) {
+      const fileName = filePath.replace(/\\/g, "/").split("/").pop() ?? "";
+      const metaType = metaTypeFromFileName(fileName);
+      if (metaType) {
+        counts[metaType] = (counts[metaType] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [workspaceMetaFiles]);
+
+  const totalMetaFiles = workspaceMetaFiles.length;
 
   return (
     <TooltipProvider>
@@ -88,6 +136,33 @@ export function IdeSidebar({
         transition={{ duration: 0.24, ease: "easeOut" }}
         className="h-full border-r border-[#131a2b] bg-[#050d21] flex flex-col"
       >
+        {/* Workspace name header — visible when expanded and workspace is open */}
+        <AnimatePresence>
+          {!collapsed && workspaceName && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="px-3 pt-2.5 pb-1.5 overflow-hidden"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FolderTree className="size-3.5 shrink-0 text-primary/80" />
+                  <span className="text-[11px] font-semibold text-slate-200 truncate tracking-wide uppercase">
+                    {workspaceName}
+                  </span>
+                </div>
+                {totalMetaFiles > 0 && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                    {totalMetaFiles} file{totalMetaFiles !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <motion.div variants={sectionVariants} initial="hidden" animate="show" className="px-2 pt-2 pb-2 space-y-1">
           <motion.div variants={itemVariants}>
             <SidebarAction
@@ -121,6 +196,16 @@ export function IdeSidebar({
               onClick={onOpenFile}
             />
           </motion.div>
+
+          {/* Command Palette shortcut — collapsed shows icon only */}
+          <motion.div variants={itemVariants}>
+            <SidebarAction
+              collapsed={collapsed}
+              label="Commands"
+              icon={Command}
+              onClick={() => toggleCommandPalette()}
+            />
+          </motion.div>
         </motion.div>
 
         {!collapsed && (
@@ -140,31 +225,49 @@ export function IdeSidebar({
         <Separator className="bg-[#131a2b]" />
 
         {effectiveExplorerVisible ? (
-          <div className="flex-1 min-h-0 p-2">
-            <div className="h-full min-h-0">
-              <WorkspaceExplorer />
+          <div className="flex-1 min-h-0 flex flex-col">
+            {/* Explorer search filter */}
+            <div className="px-2 pt-2 pb-1">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground/60" />
+                <Input
+                  value={explorerSearch}
+                  onChange={(e) => setExplorerSearch(e.target.value)}
+                  placeholder="Filter files..."
+                  className="h-7 border-[#1e2d47] bg-[#0a1628] pl-7 pr-2 text-[11px] text-slate-200 placeholder:text-slate-600 focus-visible:ring-primary/30"
+                />
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 p-2 pt-0">
+              <div className="h-full min-h-0">
+                <WorkspaceExplorer filterQuery={explorerSearch} />
+              </div>
             </div>
           </div>
         ) : (
           <motion.nav variants={sectionVariants} initial="hidden" animate="show" className="p-2 space-y-1 overflow-y-auto">
-            {navItems.map((item) => (
-              <motion.div key={item.key} variants={itemVariants}>
-                <SidebarAction
-                  collapsed={collapsed}
-                  label={item.label}
-                  icon={item.icon}
-                  active={uiView === "workspace" && activeTab === item.key}
-                  disabled={!hasSelection}
-                  onMouseEnter={() => {
-                    void prefetchByTab[item.key]();
-                  }}
-                  onClick={() => {
-                    setActiveTab(item.key);
-                    setUIView("workspace");
-                  }}
-                />
-              </motion.div>
-            ))}
+            {navItems.map((item) => {
+              const count = metaTypeCounts[item.key];
+              return (
+                <motion.div key={item.key} variants={itemVariants}>
+                  <SidebarAction
+                    collapsed={collapsed}
+                    label={item.label}
+                    icon={item.icon}
+                    active={uiView === "workspace" && activeTab === item.key}
+                    disabled={!hasSelection}
+                    badge={count}
+                    onMouseEnter={() => {
+                      void prefetchByTab[item.key]();
+                    }}
+                    onClick={() => {
+                      setActiveTab(item.key);
+                      setUIView("workspace");
+                    }}
+                  />
+                </motion.div>
+              );
+            })}
             <motion.div variants={itemVariants}>
               <SidebarAction
                 collapsed={collapsed}
@@ -192,9 +295,10 @@ interface SidebarActionProps {
   onMouseEnter?: () => void;
   active?: boolean;
   disabled?: boolean;
+  badge?: number;
 }
 
-function SidebarAction({ collapsed, label, icon: Icon, onClick, onMouseEnter, active, disabled }: SidebarActionProps) {
+function SidebarAction({ collapsed, label, icon: Icon, onClick, onMouseEnter, active, disabled, badge }: SidebarActionProps) {
   const button = (
     <motion.div whileHover={{ x: 1.5 }} transition={{ duration: 0.16 }}>
       <Button
@@ -224,6 +328,21 @@ function SidebarAction({ collapsed, label, icon: Icon, onClick, onMouseEnter, ac
             </motion.span>
           )}
         </AnimatePresence>
+        {/* Meta type count badge */}
+        <AnimatePresence initial={false}>
+          {!collapsed && badge !== undefined && badge > 0 && (
+            <motion.span
+              key="sidebar-badge"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.14 }}
+              className="ml-auto text-[10px] tabular-nums text-muted-foreground bg-[#14233b] px-1.5 py-0.5 rounded"
+            >
+              {badge}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </Button>
     </motion.div>
   );
@@ -233,7 +352,12 @@ function SidebarAction({ collapsed, label, icon: Icon, onClick, onMouseEnter, ac
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right" className="border-[#2a3f60] bg-[#111c31] text-slate-100">{label}</TooltipContent>
+      <TooltipContent side="right" className="border-[#2a3f60] bg-[#111c31] text-slate-100">
+        {label}
+        {badge !== undefined && badge > 0 && (
+          <span className="ml-1.5 text-muted-foreground">({badge})</span>
+        )}
+      </TooltipContent>
     </Tooltip>
   );
 }
