@@ -25,7 +25,6 @@ export interface MergeSummary {
   handlingIdConsolidations: number;
 }
 
-
 export interface MergeResult {
   xml: string;
   summary: MergeSummary;
@@ -33,14 +32,47 @@ export interface MergeResult {
 
 export interface MergeOptions {
   consolidateSimilarHandlingIds?: boolean;
+  duplicateStrategy?: "keep-first" | "keep-last" | "manual";
+  sortStrategy?: "preserve" | "alphabetical";
+}
+
+export interface ConflictDetail {
+  key: string;
+  keyLabel: string;
+  versions: ConflictVersionDetail[];
+}
+
+export interface ConflictVersionDetail {
+  fileIndex: number;
+  fileName: string;
+  snippet: string;
+}
+
+export interface AnalysisResult {
+  summary: MergeSummary;
+  conflicts: ConflictDetail[];
+  previewXml: string;
+}
+
+export interface FileAnalysis {
+  detectedType: MetaFileType | null;
+  entryCount: number;
+  error: string | null;
 }
 
 function normalize(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function extractInlineComments(content: string): string[] {
-  const matches = content.match(/<!--([\s\S]*?)-->/g) ?? [];
+function extractLeadingComments(content: string): string[] {
+  const declarationMatch = content.match(/^\s*<\?xml[\s\S]*?\?>/i);
+  const startIndex = declarationMatch ? declarationMatch[0].length : 0;
+  const afterDeclaration = content.slice(startIndex);
+  const leadingMatch = afterDeclaration.match(/^(\s*(?:<!--[\s\S]*?-->\s*)+)/);
+
+  if (!leadingMatch) return [];
+
+  const matches = leadingMatch[1].match(/<!--([\s\S]*?)-->/g) ?? [];
   const unique: string[] = [];
   const seen = new Set<string>();
 
@@ -90,6 +122,34 @@ function carcolsFingerprint(vehicle: VehicleEntry): string {
   });
 }
 
+function mergeIdentity(type: MetaFileType, vehicle: VehicleEntry): string {
+  if (type === "handling") return normalize(vehicle.handling.handlingName || vehicle.name);
+  if (type === "vehicles") return normalize(vehicle.vehicles.modelName || vehicle.name);
+  if (type === "carvariations") return normalize(vehicle.carvariations.modelName || vehicle.name);
+  if (type === "carcols") {
+    if (vehicle.carcols.sirenId > 0) return `siren:${vehicle.carcols.sirenId}`;
+    if (vehicle.carcols.id > 0) return `kit:${vehicle.carcols.id}`;
+    return normalize(vehicle.name);
+  }
+  if (type === "vehiclelayouts") {
+    const firstName = vehicle.vehiclelayouts.driveByLookAroundData[0]?.name
+      ?? vehicle.vehiclelayouts.coverBoundOffsets[0]?.name
+      ?? vehicle.name;
+    return normalize(firstName);
+  }
+
+  return normalize(vehicle.name);
+}
+
+function mergeFingerprint(type: MetaFileType, vehicle: VehicleEntry): string {
+  if (type === "handling") return handlingFingerprint(vehicle);
+  if (type === "vehicles") return JSON.stringify(vehicle.vehicles);
+  if (type === "carcols") return carcolsFingerprint(vehicle);
+  if (type === "carvariations") return JSON.stringify(vehicle.carvariations);
+  if (type === "vehiclelayouts") return JSON.stringify(vehicle.vehiclelayouts);
+  return JSON.stringify(vehicle.modkits);
+}
+
 function dedupeVehiclesByType(type: MetaFileType, vehicles: VehicleEntry[]): VehicleEntry[] {
   const unique: VehicleEntry[] = [];
   const seen = new Set<string>();
@@ -129,28 +189,39 @@ function pickCanonicalHandlingId(currentId: string, incomingId: string): string 
   const incomingLower = incoming.toLowerCase();
   if (currentLower === incomingLower) return current;
 
-  // Keep first-seen ID unless user explicitly opts in to consolidation.
   return current;
 }
 
+function isLikelyHandlingVariant(base: string, candidate: string): boolean {
+  const normalizedBase = base.trim().toLowerCase();
+  const normalizedCandidate = candidate.trim().toLowerCase();
+  if (!normalizedBase || !normalizedCandidate || normalizedBase === normalizedCandidate) {
+    return false;
+  }
+
+  if (!normalizedCandidate.startsWith(normalizedBase)) {
+    return false;
+  }
+
+  const suffix = normalizedCandidate.slice(normalizedBase.length);
+  if (!suffix) return false;
+
+  return /^[_\-.]/.test(suffix);
+}
 
 function canonicalHandlingIdBySimilarity(candidate: string, allIds: string[]): string {
   const cleanCandidate = candidate.trim();
   if (!cleanCandidate) return cleanCandidate;
 
-  const lowerCandidate = cleanCandidate.toLowerCase();
   let canonical = cleanCandidate;
 
   for (const option of allIds) {
     const cleanOption = option.trim();
     if (!cleanOption) continue;
-    const lowerOption = cleanOption.toLowerCase();
-    if (lowerOption === lowerCandidate) continue;
+    if (!isLikelyHandlingVariant(cleanOption, cleanCandidate)) continue;
 
-    if (lowerCandidate.startsWith(lowerOption)) {
-      if (cleanOption.length < canonical.length) {
-        canonical = cleanOption;
-      }
+    if (cleanOption.length < canonical.length) {
+      canonical = cleanOption;
     }
   }
 
@@ -161,7 +232,7 @@ function consolidateSimilarHandlingIds(vehicles: VehicleEntry[]): { vehicles: Ve
   const handlingIds = [...new Set(
     vehicles
       .map((vehicle) => vehicle.vehicles.handlingId.trim())
-      .filter(Boolean)
+      .filter(Boolean),
   )];
 
   let consolidations = 0;
@@ -184,7 +255,7 @@ function consolidateSimilarHandlingIds(vehicles: VehicleEntry[]): { vehicles: Ve
 }
 
 function collectVehiclesEntriesFromInputs(
-  detected: Array<MergeFileInput & { type: Exclude<MetaFileType, "modkits"> }>
+  detected: Array<MergeFileInput & { type: Exclude<MetaFileType, "modkits"> }>,
 ): VehicleEntry[] {
   const entries: VehicleEntry[] = [];
 
@@ -202,7 +273,7 @@ export function previewSimilarHandlingIds(inputs: MergeFileInput[]): string[] {
     .map((input) => {
       const fileName = input.path.split(/[/\\]/).pop() ?? "";
       const type = detectMetaType(input.content, fileName);
-      return type ? { ...input, type } : null;
+      return type && type !== "modkits" ? { ...input, type } : null;
     })
     .filter((entry): entry is MergeFileInput & { type: Exclude<MetaFileType, "modkits"> } => Boolean(entry));
 
@@ -225,10 +296,12 @@ export function previewSimilarHandlingIds(inputs: MergeFileInput[]): string[] {
 }
 
 function mergeVehiclesMetaPreservingCanonicalHandling(
-  detected: Array<MergeFileInput & { type: Exclude<MetaFileType, "modkits"> }>
-): { vehicles: VehicleEntry[]; parsedEntries: number } {
+  detected: Array<MergeFileInput & { type: Exclude<MetaFileType, "modkits"> }>,
+  duplicateStrategy: NonNullable<MergeOptions["duplicateStrategy"]>,
+): { vehicles: VehicleEntry[]; parsedEntries: number; conflictsDetected: number } {
   const byModel = new Map<string, VehicleEntry>();
   let parsedEntries = 0;
+  let conflictsDetected = 0;
 
   for (const file of detected) {
     const fileName = file.path.split(/[/\\]/).pop();
@@ -245,9 +318,17 @@ function mergeVehiclesMetaPreservingCanonicalHandling(
         continue;
       }
 
+      if (mergeFingerprint("vehicles", existing) !== mergeFingerprint("vehicles", vehicle)) {
+        conflictsDetected += 1;
+      }
+
+      if (duplicateStrategy === "keep-first" || duplicateStrategy === "manual") {
+        continue;
+      }
+
       const canonicalHandlingId = pickCanonicalHandlingId(
         existing.vehicles.handlingId,
-        vehicle.vehicles.handlingId
+        vehicle.vehicles.handlingId,
       );
 
       const mergedFlags = [...new Set([...(existing.vehicles.flags ?? []), ...(vehicle.vehicles.flags ?? [])])];
@@ -263,7 +344,7 @@ function mergeVehiclesMetaPreservingCanonicalHandling(
     }
   }
 
-  return { vehicles: [...byModel.values()], parsedEntries };
+  return { vehicles: [...byModel.values()], parsedEntries, conflictsDetected };
 }
 
 function serializeByType(type: MetaFileType, vehicles: VehicleEntry[]): string {
@@ -284,7 +365,7 @@ export function mergeMetaFiles(inputs: MergeFileInput[], options: MergeOptions =
     .map((input) => {
       const fileName = input.path.split(/[/\\]/).pop() ?? "";
       const type = detectMetaType(input.content, fileName);
-      return type ? { ...input, type } : null;
+      return type && type !== "modkits" ? { ...input, type } : null;
     })
     .filter((entry): entry is MergeFileInput & { type: Exclude<MetaFileType, "modkits"> } => Boolean(entry));
 
@@ -297,41 +378,66 @@ export function mergeMetaFiles(inputs: MergeFileInput[], options: MergeOptions =
     throw new Error("Mixed meta types are not supported in one merge operation. Merge one type at a time.");
   }
 
-  const allComments: string[] = [];
+  const allComments = extractLeadingComments(detected[0]?.content ?? "");
+  const duplicateStrategy = options.duplicateStrategy ?? "keep-last";
+  const sortStrategy = options.sortStrategy ?? "preserve";
+
   let mergedVehicles: VehicleEntry[] = [];
   let parsedEntries = 0;
   let handlingIdConsolidations = 0;
+  let conflictsDetected = 0;
 
   if (type === "vehicles") {
-    const mergedVehiclesResult = mergeVehiclesMetaPreservingCanonicalHandling(detected);
+    const mergedVehiclesResult = mergeVehiclesMetaPreservingCanonicalHandling(detected, duplicateStrategy);
     mergedVehicles = mergedVehiclesResult.vehicles;
     parsedEntries = mergedVehiclesResult.parsedEntries;
-
-    for (const file of detected) {
-      allComments.push(...extractInlineComments(file.content));
-    }
+    conflictsDetected = mergedVehiclesResult.conflictsDetected;
   } else {
-    let merged: Record<string, VehicleEntry> = {};
+    const mergedByIdentity = new Map<string, VehicleEntry>();
 
     for (const file of detected) {
-      merged = parseMetaFile(file.content, merged, file.path.split(/[/\\]/).pop());
-      allComments.push(...extractInlineComments(file.content));
+      const fileName = file.path.split(/[/\\]/).pop();
+      const parsed = parseMetaFile(file.content, {}, fileName);
+
+      for (const vehicle of Object.values(parsed)) {
+        parsedEntries += 1;
+        const identity = mergeIdentity(type, vehicle);
+        const existingVehicle = mergedByIdentity.get(identity);
+
+        if (existingVehicle) {
+          const previousFingerprint = mergeFingerprint(type, existingVehicle);
+          const incomingFingerprint = mergeFingerprint(type, vehicle);
+          if (previousFingerprint !== incomingFingerprint) {
+            conflictsDetected += 1;
+          }
+
+          if (duplicateStrategy === "keep-first" || duplicateStrategy === "manual") {
+            continue;
+          }
+        }
+
+        mergedByIdentity.set(identity, vehicle);
+      }
     }
 
-    mergedVehicles = Object.values(merged);
-    parsedEntries = mergedVehicles.length;
+    mergedVehicles = [...mergedByIdentity.values()];
   }
+
   const dedupedVehicles = dedupeVehiclesByType(type, mergedVehicles);
-  const consolidateHandling = options.consolidateSimilarHandlingIds ?? true;
+  const consolidateHandling = options.consolidateSimilarHandlingIds ?? false;
   const vehiclesAfterHandlingConsolidation = type === "vehicles" && consolidateHandling
     ? consolidateSimilarHandlingIds(dedupedVehicles)
     : { vehicles: dedupedVehicles, consolidations: 0 };
+  const sortedVehicles = sortStrategy === "alphabetical"
+    ? [...vehiclesAfterHandlingConsolidation.vehicles].sort((left, right) => (
+      mergeIdentity(type, left).localeCompare(mergeIdentity(type, right))
+    ))
+    : vehiclesAfterHandlingConsolidation.vehicles;
 
   handlingIdConsolidations = vehiclesAfterHandlingConsolidation.consolidations;
 
   const duplicatesRemoved = Math.max(0, parsedEntries - dedupedVehicles.length);
-
-  const xml = attachComments(serializeByType(type, vehiclesAfterHandlingConsolidation.vehicles), allComments);
+  const xml = attachComments(serializeByType(type, sortedVehicles), allComments);
 
   return {
     xml,
@@ -340,9 +446,118 @@ export function mergeMetaFiles(inputs: MergeFileInput[], options: MergeOptions =
       parsedEntries,
       uniqueEntries: dedupedVehicles.length,
       duplicatesRemoved,
+      conflictsDetected,
       type,
       preservedComments: allComments.length,
       handlingIdConsolidations,
     },
   };
+}
+
+export function analyzeFiles(inputs: MergeFileInput[], options: MergeOptions = {}): AnalysisResult {
+  const result = mergeMetaFiles(inputs, options);
+  const conflicts = extractConflictDetails(inputs, result.summary.type);
+
+  return {
+    summary: result.summary,
+    conflicts,
+    previewXml: result.xml,
+  };
+}
+
+export function analyzeOneFile(path: string, content: string): FileAnalysis {
+  try {
+    const fileName = path.split(/[/\\]/).pop() ?? "";
+    const detectedType = detectMetaType(content, fileName);
+    if (!detectedType) {
+      return { detectedType: null, entryCount: 0, error: "Could not detect meta type" };
+    }
+
+    const parsed = parseMetaFile(content, {}, fileName);
+    return {
+      detectedType,
+      entryCount: Object.keys(parsed).length,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      detectedType: null,
+      entryCount: 0,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function extractConflictDetails(inputs: MergeFileInput[], type: MetaFileType): ConflictDetail[] {
+  const detected = inputs
+    .map((input, fileIndex) => {
+      const fileName = input.path.split(/[/\\]/).pop() ?? "";
+      const detectedType = detectMetaType(input.content, fileName);
+      return detectedType && detectedType !== "modkits"
+        ? { ...input, type: detectedType, fileIndex, displayName: fileName }
+        : null;
+    })
+    .filter((entry): entry is MergeFileInput & { type: Exclude<MetaFileType, "modkits">; fileIndex: number; displayName: string } => Boolean(entry));
+
+  if (detected.length < 2) return [];
+  if (detected.some((entry) => entry.type !== type)) return [];
+
+  const byIdentity = new Map<string, Array<{ fileIndex: number; fileName: string; vehicle: VehicleEntry }>>();
+
+  for (const file of detected) {
+    const fileName = file.path.split(/[/\\]/).pop();
+    const parsed = parseMetaFile(file.content, {}, fileName);
+
+    for (const vehicle of Object.values(parsed)) {
+      const identity = mergeIdentity(type, vehicle);
+      if (!identity) continue;
+
+      const existing = byIdentity.get(identity) ?? [];
+      existing.push({ fileIndex: file.fileIndex, fileName: file.displayName, vehicle });
+      byIdentity.set(identity, existing);
+    }
+  }
+
+  const conflicts: ConflictDetail[] = [];
+
+  for (const [identity, entries] of byIdentity) {
+    if (entries.length < 2) continue;
+
+    const fingerprints = entries.map((entry) => mergeFingerprint(type, entry.vehicle));
+    const allSame = fingerprints.every((fingerprint) => fingerprint === fingerprints[0]);
+    if (allSame) continue;
+
+    conflicts.push({
+      key: identity,
+      keyLabel: identity,
+      versions: entries.map((entry) => ({
+        fileIndex: entry.fileIndex,
+        fileName: entry.fileName,
+        snippet: truncateSnippet(mergeFingerprint(type, entry.vehicle)),
+      })),
+    });
+  }
+
+  return conflicts;
+}
+
+function truncateSnippet(json: string): string {
+  try {
+    const obj = JSON.parse(json) as Record<string, unknown>;
+    const keys = Object.keys(obj).slice(0, 6);
+    const preview = keys.map((key) => {
+      const value = obj[key];
+      const raw = typeof value === "string" ? value : JSON.stringify(value);
+      const truncated = raw.length > 40 ? `${raw.slice(0, 40)}...` : raw;
+      return `${key}: ${truncated}`;
+    });
+
+    if (Object.keys(obj).length > 6) {
+      preview.push("...");
+    }
+
+    return preview.join("\n");
+  } catch {
+    return json.length > 200 ? `${json.slice(0, 200)}...` : json;
+  }
 }
