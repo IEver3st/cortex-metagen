@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -130,6 +131,66 @@ fn list_workspace_meta_files(path: String) -> Result<Vec<String>, String> {
     Ok(files)
 }
 
+#[derive(serde::Deserialize)]
+struct UpdaterFeedPlatform {
+    url: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct UpdaterFeed {
+    version: Option<String>,
+    #[serde(rename = "pub_date")]
+    pub_date: Option<String>,
+    platforms: Option<HashMap<String, UpdaterFeedPlatform>>,
+}
+
+#[tauri::command]
+async fn inspect_updater_release(endpoint: String) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = reqwest::blocking::Client::builder()
+            .user_agent(format!(
+                "{}/{}",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            ))
+            .build()
+            .map_err(|e| format!("client build error: {e}"))?;
+
+        let feed = client
+            .get(&endpoint)
+            .send()
+            .and_then(|response| response.error_for_status())
+            .map_err(|e| format!("fetch error: {e}"))?
+            .json::<UpdaterFeed>()
+            .map_err(|e| format!("parse error: {e}"))?;
+
+        let version = feed
+            .version
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        let pub_date = feed
+            .pub_date
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        let url = feed.platforms.and_then(|platforms| {
+            platforms.into_values().find_map(|platform| {
+                platform
+                    .url
+                    .map(|value| value.trim().to_string())
+                    .filter(|value| !value.is_empty())
+            })
+        });
+
+        Ok(serde_json::json!({
+            "version": version,
+            "pubDate": pub_date,
+            "url": url,
+        }))
+    })
+    .await
+    .map_err(|e| format!("join error: {e}"))?
+}
+
 // ---------------------------------------------------------------------------
 // GitHub bug-report integration
 // ---------------------------------------------------------------------------
@@ -236,12 +297,15 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(github_config)
         .invoke_handler(tauri::generate_handler![
             read_meta_file,
             write_meta_file,
             list_workspace_meta_files,
             write_zip_archive,
+            inspect_updater_release,
             submit_bug_report
         ])
         .run(tauri::generate_context!())
