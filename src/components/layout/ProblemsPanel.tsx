@@ -38,21 +38,27 @@ const severityIcon: Record<string, typeof AlertTriangle> = {
 };
 
 const severityAccent: Record<string, string> = {
-  error: "border-l-red-500",
-  warning: "border-l-amber-500",
-  info: "border-l-sky-500",
+  error: "border-l-red-500/50 hover:border-l-red-400 bg-red-500/[0.02] hover:bg-red-500/[0.05]",
+  warning: "border-l-amber-500/50 hover:border-l-amber-400 bg-amber-500/[0.02] hover:bg-amber-500/[0.05]",
+  info: "border-l-sky-500/50 hover:border-l-sky-400 bg-sky-500/[0.02] hover:bg-sky-500/[0.05]",
 };
 
 const severityTextColor: Record<string, string> = {
-  error: "text-red-400",
-  warning: "text-amber-400",
-  info: "text-sky-400",
+  error: "text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.4)]",
+  warning: "text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.4)]",
+  info: "text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.4)]",
 };
 
 const severityDot: Record<string, string> = {
-  error: "bg-red-500",
-  warning: "bg-amber-500",
-  info: "bg-sky-500",
+  error: "bg-red-500 shadow-[0_0_6px_rgba(248,113,113,0.6)]",
+  warning: "bg-amber-500 shadow-[0_0_6px_rgba(251,191,36,0.6)]",
+  info: "bg-sky-500 shadow-[0_0_6px_rgba(56,189,248,0.6)]",
+};
+
+const severityBadge: Record<string, string> = {
+  error: "bg-red-500/10 border-red-500/20 text-red-400",
+  warning: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+  info: "bg-sky-500/10 border-sky-500/20 text-sky-400",
 };
 
 function worstOf(issues: ValidationIssue[]): "error" | "warning" | "info" {
@@ -125,41 +131,43 @@ export const ProblemsPanel = memo(function ProblemsPanel({
       animate={{ height: "auto", opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
       transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="border-t border-[#0f1a2e] bg-[#060e1f]"
+      className="border-t border-primary/20 bg-background/95 backdrop-blur shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.5)] z-40 relative"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 h-8 border-b border-[#0f1a2e]">
+      {/* Sleek Header */}
+      <div className="flex items-center justify-between px-4 h-9 border-b border-primary/10 bg-gradient-to-r from-primary/5 via-transparent to-transparent">
         <button
           type="button"
-          className="flex items-center gap-2.5 text-[11px] font-semibold tracking-wide text-slate-400 hover:text-slate-200 transition-colors uppercase"
+          className="flex items-center gap-3 text-[11px] font-bold tracking-widest text-primary/70 hover:text-primary transition-colors uppercase"
           onClick={onToggleVisible}
         >
-          <FileWarning className="size-3.5 text-slate-500" />
+          <FileWarning className="size-3.5" />
           <span>Problems</span>
 
-          {counts.errors > 0 && (
-            <span className="flex items-center gap-1 px-1.5 py-px rounded-full bg-red-500/15 text-[10px] font-medium text-red-400 tabular-nums">
-              <span className="size-1.5 rounded-full bg-red-500" />
-              {counts.errors}
-            </span>
-          )}
-          {counts.warnings > 0 && (
-            <span className="flex items-center gap-1 px-1.5 py-px rounded-full bg-amber-500/15 text-[10px] font-medium text-amber-400 tabular-nums">
-              <span className="size-1.5 rounded-full bg-amber-500" />
-              {counts.warnings}
-            </span>
-          )}
-          {counts.infos > 0 && (
-            <span className="flex items-center gap-1 px-1.5 py-px rounded-full bg-sky-500/15 text-[10px] font-medium text-sky-400 tabular-nums">
-              <span className="size-1.5 rounded-full bg-sky-500" />
-              {counts.infos}
-            </span>
-          )}
+          <div className="flex gap-1.5 ml-1">
+            {counts.errors > 0 && (
+              <span className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold tabular-nums", severityBadge.error)}>
+                <span className={cn("size-1.5 rounded-full", severityDot.error)} />
+                {counts.errors}
+              </span>
+            )}
+            {counts.warnings > 0 && (
+              <span className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold tabular-nums", severityBadge.warning)}>
+                <span className={cn("size-1.5 rounded-full", severityDot.warning)} />
+                {counts.warnings}
+              </span>
+            )}
+            {counts.infos > 0 && (
+              <span className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold tabular-nums", severityBadge.info)}>
+                <span className={cn("size-1.5 rounded-full", severityDot.info)} />
+                {counts.infos}
+              </span>
+            )}
+          </div>
         </button>
 
         <button
           type="button"
-          className="inline-flex items-center justify-center size-6 rounded text-slate-600 hover:text-slate-300 hover:bg-white/5 transition-colors"
+          className="inline-flex items-center justify-center size-6 rounded text-muted-foreground hover:text-foreground hover:bg-primary/20 transition-all hover:scale-105"
           onClick={onDismiss}
         >
           <X className="size-3.5" />
@@ -167,29 +175,29 @@ export const ProblemsPanel = memo(function ProblemsPanel({
       </div>
 
       {/* Issue list */}
-      <ScrollArea className="max-h-[180px]">
-        <div className="py-1">
+      <ScrollArea className="max-h-[220px]">
+        <div className="py-2 px-1">
           {groups.map((group) => {
             const isCollapsed = collapsedFiles.has(group.fileName);
             return (
-              <div key={group.fileName}>
+              <div key={group.fileName} className="mb-1">
                 {/* File header */}
                 <button
                   type="button"
-                  className="group flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/[0.03] transition-colors"
+                  className="group flex items-center gap-2.5 w-[calc(100%-0.5rem)] mx-1 px-3 py-1.5 text-xs rounded-md hover:bg-primary/10 transition-colors"
                   onClick={() => toggleFile(group.fileName)}
                 >
                   <span className={cn(
-                    "transition-transform duration-150",
+                    "transition-transform duration-200",
                     isCollapsed ? "rotate-0" : "rotate-90"
                   )}>
-                    <ChevronRight className="size-3 text-slate-600 group-hover:text-slate-400 transition-colors" />
+                    <ChevronRight className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
                   </span>
-                  <span className={cn("size-1.5 rounded-full shrink-0", severityDot[group.worstSeverity])} />
-                  <span className="font-medium text-slate-300 group-hover:text-slate-100 transition-colors">
+                  <span className={cn("size-2 rounded-full shrink-0", severityDot[group.worstSeverity])} />
+                  <span className="font-semibold text-slate-300 group-hover:text-primary-foreground transition-colors tracking-wide">
                     {group.fileName}
                   </span>
-                  <span className="ml-auto text-[10px] font-mono text-slate-600">
+                  <span className="ml-auto flex items-center justify-center min-w-5 h-5 px-1 bg-background/50 border border-border/50 rounded text-[10px] font-mono text-muted-foreground">
                     {group.issues.length}
                   </span>
                 </button>
@@ -201,52 +209,55 @@ export const ProblemsPanel = memo(function ProblemsPanel({
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.15, ease: "easeOut" }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
-                      {group.issues.map((issue, idx) => {
-                        const Icon = severityIcon[issue.severity] ?? Info;
-                        const textColor = severityTextColor[issue.severity] ?? "text-slate-400";
-                        const accent = severityAccent[issue.severity] ?? "border-l-slate-600";
+                      <div className="flex flex-col gap-1 mt-1 pb-2">
+                        {group.issues.map((issue, idx) => {
+                          const Icon = severityIcon[issue.severity] ?? Info;
+                          const textColor = severityTextColor[issue.severity] ?? "text-slate-400";
+                          const accent = severityAccent[issue.severity] ?? "border-l-slate-600";
 
-                        const displayMessage = issue.message.replace(
-                          /^\[[^\]]+\]\s*/,
-                          ""
-                        );
+                          const displayMessage = issue.message.replace(
+                            /^\[[^\]]+\]\s*/,
+                            ""
+                          );
 
-                        return (
-                          <button
-                            type="button"
-                            key={`${group.fileName}-${idx}`}
-                            className={cn(
-                              "flex items-start gap-2.5 w-full ml-5 mr-2 px-3 py-1.5 text-xs text-left",
-                              "border-l-2 rounded-r",
-                              accent,
-                              "hover:bg-white/[0.03] transition-colors cursor-pointer"
-                            )}
-                            onClick={() => onClickIssue?.(issue)}
-                          >
-                            <Icon
-                              className={cn("size-3 mt-0.5 shrink-0", textColor)}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <span className="text-slate-200 leading-relaxed">
-                                {displayMessage}
-                              </span>
-                              {issue.context && (
-                                <p className="text-[10px] text-slate-500/80 mt-0.5 truncate leading-relaxed">
-                                  {issue.context}
-                                </p>
+                          return (
+                            <button
+                              type="button"
+                              key={`${group.fileName}-${idx}`}
+                              className={cn(
+                                "group/issue relative flex items-start gap-3 w-[calc(100%-2rem)] ml-8 mr-2 px-4 py-2 text-xs text-left",
+                                "border-l-2 rounded-md shadow-sm",
+                                accent,
+                                "transition-all duration-200 cursor-pointer"
                               )}
-                            </div>
-                            {issue.line > 0 && (
-                              <span className="text-[10px] text-slate-600 font-mono shrink-0 mt-0.5">
-                                :{issue.line}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
+                              onClick={() => onClickIssue?.(issue)}
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-r from-white/[0.03] to-transparent opacity-0 group-hover/issue:opacity-100 transition-opacity rounded-r-md pointer-events-none" />
+                              <Icon
+                                className={cn("size-3.5 mt-0.5 shrink-0 transition-transform group-hover/issue:scale-110", textColor)}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <span className="text-slate-200 font-medium leading-relaxed group-hover/issue:text-white transition-colors">
+                                  {displayMessage}
+                                </span>
+                                {issue.context && (
+                                  <p className="text-[10px] text-slate-400 mt-1 truncate leading-relaxed">
+                                    {issue.context}
+                                  </p>
+                                )}
+                              </div>
+                              {issue.line > 0 && (
+                                <span className="text-[10px] text-slate-500 font-mono shrink-0 mt-0.5 group-hover/issue:text-primary transition-colors bg-background/50 px-1.5 py-0.5 rounded border border-border/40">
+                                  Ln {issue.line}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
