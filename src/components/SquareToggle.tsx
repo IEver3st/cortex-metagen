@@ -30,7 +30,8 @@ export const SquareToggle = memo(function SquareToggle({
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "inline-flex items-center gap-2 group cursor-pointer",
+        "inline-flex items-center group cursor-pointer",
+        label && "gap-2",
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >

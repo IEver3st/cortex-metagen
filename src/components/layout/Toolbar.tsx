@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useMetaStore } from "@/store/meta-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { createDefaultVehicle } from "@/lib/presets";
@@ -24,7 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { BugReportForm } from "./BugReportForm";
-import { Code, Save, Minus, Square, X, History, Undo2, Redo2, Settings, PanelLeft, Search, PackageCheck, ChevronDown, Pin, FolderTree, Bug } from "lucide-react";
+import { Code, Save, Minus, Square, X, History, Undo2, Redo2, Settings, PanelLeft, Search, PackageCheck, ChevronDown, Pin, FolderTree, Bug, Upload, RotateCcw, Copy, Check, Download, Plus, FolderOpen } from "lucide-react";
 import { HiOutlineCode } from "react-icons/hi";
 import type { MetaFileType } from "@/store/meta-store";
 interface ToolbarProps {
@@ -118,6 +118,28 @@ export const Toolbar = memo(function Toolbar({
   const [copiedXml, setCopiedXml] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
 
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarWidth, setToolbarWidth] = useState(1200);
+
+  useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setToolbarWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Progressive visibility thresholds (px). Buttons fade out in order as toolbar shrinks.
+  const showExportZip = toolbarWidth > 680;
+  const showBugReport = toolbarWidth > 620;
+  const showCodePreview = toolbarWidth > 560;
+  const showSave = toolbarWidth > 500;
+  const showHistory = toolbarWidth > 440;
+
   const descriptors = useWorkspaceStore((s) => s.descriptors);
   const toggleCommandPalette = useWorkspaceStore((s) => s.toggleCommandPalette);
 
@@ -161,6 +183,7 @@ export const Toolbar = memo(function Toolbar({
   return (
     <TooltipProvider>
       <div
+        ref={toolbarRef}
         className="relative flex items-center gap-2 pl-3 pr-0 py-0 border-b border-[#131a2b] bg-[#050d21] select-none overflow-hidden"
         data-tauri-drag-region
       >
@@ -289,33 +312,80 @@ export const Toolbar = memo(function Toolbar({
         <div className="flex items-center h-full shrink-0">
         {uiView === "workspace" && (
           <div className="mr-2 flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px]" onClick={() => onOpenFile?.()}>Import</Button>
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px]" onClick={handleResetActiveTab} disabled={!activeVehicleId}>Reset</Button>
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px]" onClick={() => void handleCopyVehicle()} disabled={!activeVehicleId}>{copiedXml ? "Copied" : "Copy"}</Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-[11px]"
-              disabled={isExporting || !hasSelection}
-              onClick={async () => {
-                if (!onExportAll || isExporting) return;
-                setIsExporting(true);
-                try {
-                  await onExportAll();
-                } finally {
-                  setIsExporting(false);
-                }
-              }}
-            >
-              Download
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px]" onClick={handleCreateVehicle}>+ New</Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={() => onOpenFile?.()}>
+                  <Upload className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Import</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={handleResetActiveTab} disabled={!activeVehicleId}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Reset active tab</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={() => void handleCopyVehicle()} disabled={!activeVehicleId}>
+                  {copiedXml ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{copiedXml ? "Copied!" : "Copy XML"}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-8 w-8"
+                  disabled={isExporting || !hasSelection}
+                  onClick={async () => {
+                    if (!onExportAll || isExporting) return;
+                    setIsExporting(true);
+                    try {
+                      await onExportAll();
+                    } finally {
+                      setIsExporting(false);
+                    }
+                  }}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Download</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={handleCreateVehicle}>
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">New vehicle</TooltipContent>
+            </Tooltip>
+
             {onOpenFolder && (
-              <Button variant="ghost" size="sm" className="h-8 px-2 text-[11px]" onClick={() => onOpenFolder()}>Folder</Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={() => onOpenFolder()}>
+                    <FolderOpen className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Open folder</TooltipContent>
+              </Tooltip>
             )}
+
             <Separator orientation="vertical" className="mx-1 h-5" />
           </div>
         )}
+        <span className={cn("inline-flex items-center transition-all duration-300 overflow-hidden", showHistory ? "opacity-100 w-8" : "opacity-0 w-0 pointer-events-none")}>
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -352,9 +422,11 @@ export const Toolbar = memo(function Toolbar({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        </span>
 
         {hasSelection && (
           <>
+            <span className={cn("inline-flex items-center transition-all duration-300 overflow-hidden", showSave ? "opacity-100 w-8" : "opacity-0 w-0 pointer-events-none")}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -368,8 +440,9 @@ export const Toolbar = memo(function Toolbar({
               </TooltipTrigger>
               <TooltipContent side="bottom">Save</TooltipContent>
             </Tooltip>
+            </span>
 
-            {isDirty && (
+            {isDirty && showSave && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex items-center justify-center w-2 h-2 rounded-full bg-yellow-400/80" />
@@ -378,6 +451,7 @@ export const Toolbar = memo(function Toolbar({
               </Tooltip>
             )}
 
+            <span className={cn("inline-flex items-center transition-all duration-300 overflow-hidden", showExportZip ? "opacity-100 w-8" : "opacity-0 w-0 pointer-events-none")}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -407,9 +481,11 @@ export const Toolbar = memo(function Toolbar({
                 {isExporting ? "Exporting…" : "Export all to data.zip"}
               </TooltipContent>
             </Tooltip>
+            </span>
           </>
         )}
 
+        <span className={cn("inline-flex items-center transition-all duration-300 overflow-hidden", showCodePreview ? "opacity-100 w-8" : "opacity-0 w-0 pointer-events-none")}>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -423,7 +499,9 @@ export const Toolbar = memo(function Toolbar({
           </TooltipTrigger>
           <TooltipContent side="bottom">{codePreviewVisible ? "Hide code preview" : "Show code preview"}</TooltipContent>
         </Tooltip>
+        </span>
 
+        <span className={cn("inline-flex items-center transition-all duration-300 overflow-hidden", showBugReport ? "opacity-100 w-8" : "opacity-0 w-0 pointer-events-none")}>
         <Dialog open={bugReportOpen} onOpenChange={setBugReportOpen}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -446,6 +524,7 @@ export const Toolbar = memo(function Toolbar({
             <BugReportForm />
           </DialogContent>
         </Dialog>
+        </span>
 
         <Tooltip>
           <TooltipTrigger asChild>

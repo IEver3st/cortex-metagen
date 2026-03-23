@@ -10,7 +10,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { RestoreSessionDialog } from "@/components/layout/RestoreSessionDialog";
 import { VehiclesMetaEnhancementsPanel } from "@/components/layout/VehiclesMetaEnhancementsPanel";
-import { WorkspaceQuickActions } from "@/components/layout/WorkspaceQuickActions";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { logger } from "@/lib/logger";
 import { useWorkspaceStore } from "@/store/workspace-store";
@@ -676,11 +675,6 @@ function App() {
         onClearSession={handleClearSessionSnapshot}
         problemsPanelVisible={problemsPanelVisible}
         onToggleProblemsPanel={() => setProblemsPanelVisible((v) => !v)}
-      />
-
-      <WorkspaceQuickActions
-        onOpenFile={handleOpenFile}
-        onSaveFile={handleSaveFile}
       />
 
       <VehiclesMetaEnhancementsPanel />
