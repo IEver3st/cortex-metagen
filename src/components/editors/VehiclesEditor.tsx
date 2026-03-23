@@ -317,7 +317,7 @@ export function VehiclesEditor() {
 
   return (
     <motion.div className="flex h-full flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="sticky top-0 z-10 border-b border-border/60 bg-background px-4 py-3">
+      <div className="sticky top-0 z-10 border-b border-border/60 bg-background-app px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <Input value={data.modelName} onChange={(event) => update({ modelName: event.target.value.toLowerCase() })} className="h-8 max-w-[180px] text-xs font-mono" />
           <Badge variant="outline" className="rounded-md px-2 py-0 text-[10px]">{data.handlingId}</Badge>

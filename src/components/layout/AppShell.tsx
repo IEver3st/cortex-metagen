@@ -257,7 +257,7 @@ export function AppShell({
             ) : uiView === "workspace" && hasVehicles ? (
               <ResizablePanelGroup direction="horizontal">
                 <ResizablePanel defaultSize={60} minSize={30}>
-                  <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+                  <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background-app">
                     <WorkspaceHeader />
                     <div className="min-h-0 flex-1 overflow-hidden">
                       <EditorPanel />

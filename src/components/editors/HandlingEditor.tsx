@@ -281,7 +281,7 @@ export function HandlingEditor() {
 
   return (
     <motion.div className="flex h-full flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
-      <div className="sticky top-0 z-10 space-y-2 border-b border-border/70 bg-background px-4 py-3">
+      <div className="sticky top-0 z-10 space-y-2 border-b border-border/70 bg-background-app px-4 py-3">
         <div className="flex items-center gap-3">
           <Badge variant="outline">Handling</Badge>
           <Input

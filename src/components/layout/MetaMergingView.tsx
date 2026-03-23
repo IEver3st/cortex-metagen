@@ -6,7 +6,6 @@ import {
   Files,
   FilePlus2,
   FolderPlus,
-  Trash2,
   ChevronRight,
   Check,
   AlertTriangle,
@@ -46,7 +45,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useMergeStore, type MergeStore, type MergeStep, type MergeFileEntry, type MergeRules, type MergeOutputSettings, type ConflictEntry, type DuplicateStrategy, type SortStrategy } from "@/store/merge-store";
+import { useMergeStore, type MergeStep, type MergeFileEntry, type MergeRules, type MergeOutputSettings, type ConflictEntry, type DuplicateStrategy, type SortStrategy } from "@/store/merge-store";
 import {
   mergeMetaFiles,
   analyzeFiles,
@@ -273,7 +272,7 @@ export function MetaMergingView() {
   }, [files, rules, executeMerge]);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-[#040d1a]">
+    <div className="h-full flex flex-col overflow-hidden bg-background-app">
       {/* ── Stepper Bar ────────────────────────────────────────── */}
       <StepperBar step={step} onStepClick={(s) => { if (s < step || (s === 2 && canAdvanceToReview)) store.setStep(s); }} canReview={canAdvanceToReview} mergeSuccess={mergeSuccess} />
 
@@ -283,7 +282,7 @@ export function MetaMergingView() {
           {step === 1 && (
             <motion.div key="step-1" {...SLIDE_UP} className="h-full flex">
               {/* Left Pane: File List */}
-              <div className="w-[340px] min-w-[280px] border-r border-[#131a2b] flex flex-col">
+              <div className="w-[340px] min-w-[280px] border-r border-border/60 flex flex-col">
                 <FilesPane
                   files={files}
                   isDragOver={isDragOver}
@@ -319,7 +318,7 @@ export function MetaMergingView() {
           {step === 2 && (
             <motion.div key="step-2" {...SLIDE_UP} className="h-full flex">
               {/* Left Pane: Merge Rules + Output */}
-              <div className="w-[340px] min-w-[280px] border-r border-[#131a2b] flex flex-col overflow-hidden">
+              <div className="w-[340px] min-w-[280px] border-r border-border/60 flex flex-col overflow-hidden">
                 <ScrollArea className="flex-1">
                   <div className="p-4 space-y-5">
                     <MergeRulesPanel
@@ -331,7 +330,7 @@ export function MetaMergingView() {
                       onSetConsolidateHandling={store.setConsolidateSimilarHandlingIds}
                     />
 
-                    <Separator className="bg-[#131a2b]" />
+                    <Separator />
 
                     <OutputSettingsPanel
                       output={output}
@@ -349,7 +348,7 @@ export function MetaMergingView() {
                 {summary && <MergeSummaryCard summary={summary} />}
 
                 {error && (
-                  <motion.div {...FADE_IN} className="mx-4 mt-3 rounded-lg border border-red-500/30 bg-red-950/20 px-4 py-3 text-xs text-red-400 flex items-start gap-2">
+                  <motion.div {...FADE_IN} className="mx-4 mt-3 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive">
                     <XCircle className="size-4 shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </motion.div>
@@ -402,7 +401,7 @@ export function MetaMergingView() {
 
       {/* ── Similar Handling IDs Dialog ─────────────────────────── */}
       <AlertDialog open={similarHandlingPromptOpen} onOpenChange={setSimilarHandlingPromptOpen}>
-        <AlertDialogContent className="border-[#1e2d45] bg-[#0a1628]">
+        <AlertDialogContent className="border-border/60 bg-card">
           <AlertDialogHeader>
             <AlertDialogTitle>Similar Handling IDs Detected</AlertDialogTitle>
             <AlertDialogDescription>
@@ -410,18 +409,20 @@ export function MetaMergingView() {
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <div className="max-h-40 overflow-auto rounded-lg border border-[#1e2d45] bg-[#060e1f] p-3 text-xs font-mono space-y-1">
+          <ScrollArea className="max-h-40 rounded-lg border border-border/60 bg-background/60 p-3">
+            <div className="space-y-1 text-xs font-mono">
             {similarHandlingPairs.slice(0, 8).map((pair) => (
-              <div key={pair} className="text-slate-400">{pair}</div>
+              <div key={pair} className="text-muted-foreground">{pair}</div>
             ))}
             {similarHandlingPairs.length > 8 && (
-              <div className="text-slate-600">+{similarHandlingPairs.length - 8} more...</div>
+              <div className="text-muted-foreground/70">+{similarHandlingPairs.length - 8} more...</div>
             )}
-          </div>
+            </div>
+          </ScrollArea>
 
           <AlertDialogFooter>
             <AlertDialogCancel
-              className="border-[#1e2d45] bg-transparent text-slate-300 hover:bg-[#111d33]"
+              className="border-border/60 bg-transparent text-foreground/85 hover:bg-accent/30"
               onClick={() => { void executeMerge(false); }}
             >
               Keep Separate
@@ -458,7 +459,7 @@ function StepperBar({ step, onStepClick, canReview, mergeSuccess }: {
   const steps: MergeStep[] = [1, 2, 3];
 
   return (
-    <div className="border-b border-[#131a2b] bg-[#050d21]/80 backdrop-blur-sm px-6 py-3 flex items-center gap-1">
+    <div className="border-b border-border/60 bg-background-app px-6 py-3 flex items-center gap-1">
       {steps.map((s, i) => {
         const isActive = step === s;
         const isComplete = step > s || (s === 3 && mergeSuccess);
@@ -470,31 +471,33 @@ function StepperBar({ step, onStepClick, canReview, mergeSuccess }: {
             {i > 0 && (
               <div className={cn(
                 "flex-1 h-px max-w-12 mx-1 transition-colors duration-300",
-                isComplete || isActive ? "bg-primary/50" : "bg-[#1e2d45]",
+                isComplete || isActive ? "bg-primary/50" : "bg-muted",
               )} />
             )}
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               disabled={!isClickable || isDisabled}
               onClick={() => isClickable && onStepClick(s)}
               className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200",
-                isActive && "bg-[#0c1a2e] border border-primary/30 text-primary shadow-[0_0_12px_rgba(100,200,255,0.06)]",
+                "h-auto gap-2 px-3 py-1.5 text-xs font-medium",
+                isActive && "border border-primary/30 bg-accent/20 text-primary shadow-sm",
                 isComplete && !isActive && "text-primary/80",
-                !isActive && !isComplete && !isDisabled && "text-slate-500 hover:text-slate-400",
-                isDisabled && "text-slate-600 cursor-not-allowed opacity-50",
+                !isActive && !isComplete && !isDisabled && "text-muted-foreground hover:text-foreground",
+                isDisabled && "cursor-not-allowed text-muted-foreground/70 opacity-50",
               )}
             >
               <span className={cn(
                 "flex items-center justify-center size-5 rounded-full text-[10px] font-bold border transition-all",
                 isActive && "border-primary/50 bg-primary/10 text-primary",
                 isComplete && !isActive && "border-primary/40 bg-primary/20 text-primary",
-                !isActive && !isComplete && "border-[#2a3f60] bg-transparent text-slate-500",
+                !isActive && !isComplete && "border-border bg-transparent text-muted-foreground",
               )}>
                 {isComplete && !isActive ? <Check className="size-3" /> : s}
               </span>
               <span className="hidden sm:inline">{STEP_LABELS[s]}</span>
-            </button>
+            </Button>
           </Fragment>
         );
       })}
@@ -528,24 +531,26 @@ function FilesPane({ files, isDragOver, onSelectFiles, onSelectFolder, onRemoveF
       onDragLeave={onDragLeave}
     >
       {/* Controls */}
-      <div className="p-3 space-y-2 border-b border-[#131a2b]">
+      <div className="p-3 space-y-2 border-b border-border/60">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Input Files</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Input Files</h3>
           {files.length > 0 && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="xs"
               onClick={onClearAll}
-              className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+              className="h-auto px-1 py-0 text-[10px] uppercase tracking-[0.08em] text-muted-foreground hover:text-destructive"
             >
               Clear All
-            </button>
+            </Button>
           )}
         </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 h-8 gap-1.5 text-xs border-[#1e2d45] bg-[#0a1628] hover:bg-[#111d33] text-slate-300"
+            className="flex-1 h-8 gap-1.5 text-xs border-border/60 bg-card hover:bg-accent/30 text-foreground/85"
             onClick={onSelectFiles}
           >
             <FilePlus2 className="size-3.5" /> Add Files
@@ -553,7 +558,7 @@ function FilesPane({ files, isDragOver, onSelectFiles, onSelectFolder, onRemoveF
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 h-8 gap-1.5 text-xs border-[#1e2d45] bg-[#0a1628] hover:bg-[#111d33] text-slate-300"
+            className="flex-1 h-8 gap-1.5 text-xs border-border/60 bg-card hover:bg-accent/30 text-foreground/85"
             onClick={onSelectFolder}
           >
             <FolderPlus className="size-3.5" /> Add Folder
@@ -565,7 +570,7 @@ function FilesPane({ files, isDragOver, onSelectFiles, onSelectFolder, onRemoveF
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
           <AnimatePresence initial={false}>
-            {files.map((file, index) => (
+            {files.map((file) => (
               <motion.div
                 key={file.path}
                 initial={{ opacity: 0, x: -12, height: 0 }}
@@ -573,16 +578,16 @@ function FilesPane({ files, isDragOver, onSelectFiles, onSelectFolder, onRemoveF
                 exit={{ opacity: 0, x: -12, height: 0 }}
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               >
-                <FileRow file={file} index={index} onRemove={() => onRemoveFile(file.path)} />
+                <FileRow file={file} onRemove={() => onRemoveFile(file.path)} />
               </motion.div>
             ))}
           </AnimatePresence>
 
           {files.length === 0 && (
             <div className="py-8 text-center">
-              <FileCode2 className="size-8 mx-auto mb-3 text-slate-700" />
-              <p className="text-xs text-slate-500">No files added yet</p>
-              <p className="text-[10px] text-slate-600 mt-1">Drop files or use the buttons above</p>
+              <FileCode2 className="size-8 mx-auto mb-3 text-muted-foreground/70" />
+              <p className="text-xs text-muted-foreground">No files added yet</p>
+              <p className="text-[10px] text-muted-foreground/70 mt-1">Drop files or use the buttons above</p>
             </div>
           )}
         </div>
@@ -590,15 +595,15 @@ function FilesPane({ files, isDragOver, onSelectFiles, onSelectFolder, onRemoveF
 
       {/* Footer stats */}
       {files.length > 0 && (
-        <div className="px-3 py-2 border-t border-[#131a2b] text-[10px] text-slate-500 flex items-center gap-3">
+        <div className="px-3 py-2 border-t border-border/60 text-[10px] text-muted-foreground flex items-center gap-3">
           <span>{files.length} file{files.length !== 1 ? "s" : ""}</span>
           {detectedType && (
             <>
-              <span className="text-[#1e2d45]">|</span>
+              <span className="opacity-35">|</span>
               <span className="text-primary/70">{META_TYPE_LABELS[detectedType]}</span>
             </>
           )}
-          <span className="text-[#1e2d45]">|</span>
+          <span className="opacity-35">|</span>
           <span>{files.reduce((sum, f) => sum + f.entryCount, 0)} entries</span>
         </div>
       )}
@@ -609,58 +614,60 @@ function FilesPane({ files, isDragOver, onSelectFiles, onSelectFolder, onRemoveF
 
 /* ── File Row ──────────────────────────────────────────────────────── */
 
-function FileRow({ file, index, onRemove }: { file: MergeFileEntry; index: number; onRemove: () => void }) {
+function FileRow({ file, onRemove }: { file: MergeFileEntry; onRemove: () => void }) {
   const isError = file.status === "error";
 
   return (
     <div className={cn(
       "group relative rounded-lg border px-3 py-2 transition-all duration-150",
       isError
-        ? "border-red-500/20 bg-red-950/10"
-        : "border-[#1a2740] bg-[#0a1628]/60 hover:bg-[#0e1d35] hover:border-[#1e3050]",
+        ? "border-destructive/30 bg-destructive/10"
+        : "border-border/60 bg-card/60 hover:bg-accent/20 hover:border-primary/20",
     )}>
       <div className="flex items-start gap-2">
-        <GripVertical className="size-3.5 text-slate-700 mt-0.5 shrink-0 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity" />
+        <GripVertical className="size-3.5 text-muted-foreground/70 mt-0.5 shrink-0 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity" />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-xs font-medium text-slate-200 truncate">{file.name}</p>
+            <p className="text-xs font-medium text-foreground truncate">{file.name}</p>
 
             {file.detectedType && (
-              <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-[#111d33] border border-[#1e2d45] text-slate-400">
+              <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-accent/30 border border-border/60 text-muted-foreground">
                 {META_TYPE_LABELS[file.detectedType]}
               </span>
             )}
           </div>
 
-          <p className="text-[10px] text-slate-600 truncate mt-0.5">{file.path}</p>
+          <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5">{file.path}</p>
 
           <div className="flex items-center gap-2 mt-1">
             {file.entryCount > 0 && (
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-muted-foreground">
                 {file.entryCount} {file.detectedType === "vehicles" ? "vehicle" : file.detectedType === "handling" ? "handling" : "entr"}{file.entryCount !== 1 ? (file.detectedType === "vehicles" || file.detectedType === "handling" ? "s" : "ies") : (file.detectedType === "vehicles" || file.detectedType === "handling" ? "" : "y")}
               </span>
             )}
 
             {isError ? (
-              <span className="inline-flex items-center gap-1 text-[10px] text-red-400">
+              <span className="inline-flex items-center gap-1 text-[10px] text-destructive">
                 <XCircle className="size-3" /> {file.errorMessage ?? "Error"}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500/60">
+              <span className="inline-flex items-center gap-1 text-[10px] text-primary">
                 <CheckCircle2 className="size-3" /> parsed
               </span>
             )}
           </div>
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-xs"
           onClick={onRemove}
-          className="size-6 flex items-center justify-center rounded hover:bg-red-500/10 text-slate-600 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100 shrink-0"
+          className="shrink-0 opacity-0 transition-all text-muted-foreground/70 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
         >
           <X className="size-3.5" />
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -699,20 +706,20 @@ function EmptyDropzone({ isDragOver, onDrop, onDragOver, onDragLeave, onSelectFi
             "mx-auto size-20 rounded-2xl border-2 border-dashed flex items-center justify-center mb-6 transition-all duration-300",
             isDragOver
               ? "border-primary/50 bg-primary/5 scale-110"
-              : "border-[#1e2d45] bg-[#0a1628]/40",
+              : "border-border/60 bg-card/40",
           )}
           animate={isDragOver ? { scale: 1.08, borderColor: "rgba(100,200,255,0.5)" } : { scale: 1 }}
         >
           <Files className={cn(
             "size-8 transition-colors",
-            isDragOver ? "text-primary" : "text-slate-600",
+            isDragOver ? "text-primary" : "text-muted-foreground/70",
           )} />
         </motion.div>
 
-        <h3 className="text-lg font-semibold text-slate-200 mb-2">
+        <h3 className="text-lg font-semibold text-foreground mb-2">
           {isDragOver ? "Drop files here" : "Drop meta files to merge"}
         </h3>
-        <p className="text-sm text-slate-500 mb-5">
+        <p className="text-sm text-muted-foreground mb-5">
           Merge multiple meta files of the same type into one clean output.
         </p>
 
@@ -721,7 +728,7 @@ function EmptyDropzone({ isDragOver, onDrop, onDragOver, onDragLeave, onSelectFi
           {SUPPORTED_TYPES.map((type) => (
             <span
               key={type}
-              className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium uppercase tracking-wider bg-[#0c1a2e] border border-[#1a2740] text-slate-500"
+              className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-medium uppercase tracking-wider bg-accent/20 border border-border/60 text-muted-foreground"
             >
               {META_TYPE_LABELS[type]}
             </span>
@@ -733,7 +740,7 @@ function EmptyDropzone({ isDragOver, onDrop, onDragOver, onDragLeave, onSelectFi
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 border-[#1e2d45] bg-[#0a1628] hover:bg-[#111d33] text-slate-300"
+            className="gap-2 border-border/60 bg-card hover:bg-accent/30 text-foreground/85"
             onClick={onSelectFiles}
           >
             <FilePlus2 className="size-4" /> Add Files
@@ -741,15 +748,15 @@ function EmptyDropzone({ isDragOver, onDrop, onDragOver, onDragLeave, onSelectFi
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 border-[#1e2d45] bg-[#0a1628] hover:bg-[#111d33] text-slate-300"
+            className="gap-2 border-border/60 bg-card hover:bg-accent/30 text-foreground/85"
             onClick={onSelectFolder}
           >
             <FolderPlus className="size-4" /> Add Folder
           </Button>
         </div>
 
-        <p className="text-[10px] text-slate-600 mt-4">
-          Example: merge multiple <span className="text-slate-400">vehicles.meta</span> files into one.
+        <p className="text-[10px] text-muted-foreground/70 mt-4">
+          Example: merge multiple <span className="text-muted-foreground">vehicles.meta</span> files into one.
         </p>
       </motion.div>
     </div>
@@ -772,8 +779,8 @@ function QuickSummaryPane({ files, detectedType }: { files: MergeFileEntry[]; de
       >
         <div className="text-center mb-2">
           <Shield className="size-10 mx-auto mb-3 text-primary/40" />
-          <h3 className="text-lg font-semibold text-slate-200">Ready to Review</h3>
-          <p className="text-sm text-slate-500 mt-1">Your files are loaded. Proceed to review merge options.</p>
+          <h3 className="text-lg font-semibold text-foreground">Ready to Review</h3>
+          <p className="text-sm text-muted-foreground mt-1">Your files are loaded. Proceed to review merge options.</p>
         </div>
 
         {/* Quick stats grid */}
@@ -796,21 +803,21 @@ function StatCard({ label, value, sublabel, icon, color = "default" }: {
   color?: "default" | "primary" | "success" | "warning" | "error";
 }) {
   const colorMap = {
-    default: "text-slate-400 border-[#1a2740]",
+    default: "text-muted-foreground border-border/60",
     primary: "text-primary border-primary/20",
-    success: "text-emerald-400 border-emerald-500/20",
-    warning: "text-amber-400 border-amber-500/20",
-    error: "text-red-400 border-red-500/20",
+    success: "text-primary border-primary/20",
+    warning: "text-primary border-primary/20",
+    error: "text-destructive border-destructive/20",
   };
 
   return (
-    <div className={cn("rounded-lg border bg-[#0a1628]/60 p-3 space-y-1", colorMap[color])}>
-      <div className="flex items-center gap-2 text-slate-500">
+    <div className={cn("rounded-lg border bg-card/60 p-3 space-y-1", colorMap[color])}>
+      <div className="flex items-center gap-2 text-muted-foreground">
         {icon}
         <span className="text-[10px] font-medium uppercase tracking-wider">{label}</span>
       </div>
-      <p className="text-lg font-bold text-slate-200">{value}</p>
-      <p className="text-[10px] text-slate-600">{sublabel}</p>
+      <p className="text-lg font-bold text-foreground">{value}</p>
+      <p className="text-[10px] text-muted-foreground/70">{sublabel}</p>
     </div>
   );
 }
@@ -831,18 +838,18 @@ function MergeSummaryCard({ summary }: { summary: MergeSummary }) {
   ];
 
   return (
-    <motion.div {...FADE_IN} className="mx-4 mt-4 rounded-lg border border-[#1a2740] bg-[#0a1628]/80 p-4">
+    <motion.div {...FADE_IN} className="mx-4 mt-4 rounded-lg border border-border/60 bg-card/80 p-4">
       <div className="flex items-center gap-2 mb-3">
         <Sparkles className="size-4 text-primary/60" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Merge Summary</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Merge Summary</h3>
       </div>
       <div className="flex flex-wrap gap-x-6 gap-y-2">
         {stats.map((s) => (
           <div key={s.label} className="flex items-baseline gap-1.5">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider">{s.label}</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{s.label}</span>
             <span className={cn(
               "text-sm font-bold",
-              "warn" in s && s.warn ? "text-amber-400" : "highlight" in s && s.highlight ? "text-primary/80" : "text-slate-200",
+              "warn" in s && s.warn ? "text-primary" : "highlight" in s && s.highlight ? "text-primary/80" : "text-foreground",
             )}>{s.value}</span>
           </div>
         ))}
@@ -865,15 +872,15 @@ function MergeRulesPanel({ rules, detectedType, onSetDuplicateStrategy, onSetSor
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Settings2 className="size-4 text-slate-500" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Merge Rules</h3>
+        <Settings2 className="size-4 text-muted-foreground" />
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Merge Rules</h3>
       </div>
 
       {/* Key field */}
       {detectedType && (
-        <div className="rounded-lg border border-[#1a2740] bg-[#0a1628]/60 p-3">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Key Field (Auto-Detected)</p>
-          <p className="text-xs text-slate-300 font-mono">
+        <div className="rounded-lg border border-border/60 bg-card/60 p-3">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Key Field (Auto-Detected)</p>
+          <p className="text-xs text-foreground/85 font-mono">
             {detectedType === "vehicles" ? "modelName" :
              detectedType === "handling" ? "handlingName" :
              detectedType === "carcols" ? "sirenId / kitId" :
@@ -886,63 +893,67 @@ function MergeRulesPanel({ rules, detectedType, onSetDuplicateStrategy, onSetSor
 
       {/* Duplicate handling */}
       <div className="space-y-2">
-        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Duplicate Handling</p>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Duplicate Handling</p>
         <div className="space-y-1">
           {([
             { value: "keep-first" as const, label: "Keep first occurrence" },
             { value: "keep-last" as const, label: "Keep last occurrence" },
             { value: "manual" as const, label: "Manually resolve conflicts" },
           ]).map((opt) => (
-            <button
+            <Button
               key={opt.value}
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => onSetDuplicateStrategy(opt.value)}
               className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all",
+                "h-auto w-full justify-start gap-2.5 px-3 py-2 text-xs",
                 rules.duplicateStrategy === opt.value
-                  ? "bg-primary/10 border border-primary/25 text-primary"
-                  : "bg-[#0a1628]/40 border border-transparent text-slate-400 hover:bg-[#0e1d35] hover:text-slate-300",
+                  ? "border border-primary/25 bg-primary/10 text-primary"
+                  : "border border-transparent bg-card/40 text-muted-foreground hover:bg-accent/20 hover:text-foreground/85",
               )}
             >
               <div className={cn(
                 "size-3.5 rounded-full border-2 flex items-center justify-center transition-all",
-                rules.duplicateStrategy === opt.value ? "border-primary" : "border-slate-600",
+                rules.duplicateStrategy === opt.value ? "border-primary" : "border-border",
               )}>
                 {rules.duplicateStrategy === opt.value && <div className="size-1.5 rounded-full bg-primary" />}
               </div>
               {opt.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
 
       {/* Sorting */}
       <div className="space-y-2">
-        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Sorting</p>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Sorting</p>
         <div className="space-y-1">
           {([
             { value: "preserve" as const, label: "Preserve original order" },
             { value: "alphabetical" as const, label: "Sort alphabetically by key" },
           ]).map((opt) => (
-            <button
+            <Button
               key={opt.value}
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => onSetSortStrategy(opt.value)}
               className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all",
+                "h-auto w-full justify-start gap-2.5 px-3 py-2 text-xs",
                 rules.sortStrategy === opt.value
-                  ? "bg-primary/10 border border-primary/25 text-primary"
-                  : "bg-[#0a1628]/40 border border-transparent text-slate-400 hover:bg-[#0e1d35] hover:text-slate-300",
+                  ? "border border-primary/25 bg-primary/10 text-primary"
+                  : "border border-transparent bg-card/40 text-muted-foreground hover:bg-accent/20 hover:text-foreground/85",
               )}
             >
               <div className={cn(
                 "size-3.5 rounded-full border-2 flex items-center justify-center transition-all",
-                rules.sortStrategy === opt.value ? "border-primary" : "border-slate-600",
+                rules.sortStrategy === opt.value ? "border-primary" : "border-border",
               )}>
                 {rules.sortStrategy === opt.value && <div className="size-1.5 rounded-full bg-primary" />}
               </div>
               {opt.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -950,8 +961,8 @@ function MergeRulesPanel({ rules, detectedType, onSetDuplicateStrategy, onSetSor
       {/* Toggle options */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <Label className="text-xs text-slate-400 flex items-center gap-2">
-            <MessageSquare className="size-3.5 text-slate-500" />
+          <Label className="text-xs text-muted-foreground flex items-center gap-2">
+            <MessageSquare className="size-3.5 text-muted-foreground" />
             Preserve inline comments
           </Label>
           <SquareToggle checked={rules.preserveComments} onCheckedChange={onSetPreserveComments} />
@@ -959,8 +970,8 @@ function MergeRulesPanel({ rules, detectedType, onSetDuplicateStrategy, onSetSor
 
         {(detectedType === "vehicles" || !detectedType) && (
           <div className="flex items-center justify-between gap-2">
-            <Label className="text-xs text-slate-400 flex items-center gap-2">
-              <GitCompare className="size-3.5 text-slate-500" />
+            <Label className="text-xs text-muted-foreground flex items-center gap-2">
+              <GitCompare className="size-3.5 text-muted-foreground" />
               Consolidate similar handling IDs
             </Label>
             <SquareToggle checked={rules.consolidateSimilarHandlingIds} onCheckedChange={onSetConsolidateHandling} />
@@ -984,27 +995,27 @@ function OutputSettingsPanel({ output, detectedType, onSetFileName, onSetCreateB
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Download className="size-4 text-slate-500" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Output Settings</h3>
+        <Download className="size-4 text-muted-foreground" />
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Output Settings</h3>
       </div>
 
       <div className="space-y-2">
-        <Label className="text-[10px] text-slate-500 uppercase tracking-wider">Output Filename</Label>
+        <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Output Filename</Label>
         <Input
           placeholder={detectedType ? `${detectedType}.merged.meta` : "merged.meta"}
           value={output.outputFileName}
           onChange={(e) => onSetFileName(e.target.value)}
-          className="h-8 text-xs bg-[#0a1628] border-[#1e2d45] text-slate-300 placeholder:text-slate-600"
+          className="h-8 text-xs bg-card border-border/60 text-foreground/85 placeholder:text-muted-foreground/70"
         />
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <Label className="text-xs text-slate-400">Create backup of overwritten file</Label>
+          <Label className="text-xs text-muted-foreground">Create backup of overwritten file</Label>
           <SquareToggle checked={output.createBackup} onCheckedChange={onSetCreateBackup} />
         </div>
         <div className="flex items-center justify-between gap-2">
-          <Label className="text-xs text-slate-400">Open output after merge</Label>
+          <Label className="text-xs text-muted-foreground">Open output after merge</Label>
           <SquareToggle checked={output.openAfterMerge} onCheckedChange={onSetOpenAfterMerge} />
         </div>
       </div>
@@ -1023,7 +1034,7 @@ function ReviewTabs({ conflicts, previewXml, onResolveConflict, onResolveAll }: 
 }) {
   return (
     <Tabs defaultValue="preview" className="h-full flex flex-col p-4 pt-3">
-      <TabsList variant="line" className="mb-3 border-b border-[#1a2740]">
+      <TabsList variant="line" className="mb-3 border-b border-border/60">
         <TabsTrigger value="preview" className="gap-1.5 text-xs">
           <Eye className="size-3.5" /> Merged Preview
         </TabsTrigger>
@@ -1031,7 +1042,7 @@ function ReviewTabs({ conflicts, previewXml, onResolveConflict, onResolveAll }: 
           <AlertTriangle className="size-3.5" />
           Conflicts
           {conflicts.length > 0 && (
-            <span className="ml-1 inline-flex items-center justify-center size-4 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-400">
+            <span className="ml-1 inline-flex size-4 items-center justify-center rounded-full bg-primary/20 text-[9px] font-medium text-primary">
               {conflicts.length}
             </span>
           )}
@@ -1062,29 +1073,29 @@ function PreviewPane({ xml }: { xml: string }) {
 
   if (!xml) {
     return (
-      <div className="h-full flex items-center justify-center text-slate-600 text-xs">
+      <div className="h-full flex items-center justify-center text-muted-foreground/70 text-xs">
         No preview available yet
       </div>
     );
   }
 
   return (
-    <div className="h-full rounded-lg border border-[#1a2740] bg-[#060e1f] overflow-hidden flex flex-col">
-      <div className="px-3 py-2 border-b border-[#1a2740] flex items-center justify-between">
-        <span className="text-[10px] text-slate-500 uppercase tracking-wider">Merged Output</span>
-        <span className="text-[10px] text-slate-600">{lineCount} lines</span>
+    <div className="h-full rounded-lg border border-border/60 bg-background/60 overflow-hidden flex flex-col">
+      <div className="px-3 py-2 border-b border-border/60 flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Merged Output</span>
+        <span className="text-[10px] text-muted-foreground/70">{lineCount} lines</span>
       </div>
       <ScrollArea className="flex-1">
-        <pre className="p-3 text-[11px] leading-relaxed text-slate-400 font-mono whitespace-pre overflow-x-auto">
+        <pre className="p-3 text-[11px] leading-relaxed text-muted-foreground font-mono whitespace-pre overflow-x-auto">
           {lines.map((line, i) => (
             <div key={i} className="flex">
-              <span className="select-none text-right text-slate-700 w-10 pr-3 shrink-0">{i + 1}</span>
+              <span className="select-none text-right text-muted-foreground/70 w-10 pr-3 shrink-0">{i + 1}</span>
               <span className={cn(
-                line.trim().startsWith("<!--") ? "text-emerald-600/60" :
-                line.trim().startsWith("<?") ? "text-blue-400/60" :
-                line.trim().startsWith("</") ? "text-slate-500" :
-                line.trim().startsWith("<") ? "text-sky-400/70" :
-                "text-slate-400",
+                line.trim().startsWith("<!--") ? "text-primary/60" :
+                line.trim().startsWith("<?") ? "text-primary/60" :
+                line.trim().startsWith("</") ? "text-muted-foreground" :
+                line.trim().startsWith("<") ? "text-primary/80" :
+                "text-muted-foreground",
               )}>{line || " "}</span>
             </div>
           ))}
@@ -1105,9 +1116,9 @@ function ConflictsPane({ conflicts, onResolveConflict, onResolveAll }: {
   if (conflicts.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center">
-        <CheckCircle2 className="size-10 text-emerald-500/30 mb-3" />
-        <p className="text-sm text-slate-300 font-medium">No Conflicts</p>
-        <p className="text-xs text-slate-500 mt-1">All entries merge cleanly with no overlapping keys.</p>
+        <CheckCircle2 className="mb-3 size-10 text-primary/40" />
+        <p className="text-sm text-foreground/85 font-medium">No Conflicts</p>
+        <p className="text-xs text-muted-foreground mt-1">All entries merge cleanly with no overlapping keys.</p>
       </div>
     );
   }
@@ -1118,15 +1129,15 @@ function ConflictsPane({ conflicts, onResolveConflict, onResolveAll }: {
     <div className="h-full flex flex-col">
       {/* Bulk actions */}
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-slate-400">
-          <span className="font-semibold text-amber-400">{conflicts.length}</span> conflict{conflicts.length !== 1 ? "s" : ""}
-          {resolved > 0 && <span className="text-emerald-400/60"> ({resolved} resolved)</span>}
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-primary">{conflicts.length}</span> conflict{conflicts.length !== 1 ? "s" : ""}
+          {resolved > 0 && <span className="text-primary/70"> ({resolved} resolved)</span>}
         </p>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 border-[#1e2d45] bg-transparent text-slate-400 hover:bg-[#111d33]" onClick={() => onResolveAll("a")}>
+          <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 border-border/60 bg-transparent text-muted-foreground hover:bg-accent/30" onClick={() => onResolveAll("a")}>
             Keep All First
           </Button>
-          <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 border-[#1e2d45] bg-transparent text-slate-400 hover:bg-[#111d33]" onClick={() => onResolveAll("b")}>
+          <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 border-border/60 bg-transparent text-muted-foreground hover:bg-accent/30" onClick={() => onResolveAll("b")}>
             Keep All Last
           </Button>
         </div>
@@ -1153,27 +1164,29 @@ function ConflictCard({ conflict, onResolve }: {
     <div className={cn(
       "rounded-lg border transition-all",
       conflict.resolution
-        ? "border-emerald-500/15 bg-emerald-950/5"
-        : "border-amber-500/20 bg-amber-950/5",
+        ? "border-primary/20 bg-primary/5"
+        : "border-border/70 bg-card/60",
     )}>
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
+        className="h-auto w-full justify-start gap-3 px-3 py-2.5 text-left"
       >
         <AlertTriangle className={cn(
           "size-3.5 shrink-0",
-          conflict.resolution ? "text-emerald-500/50" : "text-amber-400",
+          conflict.resolution ? "text-primary/70" : "text-primary",
         )} />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-slate-200 truncate">{conflict.keyLabel}</p>
-          <p className="text-[10px] text-slate-500">{conflict.versions.length} versions</p>
+          <p className="text-xs font-medium text-foreground truncate">{conflict.keyLabel}</p>
+          <p className="text-[10px] text-muted-foreground">{conflict.versions.length} versions</p>
         </div>
         {conflict.resolution && (
-          <span className="text-[10px] text-emerald-400/70 shrink-0">Resolved</span>
+          <span className="shrink-0 text-[10px] text-primary/70">Resolved</span>
         )}
-        <ChevronRight className={cn("size-3.5 text-slate-600 transition-transform", expanded && "rotate-90")} />
-      </button>
+        <ChevronRight className={cn("size-3.5 text-muted-foreground/70 transition-transform", expanded && "rotate-90")} />
+      </Button>
 
       <AnimatePresence>
         {expanded && (
@@ -1188,13 +1201,15 @@ function ConflictCard({ conflict, onResolve }: {
               {/* Side-by-side snippets */}
               <div className="grid grid-cols-2 gap-2">
                 {conflict.versions.slice(0, 2).map((version, i) => (
-                  <div key={version.fileIndex} className="rounded-md border border-[#1a2740] bg-[#060e1f] p-2">
-                    <p className="text-[9px] text-slate-500 uppercase tracking-wider mb-1">
+                  <div key={version.fileIndex} className="rounded-md border border-border/60 bg-background/60 p-2">
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">
                       {version.fileName} {i === 0 ? "(A)" : "(B)"}
                     </p>
-                    <pre className="text-[10px] text-slate-400 font-mono whitespace-pre-wrap leading-relaxed max-h-32 overflow-auto">
-                      {version.snippet}
-                    </pre>
+                    <ScrollArea className="max-h-32">
+                      <pre className="text-[10px] text-muted-foreground font-mono whitespace-pre-wrap leading-relaxed">
+                        {version.snippet}
+                      </pre>
+                    </ScrollArea>
                   </div>
                 ))}
               </div>
@@ -1208,7 +1223,7 @@ function ConflictCard({ conflict, onResolve }: {
                     "flex-1 h-7 text-[10px]",
                     conflict.resolution === "a"
                       ? "border-primary/30 bg-primary/10 text-primary"
-                      : "border-[#1e2d45] bg-transparent text-slate-400",
+                      : "border-border/60 bg-transparent text-muted-foreground",
                   )}
                   onClick={() => onResolve("a")}
                 >
@@ -1221,7 +1236,7 @@ function ConflictCard({ conflict, onResolve }: {
                     "flex-1 h-7 text-[10px]",
                     conflict.resolution === "b"
                       ? "border-primary/30 bg-primary/10 text-primary"
-                      : "border-[#1e2d45] bg-transparent text-slate-400",
+                      : "border-border/60 bg-transparent text-muted-foreground",
                   )}
                   onClick={() => onResolve("b")}
                 >
@@ -1234,7 +1249,7 @@ function ConflictCard({ conflict, onResolve }: {
                     "flex-1 h-7 text-[10px]",
                     conflict.resolution === "keep-both"
                       ? "border-primary/30 bg-primary/10 text-primary"
-                      : "border-[#1e2d45] bg-transparent text-slate-400",
+                      : "border-border/60 bg-transparent text-muted-foreground",
                   )}
                   onClick={() => onResolve("keep-both")}
                 >
@@ -1267,7 +1282,7 @@ function SuccessView({ summary, savedPath, onReset }: {
     >
       {/* Animated checkmark */}
       <motion.div
-        className="mx-auto size-20 rounded-full border-2 border-emerald-500/30 bg-emerald-500/10 flex items-center justify-center"
+        className="mx-auto flex size-20 items-center justify-center rounded-full border-2 border-primary/30 bg-primary/10"
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.1, duration: 0.4, type: "spring", stiffness: 200 }}
@@ -1277,41 +1292,41 @@ function SuccessView({ summary, savedPath, onReset }: {
           animate={{ scale: 1 }}
           transition={{ delay: 0.3, duration: 0.3 }}
         >
-          <CheckCircle2 className="size-10 text-emerald-400" />
+          <CheckCircle2 className="size-10 text-primary" />
         </motion.div>
       </motion.div>
 
       <div>
-        <h2 className="text-xl font-bold text-slate-100 mb-2">Merge Complete</h2>
-        <p className="text-sm text-slate-400">Your files have been merged successfully.</p>
+        <h2 className="text-xl font-bold text-foreground mb-2">Merge Complete</h2>
+        <p className="text-sm text-muted-foreground">Your files have been merged successfully.</p>
       </div>
 
       {summary && (
-        <div className="rounded-lg border border-[#1a2740] bg-[#0a1628]/60 p-4 text-left space-y-2">
+        <div className="rounded-lg border border-border/60 bg-card/60 p-4 text-left space-y-2">
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="text-slate-500">Type</div>
-            <div className="text-slate-200 font-medium">{META_TYPE_LABELS[summary.type]}</div>
-            <div className="text-slate-500">Entries merged</div>
-            <div className="text-slate-200 font-medium">{summary.uniqueEntries}</div>
-            <div className="text-slate-500">Duplicates removed</div>
-            <div className="text-slate-200 font-medium">{summary.duplicatesRemoved}</div>
-            <div className="text-slate-500">Comments preserved</div>
-            <div className="text-slate-200 font-medium">{summary.preservedComments}</div>
+            <div className="text-muted-foreground">Type</div>
+            <div className="text-foreground font-medium">{META_TYPE_LABELS[summary.type]}</div>
+            <div className="text-muted-foreground">Entries merged</div>
+            <div className="text-foreground font-medium">{summary.uniqueEntries}</div>
+            <div className="text-muted-foreground">Duplicates removed</div>
+            <div className="text-foreground font-medium">{summary.duplicatesRemoved}</div>
+            <div className="text-muted-foreground">Comments preserved</div>
+            <div className="text-foreground font-medium">{summary.preservedComments}</div>
           </div>
         </div>
       )}
 
       {savedPath && (
-        <div className="rounded-lg border border-[#1a2740] bg-[#0a1628]/40 px-4 py-3">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Saved to</p>
-          <p className="text-xs text-slate-300 font-mono break-all">{savedPath}</p>
+        <div className="rounded-lg border border-border/60 bg-card/40 px-4 py-3">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Saved to</p>
+          <p className="text-xs text-foreground/85 font-mono break-all">{savedPath}</p>
         </div>
       )}
 
       <div className="flex gap-3 justify-center pt-2">
         <Button
           variant="outline"
-          className="gap-2 border-[#1e2d45] bg-[#0a1628] hover:bg-[#111d33] text-slate-300"
+          className="gap-2 border-border/60 bg-card hover:bg-accent/30 text-foreground/85"
           onClick={onReset}
         >
           <RotateCcw className="size-4" /> New Merge
@@ -1338,13 +1353,13 @@ function StickyActionBar({ step, files, conflicts, canAdvance, isMerging, error,
   const unresolvedConflicts = conflicts.filter((c) => c.resolution === null).length;
 
   return (
-    <div className="border-t border-[#131a2b] bg-[#050d21]/90 backdrop-blur-sm px-6 py-3 flex items-center justify-between">
-      <div className="flex items-center gap-3 text-xs text-slate-500">
+    <div className="border-t border-border/60 bg-card/90  px-6 py-3 flex items-center justify-between">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
         {step === 1 && (
           <>
             <span>{parsedFiles} file{parsedFiles !== 1 ? "s" : ""} ready</span>
             {files.length >= 2 && files.length !== parsedFiles && (
-              <span className="text-amber-400/70">{files.length - parsedFiles} with errors</span>
+              <span className="text-destructive/80">{files.length - parsedFiles} with errors</span>
             )}
           </>
         )}
@@ -1352,12 +1367,12 @@ function StickyActionBar({ step, files, conflicts, canAdvance, isMerging, error,
           <>
             <span>{parsedFiles} files</span>
             {unresolvedConflicts > 0 && (
-              <span className="text-amber-400">{unresolvedConflicts} unresolved conflict{unresolvedConflicts !== 1 ? "s" : ""}</span>
+              <span className="text-primary">{unresolvedConflicts} unresolved conflict{unresolvedConflicts !== 1 ? "s" : ""}</span>
             )}
           </>
         )}
         {error && step === 1 && (
-          <span className="text-red-400 truncate max-w-xs">{error}</span>
+          <span className="max-w-xs truncate text-destructive">{error}</span>
         )}
       </div>
 
@@ -1366,7 +1381,7 @@ function StickyActionBar({ step, files, conflicts, canAdvance, isMerging, error,
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 border-[#1e2d45] bg-transparent text-slate-300 hover:bg-[#111d33]"
+            className="h-8 gap-1.5 border-border/60 bg-transparent text-foreground/85 hover:bg-accent/30"
             onClick={onBack}
           >
             <ArrowLeft className="size-3.5" /> Back
@@ -1395,3 +1410,5 @@ function StickyActionBar({ step, files, conflicts, canAdvance, isMerging, error,
     </div>
   );
 }
+
+

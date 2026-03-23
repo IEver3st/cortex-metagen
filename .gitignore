@@ -76,6 +76,7 @@ vite.config.ts.timestamp-*
 
 # AI agents and guides
 AGENTS.md
+DESIGN.md
 .claude/
 .cursor/
 .windsurf/

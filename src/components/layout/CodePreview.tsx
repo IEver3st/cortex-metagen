@@ -384,7 +384,7 @@ export function CodePreview() {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-background-app">
-      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/60 bg-card/90 px-3">
+      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/60 bg-background-app px-3">
         <div className="flex items-center gap-2">
           <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
             {activeTab}.meta
@@ -421,7 +421,7 @@ export function CodePreview() {
       </div>
 
       <div className="min-h-0 flex-1 p-[5px]">
-        <div className="relative h-full overflow-hidden rounded-md border border-border/60 bg-card shadow-sm">
+        <div className="relative h-full overflow-hidden rounded-md border border-border/60 bg-background-app shadow-sm">
           <Editor
             beforeMount={handleBeforeMount}
             height="100%"

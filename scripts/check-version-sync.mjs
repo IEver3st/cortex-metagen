@@ -11,6 +11,33 @@ function readText(path) {
   return readFileSync(path, "utf-8");
 }
 
+function readCargoLockPackageVersion(cargoLockText, packageName) {
+  const lines = cargoLockText.split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    if (lines[index]?.trim() !== "[[package]]") continue;
+
+    let currentName = null;
+    let currentVersion = null;
+
+    for (let innerIndex = index + 1; innerIndex < lines.length; innerIndex += 1) {
+      const line = lines[innerIndex]?.trim() ?? "";
+      if (line === "[[package]]") break;
+      if (line.startsWith("name = ")) {
+        currentName = line.match(/^name\s*=\s*"([^"]+)"/)?.[1] ?? null;
+      }
+      if (line.startsWith("version = ")) {
+        currentVersion = line.match(/^version\s*=\s*"([^"]+)"/)?.[1] ?? null;
+      }
+      if (currentName === packageName && currentVersion) {
+        return currentVersion;
+      }
+    }
+  }
+
+  return undefined;
+}
+
 const packageJsonPath = resolve(root, "package.json");
 const packageLockPath = resolve(root, "package-lock.json");
 const cargoTomlPath = resolve(root, "src-tauri", "Cargo.toml");
@@ -49,12 +76,7 @@ const checks = [
   },
   {
     file: "src-tauri/Cargo.lock (cortex-metagen package)",
-    value:
-      (
-        cargoLock.match(
-          /\[\[package\]\]\s*\r?\nname\s*=\s*"cortex-metagen"\s*\r?\nversion\s*=\s*"([^"]+)"/
-        ) ?? []
-      )[1],
+    value: readCargoLockPackageVersion(cargoLock, "cortex-metagen"),
   },
 ];
 

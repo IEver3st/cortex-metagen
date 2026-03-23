@@ -19,7 +19,6 @@ import {
   PanelLeft,
   PackageCheck,
   Pin,
-  Trash2,
 } from "lucide-react";
 import {
   CommandDialog,

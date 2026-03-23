@@ -43,7 +43,7 @@ export function WorkspaceQuickActions({
   return (
     <>
       <div className="fixed left-0 right-0 top-11 z-30 px-3 py-2">
-        <Card className="rounded-xl border-border/70 bg-card/95 py-0 shadow-sm">
+        <Card className="rounded-xl border-border/70 bg-background-app py-0 shadow-sm">
           <CardContent className="flex items-center gap-2 px-3 py-2">
             <Button type="button" variant="outline" size="sm" className="gap-1 text-xs" onClick={onOpenFile}>
               <Upload className="size-3.5" />

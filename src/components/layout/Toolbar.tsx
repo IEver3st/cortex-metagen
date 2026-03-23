@@ -189,7 +189,13 @@ return (
         {/* Left: Logo + Primary Actions */}
         <div className="flex min-w-0 items-center gap-0.5">{onGoHome && (<Tooltip>
             <TooltipTrigger asChild>
-              <Button type="button" variant="ghost" size="icon-sm" onClick={onGoHome}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-md border border-transparent hover:border-border/60 hover:bg-card/70"
+                onClick={onGoHome}
+              >
                 <HiOutlineCode className="size-5 text-primary" />
               </Button>
             </TooltipTrigger>
@@ -204,7 +210,7 @@ return (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
-                      <Button type="button" variant="ghost" size="icon-sm">
+                      <Button type="button" variant="ghost" size="icon-sm" className="rounded-md border border-transparent hover:border-border/60 hover:bg-card/70">
                         <FolderTree className="size-4 text-foreground" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -597,16 +603,15 @@ return (
             <TooltipContent side="bottom">Settings</TooltipContent>
           </Tooltip>
 
-          <Separator orientation="vertical" className="mx-1 h-5" />
-
           {/* Window controls */}
-          <div className="flex items-center">
+          <div className="flex items-center gap-0.5">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
+                  className="rounded-md hover:bg-accent/50"
                   onClick={onToggleSidebar}
                 >
                   <PanelLeft className={cn("size-4", sidebarCollapsed ? "text-muted-foreground/80" : "text-foreground/80")} />
@@ -621,6 +626,7 @@ return (
                   type="button"
                   variant="ghost"
                   size="icon-sm"
+                  className="rounded-md hover:bg-accent/50"
                   onClick={minimizeWindow}
                 >
                   <Minus className="size-4 text-muted-foreground" />
@@ -635,6 +641,7 @@ return (
                   type="button"
                   variant="ghost"
                   size="icon-sm"
+                  className="rounded-md hover:bg-accent/50"
                   onClick={toggleMaximize}
                 >
                   <Square className="size-3 text-muted-foreground" />
@@ -649,7 +656,7 @@ return (
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  className="hover:bg-destructive hover:text-destructive-foreground"
+                  className="rounded-md hover:bg-destructive hover:text-destructive-foreground"
                   onClick={closeWindow}
                 >
                   <X className="size-4 text-muted-foreground" />
