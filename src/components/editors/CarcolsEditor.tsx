@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { SquareToggle } from "@/components/SquareToggle";
 import {
   Popover,
   PopoverContent,
@@ -247,9 +247,9 @@ const LightEditor = memo(function LightEditor({
       <div className="flex items-center gap-3">
         <Label className="text-xs text-muted-foreground min-w-[100px]">Corona</Label>
         <div className="flex items-center gap-2">
-          <Switch
+          <SquareToggle
             checked={light.coronaEnabled !== false}
-            onCheckedChange={(checked) => onChange({ coronaEnabled: checked })}
+            onCheckedChange={(checked: boolean) => onChange({ coronaEnabled: checked })}
           />
           <span className="text-[11px] text-muted-foreground">
             {light.coronaEnabled === false ? "Disabled" : "Enabled"}

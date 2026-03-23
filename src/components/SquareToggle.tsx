@@ -11,6 +11,10 @@ interface SquareToggleProps {
   variant?: "checkbox" | "slider";
 }
 
+const TOGGLE_SIZE = 20;
+const THUMB_SIZE = 12;
+const THUMB_OFFSET = 2;
+
 export const SquareToggle = memo(function SquareToggle({
   checked,
   onCheckedChange,
@@ -38,58 +42,60 @@ export const SquareToggle = memo(function SquareToggle({
       {variant === "slider" ? (
         <motion.div
           className={cn(
-            "relative h-5 w-10 rounded-[2px] border flex items-center",
+            "relative flex items-center rounded-[3px] border",
             checked
               ? "bg-primary border-primary"
               : "bg-muted/30 border-border hover:bg-muted/40"
           )}
-          whileTap={{ scale: 0.98 }}
+          style={{ width: TOGGLE_SIZE * 1.75, height: TOGGLE_SIZE }}
+          whileTap={{ scale: 0.96 }}
           transition={{ duration: 0.15 }}
         >
           <motion.div
             className={cn(
-              "absolute top-0.5 size-4 rounded-[2px] border",
+              "rounded-[2px] border",
               checked
-                ? "bg-background border-primary/30"
+                ? "bg-background border-primary/20"
                 : "bg-background border-border"
             )}
-            animate={{ x: checked ? 20 : 2 }}
-            transition={{ type: "spring", stiffness: 420, damping: 28 }}
+            style={{ width: THUMB_SIZE, height: THUMB_SIZE }}
+            animate={{ x: checked ? TOGGLE_SIZE * 0.75 - THUMB_OFFSET : THUMB_OFFSET }}
+            transition={{ type: "spring", stiffness: 400, damping: 28 }}
           />
         </motion.div>
       ) : (
         <motion.div
           className={cn(
-            "h-5 w-5 rounded-[2px] border-2 flex items-center justify-center",
+            "flex items-center justify-center rounded-[3px] border-2",
             checked
               ? "bg-primary border-primary"
               : "bg-transparent border-muted-foreground/40 hover:border-muted-foreground/70"
           )}
+          style={{ width: TOGGLE_SIZE, height: TOGGLE_SIZE }}
           animate={checked ? { scale: [1, 0.85, 1] } : { scale: 1 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
         >
           <AnimatePresence>
             {checked && (
               <motion.svg
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
+                viewBox="0 0 14 14"
                 fill="none"
                 className="text-primary-foreground"
+                style={{ width: THUMB_SIZE, height: THUMB_SIZE }}
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 500, damping: 25 }}
               >
                 <motion.path
-                  d="M2 6L5 9L10 3"
+                  d="M3 7L6 10L11 4"
                   stroke="currentColor"
                   strokeWidth="2"
                   strokeLinecap="square"
                   strokeLinejoin="miter"
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: 1 }}
-                  transition={{ duration: 0.25, delay: 0.05 }}
+                  transition={{ duration: 0.2, delay: 0.03 }}
                 />
               </motion.svg>
             )}

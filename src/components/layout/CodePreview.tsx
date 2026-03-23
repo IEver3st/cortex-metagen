@@ -6,6 +6,48 @@ import { serializeActiveTab } from "@/lib/xml-serializer";
 import { parseMetaFile } from "@/lib/xml-parser";
 import { validateMetaXml, type ValidationIssue } from "@/lib/xml-validator";
 
+const MONACO_THEME_NAME = "cortex-metagen-inset";
+
+const monacoTheme: Monaco.editor.IStandaloneThemeData = {
+  base: "vs-dark",
+  inherit: true,
+  rules: [
+    { token: "tag", foreground: "7DD3FC" },
+    { token: "delimiter", foreground: "6EE7F9" },
+    { token: "attribute.name", foreground: "F59E0B" },
+    { token: "attribute.value", foreground: "86EFAC" },
+    { token: "string", foreground: "86EFAC" },
+    { token: "comment", foreground: "60708A", fontStyle: "italic" },
+  ],
+  colors: {
+    "editor.background": "#08101c",
+    "editor.foreground": "#C8D5EC",
+    "editor.lineHighlightBackground": "#0C1929",
+    "editor.lineHighlightBorder": "#0E1E35",
+    "editor.selectionBackground": "#12324B",
+    "editor.inactiveSelectionBackground": "#0D2538",
+    "editorCursor.foreground": "#67E8F9",
+    "editorIndentGuide.background1": "#0E1c30",
+    "editorIndentGuide.activeBackground1": "#1c3a58",
+    "editorLineNumber.foreground": "#3a5272",
+    "editorLineNumber.activeForeground": "#8faabb",
+    "editorGutter.background": "#07101a",
+    "editorBracketMatch.background": "#133A53",
+    "editorBracketMatch.border": "#4CC9F0",
+    "editorOverviewRuler.border": "#00000000",
+    "editorWidget.background": "#07101e",
+    "editorWidget.border": "#17304d",
+    "editorSuggestWidget.background": "#091320",
+    "editorSuggestWidget.border": "#1A3049",
+    "editorSuggestWidget.selectedBackground": "#10243A",
+    "editorHoverWidget.background": "#0A1524",
+    "editorHoverWidget.border": "#203754",
+    "scrollbarSlider.background": "#1A2B42AA",
+    "scrollbarSlider.hoverBackground": "#23405FBB",
+    "scrollbarSlider.activeBackground": "#31597FCC",
+  },
+};
+
 function buildQuickFix(
   monaco: typeof Monaco,
   model: Monaco.editor.ITextModel,
@@ -152,7 +194,6 @@ function buildQuickFix(
     case "remove-duplicate-attr": {
       const attr = issue.fixData?.attr;
       if (!attr) return null;
-      // Find the second occurrence of attr="..." or attr='...'
       const attrRegex = new RegExp(`\\s${attr}\\s*=\\s*(?:"[^"]*"|'[^']*')`, "g");
       let m;
       let count = 0;
@@ -200,7 +241,6 @@ export function CodePreview() {
   const monacoRef = useRef<typeof Monaco | null>(null);
   const issuesRef = useRef<ValidationIssue[]>([]);
   const providerRef = useRef<Monaco.IDisposable | null>(null);
-
   const [xmlContent, setXmlContent] = useState(() => {
     const vehicleList = Object.values(vehicles);
     if (vehicleList.length === 0) {
@@ -208,20 +248,17 @@ export function CodePreview() {
     }
     return serializeActiveTab(activeTab, vehicleList);
   });
+  const [validationSummary, setValidationSummary] = useState(() =>
+    validateMetaXml(xmlContent).issues.reduce(
+      (acc, issue) => {
+        if (issue.severity === "error") acc.errors++;
+        else acc.warnings++;
+        return acc;
+      },
+      { errors: 0, warnings: 0 },
+    ),
+  );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      const vehicleList = Object.values(vehicles);
-      if (vehicleList.length === 0) {
-        setXmlContent(`<?xml version="1.0" encoding="UTF-8"?>\n<!-- No vehicles loaded. Add a vehicle or import a .meta file to get started. -->`);
-      } else {
-        setXmlContent(serializeActiveTab(activeTab, vehicleList));
-      }
-    }, 150);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [vehicles, activeTab]);
 
   const runValidation = useCallback((content: string) => {
     const monaco = monacoRef.current;
@@ -233,6 +270,16 @@ export function CodePreview() {
 
     const { issues } = validateMetaXml(content);
     issuesRef.current = issues;
+    setValidationSummary(
+      issues.reduce(
+        (acc, issue) => {
+          if (issue.severity === "error") acc.errors++;
+          else acc.warnings++;
+          return acc;
+        },
+        { errors: 0, warnings: 0 },
+      ),
+    );
 
     const markers: Monaco.editor.IMarkerData[] = issues.map((issue) => ({
       severity:
@@ -249,11 +296,29 @@ export function CodePreview() {
     monaco.editor.setModelMarkers(model, "xml-validator", markers);
   }, []);
 
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const vehicleList = Object.values(vehicles);
+      const nextContent = vehicleList.length === 0
+        ? `<?xml version="1.0" encoding="UTF-8"?>\n<!-- No vehicles loaded. Add a vehicle or import a .meta file to get started. -->`
+        : serializeActiveTab(activeTab, vehicleList);
+
+      setXmlContent(nextContent);
+      runValidation(nextContent);
+    }, 150);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [vehicles, activeTab, runValidation]);
+
+  const handleBeforeMount = useCallback((monaco: typeof Monaco) => {
+    monaco.editor.defineTheme(MONACO_THEME_NAME, monacoTheme);
+  }, []);
+
   const handleMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+    monaco.editor.setTheme(MONACO_THEME_NAME);
 
-    // Register CodeActionProvider for quick fixes
     providerRef.current = monaco.languages.registerCodeActionProvider("xml", {
       provideCodeActions(
         model: Monaco.editor.ITextModel,
@@ -286,22 +351,26 @@ export function CodePreview() {
     runValidation(editor.getValue());
   }, [runValidation]);
 
-  // Dispose provider on unmount
   useEffect(() => {
     return () => {
       providerRef.current?.dispose();
     };
   }, []);
 
-  // Re-validate whenever content changes (from serializer)
-  useEffect(() => {
-    runValidation(xmlContent);
-  }, [xmlContent, runValidation]);
-
   const handleEditorChange = (value: string | undefined) => {
     if (!value || !editorEditMode) return;
 
     runValidation(value);
+    setValidationSummary(
+      validateMetaXml(value).issues.reduce(
+        (acc, issue) => {
+          if (issue.severity === "error") acc.errors++;
+          else acc.warnings++;
+          return acc;
+        },
+        { errors: 0, warnings: 0 },
+      ),
+    );
 
     try {
       const parsed = parseMetaFile(value, vehicles);
@@ -314,37 +383,80 @@ export function CodePreview() {
   };
 
   return (
-    <div className="h-full w-full relative">
-      {editorEditMode && (
-        <div className="absolute top-1 right-3 z-10 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-          Edit Mode
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#050c16]">
+      <div className="flex h-8 shrink-0 items-center justify-between border-b border-[#0f1e32] bg-[#07101c] px-3">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-cyan-100/60">
+            {activeTab}.meta
+          </span>
+          {editorEditMode && (
+            <span className="font-mono text-[9px] uppercase tracking-widest text-amber-400/70">
+              edit
+            </span>
+          )}
         </div>
-      )}
-      <Editor
-        height="100%"
-        language="xml"
-        theme="vs-dark"
-        value={xmlContent}
-        onChange={editorEditMode ? handleEditorChange : undefined}
-        onMount={handleMount}
-        options={{
-          readOnly: !editorEditMode,
-          minimap: { enabled: false },
-          fontSize: 12,
-          fontFamily: "'Share Tech Mono', 'Courier New', monospace",
-          lineNumbers: "on",
-          scrollBeyondLastLine: false,
-          wordWrap: "on",
-          automaticLayout: true,
-          renderLineHighlight: editorEditMode ? "line" : "none",
-          folding: true,
-          padding: { top: 8 },
-          cursorStyle: editorEditMode ? "line" : "line-thin",
-          cursorBlinking: editorEditMode ? "blink" : "solid",
-          glyphMargin: true,
-          lightbulb: { enabled: "on" as unknown as Monaco.editor.ShowLightbulbIconMode },
-        }}
-      />
+        <div className="flex items-center gap-2">
+          {validationSummary.errors > 0 ? (
+            <div className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-rose-400" />
+              <span className="font-mono text-[10px] text-rose-400/80">
+                {validationSummary.errors}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-emerald-400/70" />
+              <span className="font-mono text-[10px] text-emerald-400/70">ok</span>
+            </div>
+          )}
+          {validationSummary.warnings > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-amber-400" />
+              <span className="font-mono text-[10px] text-amber-400/80">
+                {validationSummary.warnings}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 p-[5px]">
+        <div className="relative h-full overflow-hidden rounded-[4px] border border-[#0f1e32] bg-[#08101c] shadow-[inset_0_1px_2px_rgba(0,0,0,0.35)]">
+          <Editor
+            beforeMount={handleBeforeMount}
+            height="100%"
+            language="xml"
+            theme={MONACO_THEME_NAME}
+            value={xmlContent}
+            onChange={editorEditMode ? handleEditorChange : undefined}
+            onMount={handleMount}
+            options={{
+              readOnly: !editorEditMode,
+              minimap: { enabled: false },
+              fontSize: 12,
+              fontFamily: "'Share Tech Mono', 'Courier New', monospace",
+              lineNumbers: "on",
+              scrollBeyondLastLine: false,
+              wordWrap: "on",
+              automaticLayout: true,
+              renderLineHighlight: editorEditMode ? "line" : "none",
+              folding: true,
+              padding: { top: 10, bottom: 14 },
+              cursorStyle: editorEditMode ? "line" : "line-thin",
+              cursorBlinking: editorEditMode ? "blink" : "solid",
+              glyphMargin: true,
+              lightbulb: { enabled: "on" as unknown as Monaco.editor.ShowLightbulbIconMode },
+              smoothScrolling: true,
+              overviewRulerBorder: false,
+              hideCursorInOverviewRuler: true,
+              scrollbar: {
+                verticalScrollbarSize: 8,
+                horizontalScrollbarSize: 8,
+              },
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -24,7 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { BugReportForm } from "./BugReportForm";
-import { Code, Save, Minus, Square, X, History, Undo2, Redo2, Settings, PanelLeft, Search, PackageCheck, ChevronDown, Pin, FolderTree, Bug, Upload, RotateCcw, Copy, Check, Download, Plus, FolderOpen } from "lucide-react";
+import { Code, Save, Minus, Square, X, History, Undo2, Redo2, Settings, PanelLeft, Search, PackageCheck, Pin, FolderTree, Bug, Upload, RotateCcw, Copy, Check, Download, Plus, FolderOpen, MoreHorizontal } from "lucide-react";
 import { HiOutlineCode } from "react-icons/hi";
 import type { MetaFileType } from "@/store/meta-store";
 interface ToolbarProps {
@@ -133,11 +133,10 @@ export const Toolbar = memo(function Toolbar({
     return () => ro.disconnect();
   }, []);
 
-  // Progressive visibility thresholds (px). Buttons fade out in order as toolbar shrinks.
+  // Progressive visibility thresholds (px). Actions fade out as toolbar shrinks.
   const showExportZip = toolbarWidth > 680;
   const showBugReport = toolbarWidth > 620;
   const showCodePreview = toolbarWidth > 560;
-  const showSave = toolbarWidth > 500;
   const showHistory = toolbarWidth > 440;
 
   const descriptors = useWorkspaceStore((s) => s.descriptors);
@@ -180,91 +179,140 @@ export const Toolbar = memo(function Toolbar({
     updateModkits(activeVehicleId, baseline.modkits);
   };
 
-  return (
+return (
     <TooltipProvider>
       <div
         ref={toolbarRef}
         className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 overflow-hidden border-b border-[#131a2b] bg-[#050d21] py-0 pl-3 pr-0 select-none"
         data-tauri-drag-region
       >
-        <div className="flex min-w-0 items-center gap-2">
-          <Tooltip>
+        {/* Left: Logo + Primary Actions */}
+        <div className="flex min-w-0 items-center gap-0.5">{onGoHome && (<Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="flex h-8 w-8 shrink-0 items-center justify-center transition-opacity hover:opacity-80"
+                className="flex size-8 shrink-0 items-center justify-center rounded transition-opacity hover:bg-white/5"
                 onClick={onGoHome}
               >
-                <HiOutlineCode className="h-5 w-5" style={{ color: "#8eaad0" }} />
+                <HiOutlineCode className="size-5" style={{ color: "#8eaad0" }} />
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom">Home</TooltipContent>
           </Tooltip>
+          )}
 
           {workspaceName && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex h-7 min-w-0 max-w-[180px] items-center gap-1 rounded px-2 text-xs text-slate-300 transition-colors hover:bg-[#14233b] hover:text-white"
-                >
-                  <span className="truncate font-medium">{workspaceName}</span>
-                  <ChevronDown className="h-3 w-3 shrink-0 text-slate-500" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72">
-                <DropdownMenuLabel className="text-xs">Switch Workspace</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {descriptors.length === 0 ? (
-                  <DropdownMenuItem disabled className="text-xs">No workspaces</DropdownMenuItem>
-                ) : (
-                  descriptors.slice(0, 10).map((ws) => {
-                    const rootPath = ws.roots[0] ?? "";
-                    return (
-                      <DropdownMenuItem
-                        key={ws.configPath}
-                        className="text-xs flex items-center gap-2"
-                        onClick={() => {
-                          if (rootPath) onOpenRecentWorkspace?.(rootPath);
-                        }}
+            <>
+              <Separator orientation="vertical" className="mx-1 h-5" />
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex size-8 items-center justify-center rounded transition-colors hover:bg-[#14233b]"
                       >
-                        {ws.pinned ? (
-                          <Pin className="size-3 shrink-0 text-primary" />
-                        ) : (
-                          <FolderTree className="size-3 shrink-0 text-slate-400" />
-                        )}
-                        <span className="truncate">{ws.name}</span>
-                      </DropdownMenuItem>
-                    );
-                  })
+                        <FolderTree className="size-4 text-white" />
+                      </button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{workspaceName}</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="start" className="w-72">
+                  <DropdownMenuLabel className="text-xs">Switch Workspace</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {descriptors.length === 0 ? (
+                    <DropdownMenuItem disabled className="text-xs">No workspaces</DropdownMenuItem>
+                  ) : (
+                    descriptors.slice(0, 10).map((ws) => {
+                      const rootPath = ws.roots[0] ?? "";
+                      return (
+                        <DropdownMenuItem
+                          key={ws.configPath}
+                          className="flex items-center gap-2 text-xs"
+                          onClick={() => {
+                            if (rootPath) onOpenRecentWorkspace?.(rootPath);
+                          }}
+                        >
+                          {ws.pinned ? (
+                            <Pin className="size-3 shrink-0 text-primary" />
+                          ) : (
+                            <FolderTree className="size-3 shrink-0 text-slate-400" />
+                          )}
+                          <span className="truncate">{ws.name}</span>
+                        </DropdownMenuItem>
+                      );
+                    })
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-xs"
+                    onClick={() => toggleCommandPalette()}
+                  >
+                    More workspaces...
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+
+          {uiView === "workspace" && (
+            <>
+              <Separator orientation="vertical" className="mx-1 h-5" />
+
+              <div className="flex items-center gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" onClick={handleCreateVehicle}>
+                      <Plus />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">New vehicle</TooltipContent>
+                </Tooltip>
+              </div>
+
+              <Separator orientation="vertical" className="mx-1 h-5" />
+
+              <div className="flex items-center gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" onClick={() => onOpenFile?.()}>
+                      <Upload />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Import</TooltipContent>
+                </Tooltip>
+
+                {onOpenFolder && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon-sm" onClick={() => onOpenFolder()}>
+                        <FolderOpen />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Open folder</TooltipContent>
+                  </Tooltip>
                 )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-xs"
-                  onClick={() => toggleCommandPalette()}
-                >
-                  More workspaces...
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </div>
+            </>
           )}
         </div>
 
+        {/* Center: Search (workspace only) */}
         <div className="min-w-0 px-2" data-tauri-drag-region>
           {uiView === "workspace" && hasSelection && (
-            <div className="mx-auto grid w-full min-w-0 max-w-[520px] grid-cols-[auto_minmax(0,1fr)] items-center gap-1">
-              <div className="flex shrink-0 items-center gap-1">
+            <div className="mx-auto flex w-full min-w-0 max-w-[400px] items-center gap-2">
+              <div className="flex shrink-0 items-center gap-0.5">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      className="h-8 w-8"
                       onClick={undo}
                       disabled={!canUndo()}
                     >
-                      <Undo2 className="h-3.5 w-3.5" />
+                      <Undo2 />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
@@ -276,19 +324,20 @@ export const Toolbar = memo(function Toolbar({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      className="h-8 w-8"
                       onClick={redo}
                       disabled={!canRedo()}
                     >
-                      <Redo2 className="h-3.5 w-3.5" />
+                      <Redo2 />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Redo (Ctrl+Y)</TooltipContent>
                 </Tooltip>
               </div>
 
-              <div className="relative min-w-0">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
+              <Separator orientation="vertical" className="h-5" />
+
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/80" />
                 <Input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -297,11 +346,11 @@ export const Toolbar = memo(function Toolbar({
                     if (searchMatches.length === 0) return;
                     reopenVehicleTab(searchMatches[0].id);
                   }}
-                  placeholder="Search vehicles, models, handling IDs"
+                  placeholder="Search vehicles..."
                   className="h-8 w-full min-w-0 border-[#2b3b56] bg-[#111d33] pl-8 pr-9 text-xs text-slate-100 placeholder:text-slate-500"
                 />
                 {searchTerm.trim().length > 0 && (
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                     {searchMatches.length}
                   </span>
                 )}
@@ -310,289 +359,305 @@ export const Toolbar = memo(function Toolbar({
           )}
         </div>
 
-        <div className="flex h-full shrink-0 items-center justify-self-end">
-        {uiView === "workspace" && (
-          <div className="mr-2 flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={() => onOpenFile?.()}>
-                  <Upload className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Import</TooltipContent>
-            </Tooltip>
+        {/* Right: Actions + Window controls */}
+        <div className="flex h-full shrink-0 items-center gap-1">
+          {uiView === "workspace" && (
+            <>
+              {/* Edit actions */}
+              <div className="flex items-center gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" onClick={handleResetActiveTab} disabled={!activeVehicleId}>
+                      <RotateCcw />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Reset tab</TooltipContent>
+                </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={handleResetActiveTab} disabled={!activeVehicleId}>
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Reset active tab</TooltipContent>
-            </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" onClick={() => void handleCopyVehicle()} disabled={!activeVehicleId}>
+                      {copiedXml ? <Check className="text-primary" /> : <Copy />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{copiedXml ? "Copied!" : "Copy XML"}</TooltipContent>
+                </Tooltip>
+              </div>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={() => void handleCopyVehicle()} disabled={!activeVehicleId}>
-                  {copiedXml ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{copiedXml ? "Copied!" : "Copy XML"}</TooltipContent>
-            </Tooltip>
+              <Separator orientation="vertical" className="mx-1 h-5" />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-8 w-8"
-                  disabled={isExporting || !hasSelection}
-                  onClick={async () => {
-                    if (!onExportAll || isExporting) return;
-                    setIsExporting(true);
-                    try {
-                      await onExportAll();
-                    } finally {
-                      setIsExporting(false);
-                    }
-                  }}
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Download</TooltipContent>
-            </Tooltip>
+              {/* Export actions */}
+              <div className="flex items-center gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={isExporting || !hasSelection}
+                      onClick={async () => {
+                        if (!onExportAll || isExporting) return;
+                        setIsExporting(true);
+                        try {
+                          await onExportAll();
+                        } finally {
+                          setIsExporting(false);
+                        }
+                      }}
+                    >
+                      <Download />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Download</TooltipContent>
+                </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={handleCreateVehicle}>
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">New vehicle</TooltipContent>
-            </Tooltip>
+                {showExportZip && hasSelection && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className={cn(
+                          isExporting && "animate-pulse"
+                        )}
+                        disabled={isExporting}
+                        onClick={async () => {
+                          if (!onExportAll || isExporting) return;
+                          setIsExporting(true);
+                          try {
+                            await onExportAll();
+                          } finally {
+                            setIsExporting(false);
+                          }
+                        }}
+                      >
+                        <PackageCheck />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {isExporting ? "Exporting..." : "Export ZIP"}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
 
-            {onOpenFolder && (
+              <Separator orientation="vertical" className="mx-1 h-5" />
+
+              {/* Save */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon-sm" className="h-8 w-8" onClick={() => onOpenFolder()}>
-                    <FolderOpen className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Open folder</TooltipContent>
-              </Tooltip>
-            )}
-
-            <Separator orientation="vertical" className="mx-1 h-5" />
-          </div>
-        )}
-        <span className={cn("inline-flex items-center transition-all duration-300 overflow-hidden", showHistory ? "opacity-100 w-8" : "opacity-0 w-0 pointer-events-none")}>
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="h-8 w-8"
-                    disabled={recentFiles.length === 0}
+                    onClick={onSaveFile}
+                    disabled={!hasSelection}
                   >
-                    <History className="h-3.5 w-3.5" />
+                    <Save />
                   </Button>
-                </DropdownMenuTrigger>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Recent files</TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Recent files</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {recentFiles.length === 0 && (
-              <DropdownMenuItem disabled>No recent files</DropdownMenuItem>
-            )}
-            {recentFiles.map((path) => (
-              <DropdownMenuItem
-                key={path}
-                className="text-xs"
-                onClick={() => onOpenRecentFile?.(path)}
-                title={path}
-              >
-                {path}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        </span>
-
-        {hasSelection && (
-          <>
-            <span className={cn("inline-flex items-center transition-all duration-300 overflow-hidden", showSave ? "opacity-100 w-8" : "opacity-0 w-0 pointer-events-none")}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-8 w-8"
-                  onClick={onSaveFile}
-                >
-                  <Save className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Save</TooltipContent>
-            </Tooltip>
-            </span>
-
-            {isDirty && showSave && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center justify-center w-2 h-2 rounded-full bg-yellow-400/80" />
                 </TooltipTrigger>
-                <TooltipContent side="bottom">Unsaved changes</TooltipContent>
+                <TooltipContent side="bottom">Save</TooltipContent>
               </Tooltip>
-            )}
 
-            <span className={cn("inline-flex items-center transition-all duration-300 overflow-hidden", showExportZip ? "opacity-100 w-8" : "opacity-0 w-0 pointer-events-none")}>
+              {isDirty && (
+                <span className="ml-[-4px] inline-flex size-2 rounded-full bg-yellow-400/80" title="Unsaved changes" />
+              )}
+
+              <Separator orientation="vertical" className="mx-1 h-5" />
+            </>
+          )}
+
+          {/* Secondary actions (responsive) */}
+          {uiView === "workspace" && (
+            <>
+              {/* History - progressive */}
+              {showHistory && (
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={recentFiles.length === 0}
+                        >
+                          <History />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Recent files</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end" className="w-80">
+                    <DropdownMenuLabel>Recent files</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {recentFiles.length === 0 ? (
+                      <DropdownMenuItem disabled>No recent files</DropdownMenuItem>
+                    ) : (
+                      recentFiles.map((path) => (
+                        <DropdownMenuItem
+                          key={path}
+                          className="text-xs"
+                          onClick={() => onOpenRecentFile?.(path)}
+                          title={path}
+                        >
+                          {path}
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {/* Code preview - progressive */}
+              {showCodePreview && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className={cn(codePreviewVisible && "text-primary")}
+                      onClick={toggleCodePreview}
+                    >
+                      <Code />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{codePreviewVisible ? "Hide code" : "Show code"}</TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Bug report - progressive */}
+              {showBugReport && (
+                <Dialog open={bugReportOpen} onOpenChange={setBugReportOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon-sm">
+                          <Bug />
+                        </Button>
+                      </DialogTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Report bug</TooltipContent>
+                  </Tooltip>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle className="text-slate-200">Report a Bug</DialogTitle>
+                    </DialogHeader>
+                    <BugReportForm />
+                  </DialogContent>
+                </Dialog>
+              )}
+
+              {/* Overflow menu for hidden items */}
+              {(!showHistory || !showCodePreview || !showBugReport) && (
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm">
+                          <MoreHorizontal />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">More</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {!showHistory && (
+                      <DropdownMenuItem
+                        disabled={recentFiles.length === 0}
+                        onClick={() => {
+                          if (recentFiles[0]) onOpenRecentFile?.(recentFiles[0]);
+                        }}
+                      >
+                        <History className="mr-2 size-4" />
+                        Recent files
+                      </DropdownMenuItem>
+                    )}
+                    {!showCodePreview && (
+                      <DropdownMenuItem onClick={toggleCodePreview}>
+                        <Code className="mr-2 size-4" />
+                        {codePreviewVisible ? "Hide code" : "Show code"}
+                      </DropdownMenuItem>
+                    )}
+                    {!showBugReport && (
+                      <DropdownMenuItem onClick={() => setBugReportOpen(true)}>
+                        <Bug className="mr-2 size-4" />
+                        Report bug
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              <Separator orientation="vertical" className="mx-1 h-5" />
+            </>
+          )}
+
+          {/* Settings */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={cn(uiView === "settings" && "text-primary")}
+                onClick={onGoSettings}
+              >
+                <Settings />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Settings</TooltipContent>
+          </Tooltip>
+
+          <Separator orientation="vertical" className="mx-1 h-5" />
+
+          {/* Window controls */}
+          <div className="flex items-center">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className={cn(
-                    "h-8 w-8 transition-all duration-200",
-                    isExporting
-                      ? "text-primary animate-pulse cursor-not-allowed"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  disabled={isExporting}
-                  onClick={async () => {
-                    if (!onExportAll || isExporting) return;
-                    setIsExporting(true);
-                    try {
-                      await onExportAll();
-                    } finally {
-                      setIsExporting(false);
-                    }
-                  }}
+                <button
+                  onClick={onToggleSidebar}
+                  className="inline-flex size-9 items-center justify-center hover:bg-white/5 transition-colors"
                 >
-                  <PackageCheck className="h-3.5 w-3.5" />
-                </Button>
+                  <PanelLeft className={cn("size-4", sidebarCollapsed ? "text-muted-foreground/80" : "text-foreground/80")} />
+                </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {isExporting ? "Exporting…" : "Export all to data.zip"}
-              </TooltipContent>
+              <TooltipContent side="bottom">{sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}</TooltipContent>
             </Tooltip>
-            </span>
-          </>
-        )}
 
-        <span className={cn("inline-flex items-center transition-all duration-300 overflow-hidden", showCodePreview ? "opacity-100 w-8" : "opacity-0 w-0 pointer-events-none")}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className={cn("h-8 w-8", codePreviewVisible ? "text-primary" : "text-muted-foreground")}
-              onClick={toggleCodePreview}
-            >
-              <Code className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">{codePreviewVisible ? "Hide code preview" : "Show code preview"}</TooltipContent>
-        </Tooltip>
-        </span>
-
-        <span className={cn("inline-flex items-center transition-all duration-300 overflow-hidden", showBugReport ? "opacity-100 w-8" : "opacity-0 w-0 pointer-events-none")}>
-        <Dialog open={bugReportOpen} onOpenChange={setBugReportOpen}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={minimizeWindow}
+                  className="inline-flex w-11 items-center justify-center hover:bg-white/5 transition-colors"
                 >
-                  <Bug className="h-3.5 w-3.5" />
-                </Button>
-              </DialogTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Report a bug</TooltipContent>
-          </Tooltip>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="text-slate-200">Report a Bug</DialogTitle>
-            </DialogHeader>
-            <BugReportForm />
-          </DialogContent>
-        </Dialog>
-        </span>
+                  <Minus className="size-4 text-muted-foreground" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Minimize</TooltipContent>
+            </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className={cn("h-8 w-8", uiView === "settings" ? "text-primary" : "text-muted-foreground")}
-              onClick={onGoSettings}
-            >
-              <Settings className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Settings</TooltipContent>
-        </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={toggleMaximize}
+                  className="inline-flex w-11 items-center justify-center hover:bg-white/5 transition-colors"
+                >
+                  <Square className="size-3 text-muted-foreground" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Maximize</TooltipContent>
+            </Tooltip>
 
-        <Separator orientation="vertical" className="h-5" />
-
-        <div className="flex items-center h-full">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={onToggleSidebar}
-                className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
-              >
-                <PanelLeft className={`h-4 w-4 ${sidebarCollapsed ? "text-muted-foreground/80" : "text-foreground/80"}`} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">{sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={minimizeWindow}
-                className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
-              >
-                <Minus className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Minimize</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={toggleMaximize}
-                className="inline-flex items-center justify-center w-11 h-9 hover:bg-muted-foreground/10 transition-colors"
-              >
-                <Square className="h-3 w-3 text-muted-foreground" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Maximize</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={closeWindow}
-                className="inline-flex items-center justify-center w-11 h-9 hover:bg-red-500 hover:text-white transition-colors"
-              >
-                <X className="h-4 w-4 text-muted-foreground hover:text-white" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Close</TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={closeWindow}
+                  className="inline-flex w-11 items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+                >
+                  <X className="size-4 text-muted-foreground group-hover:text-white" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Close</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
-      </div>
       </div>
     </TooltipProvider>
   );

@@ -35,7 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Switch } from "@/components/ui/switch";
+import { SquareToggle } from "@/components/SquareToggle";
 import { Plus, Trash2, Package, Wrench, Gauge, Tag, Info } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -940,7 +940,7 @@ export function ModkitsEditor() {
       <div className="border border-border/50 rounded-md p-3 space-y-2 bg-muted/20">
         <div className="flex items-center justify-between">
           <Label className="text-xs text-muted-foreground">Create multiple variants</Label>
-          <Switch checked={createMultiple} onCheckedChange={setCreateMultiple} />
+          <SquareToggle checked={createMultiple} onCheckedChange={setCreateMultiple} />
         </div>
         {createMultiple && (
           <div className="flex items-center gap-2">

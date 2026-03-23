@@ -29,12 +29,12 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { SquareToggle } from "@/components/SquareToggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -954,7 +954,7 @@ function MergeRulesPanel({ rules, detectedType, onSetDuplicateStrategy, onSetSor
             <MessageSquare className="size-3.5 text-slate-500" />
             Preserve inline comments
           </Label>
-          <Switch checked={rules.preserveComments} onCheckedChange={onSetPreserveComments} size="sm" />
+          <SquareToggle checked={rules.preserveComments} onCheckedChange={onSetPreserveComments} />
         </div>
 
         {(detectedType === "vehicles" || !detectedType) && (
@@ -963,7 +963,7 @@ function MergeRulesPanel({ rules, detectedType, onSetDuplicateStrategy, onSetSor
               <GitCompare className="size-3.5 text-slate-500" />
               Consolidate similar handling IDs
             </Label>
-            <Switch checked={rules.consolidateSimilarHandlingIds} onCheckedChange={onSetConsolidateHandling} size="sm" />
+            <SquareToggle checked={rules.consolidateSimilarHandlingIds} onCheckedChange={onSetConsolidateHandling} />
           </div>
         )}
       </div>
@@ -1001,11 +1001,11 @@ function OutputSettingsPanel({ output, detectedType, onSetFileName, onSetCreateB
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <Label className="text-xs text-slate-400">Create backup of overwritten file</Label>
-          <Switch checked={output.createBackup} onCheckedChange={onSetCreateBackup} size="sm" />
+          <SquareToggle checked={output.createBackup} onCheckedChange={onSetCreateBackup} />
         </div>
         <div className="flex items-center justify-between gap-2">
           <Label className="text-xs text-slate-400">Open output after merge</Label>
-          <Switch checked={output.openAfterMerge} onCheckedChange={onSetOpenAfterMerge} size="sm" />
+          <SquareToggle checked={output.openAfterMerge} onCheckedChange={onSetOpenAfterMerge} />
         </div>
       </div>
     </div>

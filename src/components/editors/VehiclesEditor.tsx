@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import {
   dashboardTypes,
   layoutOptions,
@@ -123,7 +122,7 @@ function ToggleField({
   return (
     <div className="flex items-center justify-between rounded border border-border/50 px-3 py-2">
       <Label className="text-[11px] text-muted-foreground">{label}</Label>
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <SquareToggle checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }

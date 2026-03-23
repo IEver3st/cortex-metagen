@@ -2,6 +2,7 @@ import { useState, memo } from "react";
 import { motion } from "motion/react";
 import { useMetaStore } from "@/store/meta-store";
 import { SliderField } from "@/components/SliderField";
+import { SquareToggle } from "@/components/SquareToggle";
 import {
   Accordion,
   AccordionContent,
@@ -11,7 +12,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Shield, Eye } from "lucide-react";
 import type {
   VehicleLayoutsData,
@@ -215,7 +215,7 @@ const LookAroundEditor = memo(function LookAroundEditor({
 
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <Switch checked={entry.allowLookback} onCheckedChange={(v) => onChange({ allowLookback: v })} className="scale-75" />
+          <SquareToggle checked={entry.allowLookback} onCheckedChange={(v: boolean) => onChange({ allowLookback: v })} />
           <Label className="text-[11px] text-muted-foreground">Allow Lookback</Label>
         </div>
         <div className="flex items-center gap-1.5">
