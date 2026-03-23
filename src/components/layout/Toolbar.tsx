@@ -184,75 +184,76 @@ export const Toolbar = memo(function Toolbar({
     <TooltipProvider>
       <div
         ref={toolbarRef}
-        className="relative flex items-center gap-2 pl-3 pr-0 py-0 border-b border-[#131a2b] bg-[#050d21] select-none overflow-hidden"
+        className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 overflow-hidden border-b border-[#131a2b] bg-[#050d21] py-0 pl-3 pr-0 select-none"
         data-tauri-drag-region
       >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center justify-center shrink-0 w-8 h-8 transition-opacity hover:opacity-80"
-              onClick={onGoHome}
-            >
-              <HiOutlineCode className="h-5 w-5" style={{ color: "#8eaad0" }} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Home</TooltipContent>
-        </Tooltip>
-
-        {/* Workspace switcher dropdown */}
-        {workspaceName && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+        <div className="flex min-w-0 items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-1 px-2 h-7 rounded text-xs text-slate-300 hover:bg-[#14233b] hover:text-white transition-colors max-w-[180px]"
+                className="flex h-8 w-8 shrink-0 items-center justify-center transition-opacity hover:opacity-80"
+                onClick={onGoHome}
               >
-                <span className="truncate font-medium">{workspaceName}</span>
-                <ChevronDown className="h-3 w-3 shrink-0 text-slate-500" />
+                <HiOutlineCode className="h-5 w-5" style={{ color: "#8eaad0" }} />
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-72">
-              <DropdownMenuLabel className="text-xs">Switch Workspace</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {descriptors.length === 0 ? (
-                <DropdownMenuItem disabled className="text-xs">No workspaces</DropdownMenuItem>
-              ) : (
-                descriptors.slice(0, 10).map((ws) => {
-                  const rootPath = ws.roots[0] ?? "";
-                  return (
-                    <DropdownMenuItem
-                      key={ws.configPath}
-                      className="text-xs flex items-center gap-2"
-                      onClick={() => {
-                        if (rootPath) onOpenRecentWorkspace?.(rootPath);
-                      }}
-                    >
-                      {ws.pinned ? (
-                        <Pin className="size-3 text-primary shrink-0" />
-                      ) : (
-                        <FolderTree className="size-3 text-slate-400 shrink-0" />
-                      )}
-                      <span className="truncate">{ws.name}</span>
-                    </DropdownMenuItem>
-                  );
-                })
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-xs"
-                onClick={() => toggleCommandPalette()}
-              >
-                More workspaces...
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Home</TooltipContent>
+          </Tooltip>
 
-        {uiView === "workspace" && hasSelection && (
-          <div className="absolute left-1/2 top-1/2 w-full max-w-[520px] -translate-x-1/2 -translate-y-1/2 px-2">
-            <div className="flex items-center gap-1">
-              <div className="flex items-center gap-1 shrink-0">
+          {workspaceName && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-7 min-w-0 max-w-[180px] items-center gap-1 rounded px-2 text-xs text-slate-300 transition-colors hover:bg-[#14233b] hover:text-white"
+                >
+                  <span className="truncate font-medium">{workspaceName}</span>
+                  <ChevronDown className="h-3 w-3 shrink-0 text-slate-500" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-72">
+                <DropdownMenuLabel className="text-xs">Switch Workspace</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {descriptors.length === 0 ? (
+                  <DropdownMenuItem disabled className="text-xs">No workspaces</DropdownMenuItem>
+                ) : (
+                  descriptors.slice(0, 10).map((ws) => {
+                    const rootPath = ws.roots[0] ?? "";
+                    return (
+                      <DropdownMenuItem
+                        key={ws.configPath}
+                        className="text-xs flex items-center gap-2"
+                        onClick={() => {
+                          if (rootPath) onOpenRecentWorkspace?.(rootPath);
+                        }}
+                      >
+                        {ws.pinned ? (
+                          <Pin className="size-3 shrink-0 text-primary" />
+                        ) : (
+                          <FolderTree className="size-3 shrink-0 text-slate-400" />
+                        )}
+                        <span className="truncate">{ws.name}</span>
+                      </DropdownMenuItem>
+                    );
+                  })
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-xs"
+                  onClick={() => toggleCommandPalette()}
+                >
+                  More workspaces...
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+
+        <div className="min-w-0 px-2" data-tauri-drag-region>
+          {uiView === "workspace" && hasSelection && (
+            <div className="mx-auto grid w-full min-w-0 max-w-[520px] grid-cols-[auto_minmax(0,1fr)] items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -286,7 +287,7 @@ export const Toolbar = memo(function Toolbar({
                 </Tooltip>
               </div>
 
-              <div className="relative flex-1">
+              <div className="relative min-w-0">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
                 <Input
                   value={searchTerm}
@@ -297,7 +298,7 @@ export const Toolbar = memo(function Toolbar({
                     reopenVehicleTab(searchMatches[0].id);
                   }}
                   placeholder="Search vehicles, models, handling IDs"
-                  className="h-8 border-[#2b3b56] bg-[#111d33] pl-8 pr-9 text-xs text-slate-100 placeholder:text-slate-500"
+                  className="h-8 w-full min-w-0 border-[#2b3b56] bg-[#111d33] pl-8 pr-9 text-xs text-slate-100 placeholder:text-slate-500"
                 />
                 {searchTerm.trim().length > 0 && (
                   <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
@@ -306,12 +307,10 @@ export const Toolbar = memo(function Toolbar({
                 )}
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        <div className="flex-1 min-w-0" data-tauri-drag-region />
-
-        <div className="flex items-center h-full shrink-0">
+        <div className="flex h-full shrink-0 items-center justify-self-end">
         {uiView === "workspace" && (
           <div className="mr-2 flex items-center gap-1">
             <Tooltip>
