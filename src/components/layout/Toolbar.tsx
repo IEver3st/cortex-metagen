@@ -183,19 +183,15 @@ return (
     <TooltipProvider>
       <div
         ref={toolbarRef}
-        className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 overflow-hidden border-b border-[#131a2b] bg-[#050d21] py-0 pl-3 pr-0 select-none"
+        className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 overflow-hidden border-b border-border/70 bg-background-app py-0 pl-3 pr-0 text-foreground select-none"
         data-tauri-drag-region
       >
         {/* Left: Logo + Primary Actions */}
         <div className="flex min-w-0 items-center gap-0.5">{onGoHome && (<Tooltip>
             <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="flex size-8 shrink-0 items-center justify-center rounded transition-opacity hover:bg-white/5"
-                onClick={onGoHome}
-              >
-                <HiOutlineCode className="size-5" style={{ color: "#8eaad0" }} />
-              </button>
+              <Button type="button" variant="ghost" size="icon-sm" onClick={onGoHome}>
+                <HiOutlineCode className="size-5 text-primary" />
+              </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">Home</TooltipContent>
           </Tooltip>
@@ -208,12 +204,9 @@ return (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="flex size-8 items-center justify-center rounded transition-colors hover:bg-[#14233b]"
-                      >
-                        <FolderTree className="size-4 text-white" />
-                      </button>
+                      <Button type="button" variant="ghost" size="icon-sm">
+                        <FolderTree className="size-4 text-foreground" />
+                      </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">{workspaceName}</TooltipContent>
@@ -237,7 +230,7 @@ return (
                           {ws.pinned ? (
                             <Pin className="size-3 shrink-0 text-primary" />
                           ) : (
-                            <FolderTree className="size-3 shrink-0 text-slate-400" />
+                            <FolderTree className="size-3 shrink-0 text-muted-foreground" />
                           )}
                           <span className="truncate">{ws.name}</span>
                         </DropdownMenuItem>
@@ -347,7 +340,7 @@ return (
                     reopenVehicleTab(searchMatches[0].id);
                   }}
                   placeholder="Search vehicles..."
-                  className="h-8 w-full min-w-0 border-[#2b3b56] bg-[#111d33] pl-8 pr-9 text-xs text-slate-100 placeholder:text-slate-500"
+                  className="h-8 w-full min-w-0 border-border bg-card/80 pl-8 pr-9 text-xs"
                 />
                 {searchTerm.trim().length > 0 && (
                   <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
@@ -458,7 +451,7 @@ return (
               </Tooltip>
 
               {isDirty && (
-                <span className="ml-[-4px] inline-flex size-2 rounded-full bg-yellow-400/80" title="Unsaved changes" />
+                <span className="ml-[-4px] inline-flex size-2 rounded-full bg-primary/80" />
               )}
 
               <Separator orientation="vertical" className="mx-1 h-5" />
@@ -496,7 +489,6 @@ return (
                           key={path}
                           className="text-xs"
                           onClick={() => onOpenRecentFile?.(path)}
-                          title={path}
                         >
                           {path}
                         </DropdownMenuItem>
@@ -538,7 +530,7 @@ return (
                   </Tooltip>
                   <DialogContent className="max-w-lg">
                     <DialogHeader>
-                      <DialogTitle className="text-slate-200">Report a Bug</DialogTitle>
+                      <DialogTitle>Report a bug</DialogTitle>
                     </DialogHeader>
                     <BugReportForm />
                   </DialogContent>
@@ -611,48 +603,57 @@ return (
           <div className="flex items-center">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={onToggleSidebar}
-                  className="inline-flex size-9 items-center justify-center hover:bg-white/5 transition-colors"
                 >
                   <PanelLeft className={cn("size-4", sidebarCollapsed ? "text-muted-foreground/80" : "text-foreground/80")} />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">{sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}</TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={minimizeWindow}
-                  className="inline-flex w-11 items-center justify-center hover:bg-white/5 transition-colors"
                 >
                   <Minus className="size-4 text-muted-foreground" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">Minimize</TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={toggleMaximize}
-                  className="inline-flex w-11 items-center justify-center hover:bg-white/5 transition-colors"
                 >
                   <Square className="size-3 text-muted-foreground" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">Maximize</TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="hover:bg-destructive hover:text-destructive-foreground"
                   onClick={closeWindow}
-                  className="inline-flex w-11 items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
                 >
-                  <X className="size-4 text-muted-foreground group-hover:text-white" />
-                </button>
+                  <X className="size-4 text-muted-foreground" />
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">Close</TooltipContent>
             </Tooltip>

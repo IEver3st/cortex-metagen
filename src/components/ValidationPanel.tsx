@@ -1,6 +1,10 @@
-import { AlertTriangle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { AlertTriangle, ChevronDown, ChevronUp, XCircle } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ValidationIssue } from "@/lib/xml-validator";
 
 interface ValidationPanelProps {
@@ -12,99 +16,79 @@ interface ValidationPanelProps {
 export function ValidationPanel({ issues, fileName, onDismiss }: ValidationPanelProps) {
   const [expanded, setExpanded] = useState(true);
 
-  const errors = issues.filter((i) => i.severity === "error");
-  const warnings = issues.filter((i) => i.severity === "warning");
+  const errors = issues.filter((issue) => issue.severity === "error");
+  const warnings = issues.filter((issue) => issue.severity === "warning");
 
-  if (issues.length === 0) return null;
+  if (!issues.length) return null;
 
   return (
     <motion.div
-      className="border-b bg-card overflow-hidden"
+      className="border-b border-border/70 bg-card"
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
       exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
     >
-      <div
-        className="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-muted/30 transition-colors"
-        onClick={() => setExpanded(!expanded)}
+      <Button
+        variant="ghost"
+        className="flex h-auto w-full items-center justify-between rounded-none px-4 py-3 hover:bg-accent"
+        onClick={() => setExpanded((current) => !current)}
       >
-        <div className="flex items-center gap-2 text-xs">
-          {errors.length > 0 ? (
-            <XCircle className="h-3.5 w-3.5 text-red-400" />
-          ) : (
-            <AlertTriangle className="h-3.5 w-3.5 text-yellow-400" />
-          )}
-          <span className="font-medium">
-            {errors.length > 0
-              ? `${errors.length} error${errors.length !== 1 ? "s" : ""}`
-              : ""}
-            {errors.length > 0 && warnings.length > 0 ? ", " : ""}
-            {warnings.length > 0
-              ? `${warnings.length} warning${warnings.length !== 1 ? "s" : ""}`
-              : ""}
-          </span>
-          {fileName && (
-            <span className="text-muted-foreground">in {fileName}</span>
-          )}
+        <div className="flex min-w-0 items-center gap-3 text-left">
+          {errors.length ? <XCircle className="size-4 text-destructive" /> : <AlertTriangle className="size-4 text-primary" />}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              {errors.length ? <Badge variant="destructive">{errors.length} errors</Badge> : null}
+              {warnings.length ? <Badge variant="default">{warnings.length} warnings</Badge> : null}
+            </div>
+            {fileName ? <p className="text-xs text-muted-foreground">{fileName}</p> : null}
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDismiss();
-            }}
-            className="text-[10px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted/50"
-          >
-            Dismiss
-          </button>
-          {expanded ? (
-            <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          )}
-        </div>
-      </div>
 
-      <AnimatePresence>
-        {expanded && (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="xs" onClick={(event) => {
+            event.stopPropagation();
+            onDismiss();
+          }}>
+            Dismiss
+          </Button>
+          {expanded ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+        </div>
+      </Button>
+
+      <AnimatePresence initial={false}>
+        {expanded ? (
           <motion.div
-            className="max-h-48 overflow-y-auto border-t"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="overflow-hidden"
           >
-            {issues.map((issue, idx) => (
-              <motion.div
-                key={idx}
-                className="flex items-start gap-2 px-3 py-1 text-[11px] border-b border-border/30 last:border-b-0 hover:bg-muted/20"
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2, delay: idx * 0.03 }}
-              >
-                {issue.severity === "error" ? (
-                  <XCircle className="h-3 w-3 text-red-400 mt-0.5 shrink-0" />
-                ) : (
-                  <AlertTriangle className="h-3 w-3 text-yellow-400 mt-0.5 shrink-0" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-muted-foreground shrink-0">
-                      Ln {issue.line}
-                    </span>
-                    <span className="text-foreground/90">{issue.message}</span>
-                  </div>
-                  {issue.context && (
-                    <div className="font-mono text-[10px] text-muted-foreground/60 truncate mt-0.5">
-                      {issue.context}
+            <ScrollArea className="max-h-48 border-t border-border/70">
+              <div className="space-y-2 p-3">
+                {issues.map((issue, index) => {
+                  const IssueIcon = issue.severity === "error" ? XCircle : AlertTriangle;
+                  const badgeVariant = issue.severity === "error" ? "destructive" : "default";
+
+                  return (
+                    <div key={`${issue.message}-${index}`} className="surface-panel flex items-start gap-3 px-3 py-3">
+                      <IssueIcon className={issue.severity === "error" ? "mt-0.5 size-4 text-destructive" : "mt-0.5 size-4 text-primary"} />
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={badgeVariant}>{issue.severity}</Badge>
+                          <span className="text-[10px] text-muted-foreground">Line {issue.line}</span>
+                        </div>
+                        <p className="text-sm text-card-foreground">{issue.message}</p>
+                        {issue.context ? <p className="truncate text-xs text-muted-foreground">{issue.context}</p> : null}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                  );
+                })}
+              </div>
+            </ScrollArea>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
     </motion.div>
   );

@@ -1,18 +1,19 @@
 import { memo, useCallback } from "react";
-import { Slider } from "@/components/ui/slider";
+import { Info, RotateCcw } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Info, RotateCcw } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { FieldInfo } from "@/lib/dictionary";
 
@@ -56,136 +57,100 @@ export const SliderField = memo(function SliderField({
   const unitLabel = displayUnit ?? field.unit;
 
   const handleReset = useCallback(() => {
-    if (defaultValue !== undefined) {
-      onChange(defaultValue);
-    }
+    if (defaultValue !== undefined) onChange(defaultValue);
   }, [defaultValue, onChange]);
 
   return (
-    <div className="group/field flex flex-col gap-1 py-1.5 px-1 rounded-md transition-colors hover:bg-white/[0.02]">
-      {/* Top row: label + value + unit + reset */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          {/* Changed indicator dot — orange only */}
-          <div className="w-1.5 shrink-0 flex justify-center">
-            {isChanged && (
-              <div className="size-1.5 rounded-full bg-orange-500" />
-            )}
-          </div>
-
-          {/* Field name with tooltip */}
-          <TooltipProvider delayDuration={200}>
+    <div className="surface-panel group/field space-y-3 px-4 py-3 transition-colors hover:bg-accent/30">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-2">
+            <span className={cn("size-1.5 rounded-full bg-transparent transition-colors", isChanged && "bg-primary")} />
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="text-[13px] font-medium text-slate-300 cursor-help truncate">
-                  {field.name}
-                </span>
+                <span className="truncate text-sm font-medium text-card-foreground">{field.name}</span>
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs">
-                <p className="text-xs">{field.description}</p>
-              </TooltipContent>
+              <TooltipContent side="top">{field.description}</TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-
-          {/* Info popover */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="text-slate-600 hover:text-slate-400 transition-colors opacity-0 group-hover/field:opacity-100"
-              >
-                <Info className="size-3" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent side="right" className="w-72 text-xs space-y-2">
-              <p className="font-medium text-foreground">{field.name}</p>
-              <p className="text-muted-foreground">{field.description}</p>
-              {field.valueUp && (
-                <p>
-                  <span className="text-green-500 font-medium">▲ Up:</span>{" "}
-                  {field.valueUp}
-                </p>
-              )}
-              {field.valueDown && (
-                <p>
-                  <span className="text-red-500 font-medium">▼ Down:</span>{" "}
-                  {field.valueDown}
-                </p>
-              )}
-              {field.example && (
-                <p className="text-muted-foreground italic">
-                  Example: {field.example}
-                </p>
-              )}
-              {field.docsUrl && (
-                <a
-                  href={field.docsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-block text-primary hover:underline"
-                >
-                  Open FiveM documentation
-                </a>
-              )}
-            </PopoverContent>
-          </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:text-foreground">
+                  <Info className="size-3" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent side="right" className="w-72 space-y-2 text-xs">
+                <p className="text-sm font-medium text-card-foreground">{field.name}</p>
+                <p className="text-muted-foreground">{field.description}</p>
+                {field.valueUp ? <p><span className="font-medium text-primary">Up:</span> {field.valueUp}</p> : null}
+                {field.valueDown ? <p><span className="font-medium text-destructive">Down:</span> {field.valueDown}</p> : null}
+                {field.example ? <p className="text-muted-foreground">Example: {field.example}</p> : null}
+                {field.docsUrl ? (
+                  <a href={field.docsUrl} target="_blank" rel="noreferrer" className="inline-flex text-primary underline-offset-4 hover:underline">
+                    Open FiveM documentation
+                  </a>
+                ) : null}
+              </PopoverContent>
+            </Popover>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {effectiveStep >= 1 ? Math.round(displayMin) : Number(displayMin.toFixed(2))}
+            {unitLabel ? ` ${unitLabel}` : ""} to {effectiveStep >= 1 ? Math.round(displayMax) : Number(displayMax.toFixed(2))}
+            {unitLabel ? ` ${unitLabel}` : ""}
+          </p>
         </div>
 
-        {/* Value + unit + reset */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2">
           <Input
             type="number"
             value={effectiveStep >= 1 ? Math.round(displayValue) : Number(displayValue.toFixed(2))}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              if (!isNaN(v)) onChange(fromDisplay(v));
+            onChange={(event) => {
+              const nextValue = Number.parseFloat(event.target.value);
+              if (!Number.isNaN(nextValue)) onChange(fromDisplay(nextValue));
             }}
             step={effectiveStep}
             min={displayMin}
             max={displayMax}
             disabled={disabled}
-            className={cn(
-              "w-[72px] h-6 text-xs text-right tabular-nums font-mono bg-transparent px-1.5 transition-colors",
-              isChanged
-                ? "border-orange-500/40 focus:border-orange-500/60"
-                : "border-slate-700/50 focus:border-slate-500"
-            )}
+            className={cn("w-28 text-right text-sm tabular-nums", isChanged && "border-primary/40")}
           />
-          {unitLabel && (
-            <span className="text-[10px] text-slate-500 font-mono w-[28px] text-left truncate">
-              {unitLabel}
-            </span>
-          )}
-          {!unitLabel && <span className="w-[28px]" />}
-
-          {/* Reset button — only visible when changed */}
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={!isChanged}
-            className="size-5 flex items-center justify-center rounded text-slate-600 transition-all disabled:opacity-0 hover:text-orange-400 hover:bg-orange-500/10"
-            title={displayDefaultValue !== undefined ? `Reset to ${effectiveStep >= 1 ? Math.round(displayDefaultValue) : displayDefaultValue.toFixed(2)}` : undefined}
-          >
-            <RotateCcw className="size-3" />
-          </button>
+          {unitLabel ? <span className="w-10 text-xs text-muted-foreground">{unitLabel}</span> : <span className="w-10" />}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  disabled={!isChanged}
+                  onClick={handleReset}
+                  className="text-muted-foreground hover:text-primary disabled:opacity-30"
+                >
+                  <RotateCcw className="size-3" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              {displayDefaultValue !== undefined
+                ? `Reset to ${effectiveStep >= 1 ? Math.round(displayDefaultValue) : Number(displayDefaultValue.toFixed(2))}`
+                : "Reset value"}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
-      {/* Slider row with range labels */}
-      <div className="flex items-center gap-2 pl-3">
-        <span className="text-[9px] text-slate-600 font-mono w-[36px] text-right shrink-0">
+      <div className="flex items-center gap-3">
+        <span className="w-12 text-right text-[10px] text-muted-foreground">
           {effectiveStep >= 1 ? displayMin.toFixed(0) : displayMin.toFixed(1)}
         </span>
         <Slider
           value={[displayValue]}
-          onValueChange={([v]) => onChange(fromDisplay(v))}
+          onValueChange={([nextValue]) => onChange(fromDisplay(nextValue))}
           min={displayMin}
           max={displayMax}
           step={effectiveStep}
           disabled={disabled}
           className="flex-1"
         />
-        <span className="text-[9px] text-slate-600 font-mono w-[36px] text-left shrink-0">
+        <span className="w-12 text-[10px] text-muted-foreground">
           {effectiveStep >= 1 ? displayMax.toFixed(0) : displayMax.toFixed(1)}
         </span>
       </div>

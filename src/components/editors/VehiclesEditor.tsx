@@ -4,10 +4,13 @@ import { ChevronDown, Eye, EyeOff, Plus, RotateCcw, Search, Trash2 } from "lucid
 
 import { SliderField } from "@/components/SliderField";
 import { SquareToggle } from "@/components/SquareToggle";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   dashboardTypes,
   layoutOptions,
@@ -50,19 +53,29 @@ function Section({
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   return (
-    <div className="border-b border-border/40">
-      <button type="button" onClick={() => setCollapsed((value) => !value)} className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-white/[0.02]">
+    <div className="section-frame overflow-hidden border-border/70">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => setCollapsed((value) => !value)}
+        className="h-auto w-full justify-start gap-2 rounded-none px-3 py-2 text-left"
+      >
         <ChevronDown className={cn("size-3 text-muted-foreground transition-transform", collapsed && "-rotate-90")} />
         <span className="text-xs font-semibold text-foreground/85">{title}</span>
-        {count > 0 && <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-400">{count}</span>}
+        {count > 0 ? (
+          <Badge variant="outline" className="rounded-md px-1.5 py-0 text-[9px]">
+            {count}
+          </Badge>
+        ) : null}
         <div className="flex-1" />
         {onReset && count > 0 && (
           <Button type="button" variant="ghost" size="icon-sm" className="size-6" onClick={(event) => { event.stopPropagation(); onReset(); }}>
             <RotateCcw className="size-3" />
           </Button>
         )}
-      </button>
-      {!collapsed && <div className="space-y-3 px-3 pb-3">{children}</div>}
+      </Button>
+      {!collapsed && <div className="space-y-3 border-t border-border/60 px-3 py-3">{children}</div>}
     </div>
   );
 }
@@ -80,7 +93,7 @@ function TextAreaField({ label, value, onChange }: { label: string; value: strin
   return (
     <div className="space-y-1">
       <Label className="text-[11px] text-muted-foreground">{label}</Label>
-      <textarea value={value} onChange={(event) => onChange(event.target.value)} className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono" />
+      <Textarea value={value} onChange={(event) => onChange(event.target.value)} className="min-h-20 text-xs font-mono" />
     </div>
   );
 }
@@ -162,11 +175,11 @@ function DiffuseTintField({ value, onChange }: { value: string; onChange: (value
     <div className="rounded border border-border/50 p-3">
       <Label className="mb-2 block text-[11px] text-muted-foreground">Diffuse Tint</Label>
       <div className="flex items-center gap-3">
-        <input
+        <Input
           type="color"
           value={color}
           onChange={(event) => onChange(`0x00${event.target.value.slice(1).toUpperCase()}`)}
-          className="h-8 w-10 rounded border border-border bg-transparent p-1"
+          className="h-8 w-10 rounded-md border border-border bg-transparent p-1"
         />
         <Input
           value={value}
@@ -196,7 +209,7 @@ function LodDistancesField({ value, onChange }: { value: string; onChange: (valu
       </div>
       <div className="grid grid-cols-2 gap-2 xl:grid-cols-5">
         {labels.map((label, index) => (
-          <div key={label} className="space-y-1 rounded border border-border/50 bg-white/[0.01] p-2">
+          <div key={label} className="space-y-1 rounded-lg border border-border/60 bg-card/60 p-2">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70">{label}</div>
             <Input
               type="number"
@@ -222,7 +235,7 @@ function JsonField({ label, value, onChange }: { label: string; value: unknown |
   return (
     <div className="space-y-1">
       <Label className="text-[11px] text-muted-foreground">{label}</Label>
-      <textarea
+      <Textarea
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         onBlur={() => {
@@ -236,7 +249,7 @@ function JsonField({ label, value, onChange }: { label: string; value: unknown |
             onChange(draft);
           }
         }}
-        className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono"
+        className="min-h-24 text-xs font-mono"
       />
     </div>
   );
@@ -304,16 +317,16 @@ export function VehiclesEditor() {
 
   return (
     <motion.div className="flex h-full flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="sticky top-0 z-10 border-b border-border/50 bg-background/95 px-4 py-3 backdrop-blur-sm">
+      <div className="sticky top-0 z-10 border-b border-border/60 bg-background px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <Input value={data.modelName} onChange={(event) => update({ modelName: event.target.value.toLowerCase() })} className="h-8 max-w-[180px] text-xs font-mono" />
-          <span className="rounded-full border border-border/60 px-2 py-1 text-[10px] text-muted-foreground">{data.handlingId}</span>
-          <span className="rounded-full border border-border/60 px-2 py-1 text-[10px] text-muted-foreground">{data.type}</span>
-          <span className="rounded-full border border-border/60 px-2 py-1 text-[10px] text-muted-foreground">{data.vehicleClass}</span>
+          <Badge variant="outline" className="rounded-md px-2 py-0 text-[10px]">{data.handlingId}</Badge>
+          <Badge variant="outline" className="rounded-md px-2 py-0 text-[10px]">{data.type}</Badge>
+          <Badge variant="outline" className="rounded-md px-2 py-0 text-[10px]">{data.vehicleClass}</Badge>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <ScrollArea className="flex-1">
         <Section title="Identity" count={["modelName", "txdName", "handlingId", "gameName", "vehicleMakeName"].filter((key) => modified(data, key as keyof VehiclesData)).length} onReset={() => reset(["modelName", "txdName", "handlingId", "gameName", "vehicleMakeName"])}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <TextField label={fieldLabel("modelName")} value={data.modelName} onChange={(value) => update({ modelName: value.toLowerCase() })} />
@@ -451,7 +464,7 @@ export function VehiclesEditor() {
             );
           })}
         </Section>
-      </div>
+      </ScrollArea>
     </motion.div>
   );
 }

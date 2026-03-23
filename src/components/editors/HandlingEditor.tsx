@@ -5,8 +5,11 @@ import { ChevronDown, ChevronUp, CircleDot, CircleDotDashed, Gauge, RotateCcw, S
 import { PerformanceStats } from "@/components/PerformanceStats";
 import { SectionPresetPicker } from "@/components/SectionPresetPicker";
 import { SliderField } from "@/components/SliderField";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { handlingFields } from "@/lib/dictionary";
 import { DEFAULT_HANDLING, HANDLING_FIELD_RANGES, SECTION_FIELD_GROUPS, SECTION_VISUALS } from "@/lib/handling-field-config";
 import { sectionFieldMap, sectionPresetConfigs, type SectionId, type SectionPreset } from "@/lib/section-presets";
@@ -68,9 +71,9 @@ function FieldCluster({
   onUpdate: (data: Partial<HandlingData>) => void;
 }) {
   return (
-    <div className="rounded border border-slate-700/20 bg-white/[0.01]">
-      <div className="border-b border-slate-700/20 px-2 py-1">
-        <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500/80">{label}</span>
+    <div className="rounded-lg border border-border/70 bg-card/70 shadow-xs">
+      <div className="border-b border-border/60 px-2 py-1.5">
+        <span className="text-[9px] font-medium uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
       </div>
       <div className="py-0.5">
         {fields.map((field) => {
@@ -128,7 +131,7 @@ function SectionBlock({
   }, [onUpdate]);
 
   return (
-    <div className="rounded-lg border border-slate-700/25 bg-[#07101f]/70">
+    <div className="rounded-xl border border-border/70 bg-card/80 shadow-xs">
       <div
         role="button"
         tabIndex={0}
@@ -141,11 +144,13 @@ function SectionBlock({
         }}
         className="flex items-center gap-2 px-3 py-2"
       >
-        <ChevronDown className={cn("size-3 text-slate-500 transition-transform", collapsed && "-rotate-90")} />
-        <Icon className="size-3.5 text-slate-400" />
-        <span className="text-xs font-semibold text-slate-200">{SECTION_VISUALS[sectionId].title}</span>
+        <ChevronDown className={cn("size-3 text-muted-foreground transition-transform", collapsed && "-rotate-90")} />
+        <Icon className="size-3.5 text-primary" />
+        <span className="text-xs font-medium text-foreground">{SECTION_VISUALS[sectionId].title}</span>
         {changeCount > 0 && (
-          <span className="rounded-full bg-orange-500/15 px-1.5 py-0.5 text-[9px] font-bold text-orange-300">{changeCount}</span>
+          <Badge variant="outline" className="rounded-md px-1.5 py-0 text-[9px]">
+            {changeCount}
+          </Badge>
         )}
         <div className="flex-1" />
         {hasPresets && (
@@ -154,17 +159,19 @@ function SectionBlock({
           </div>
         )}
         {changeCount > 0 && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={(event) => {
               event.stopPropagation();
               resetSection();
             }}
-            className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-slate-500 transition-colors hover:bg-white/[0.04] hover:text-orange-300"
+            className="gap-1 rounded-md px-2 text-[10px] uppercase tracking-[0.08em] text-muted-foreground"
           >
             <RotateCcw className="size-3" />
             Reset
-          </button>
+          </Button>
         )}
       </div>
 
@@ -177,14 +184,14 @@ function SectionBlock({
             transition={{ duration: 0.2, ease: "easeOut" }}
             style={{ overflow: "hidden" }}
           >
-            <div className="space-y-2 border-t border-slate-700/20 px-3 py-2">
+            <div className="space-y-2 border-t border-border/60 px-3 py-2">
               {sectionId === "identity" ? (
-                <div className="flex items-center gap-2 rounded border border-slate-700/20 bg-white/[0.01] px-3 py-2">
-                  <Label className="w-[140px] shrink-0 text-[12px] text-slate-400">Handling Name</Label>
+                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2">
+                  <Label className="w-[140px] shrink-0 text-[12px] text-muted-foreground">Handling Name</Label>
                   <Input
                     value={handling.handlingName}
                     onChange={(event) => onUpdate({ handlingName: event.target.value.toUpperCase() })}
-                    className="h-7 flex-1 border-slate-700/40 bg-transparent text-xs font-mono uppercase"
+                    className="h-7 flex-1 border-border/60 bg-background text-xs font-mono uppercase"
                   />
                 </div>
               ) : sectionId === "flagsAi" ? (
@@ -201,12 +208,12 @@ function SectionBlock({
                     ["strDamageFlags", "Damage Flags"],
                     ["aiHandling", "AI Handling"],
                   ] as const).map(([field, label]) => (
-                    <div key={field} className="flex items-center gap-2 rounded border border-slate-700/20 bg-white/[0.01] px-3 py-2">
-                      <Label className="w-[140px] shrink-0 text-[12px] text-slate-400">{label}</Label>
+                    <div key={field} className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2">
+                      <Label className="w-[140px] shrink-0 text-[12px] text-muted-foreground">{label}</Label>
                       <Input
                         value={handling[field]}
                         onChange={(event) => onUpdate({ [field]: field === "aiHandling" ? event.target.value.toUpperCase() : event.target.value })}
-                        className={cn("h-7 flex-1 border-slate-700/40 bg-transparent text-xs font-mono", field === "aiHandling" && "uppercase")}
+                        className={cn("h-7 flex-1 border-border/60 bg-background text-xs font-mono", field === "aiHandling" && "uppercase")}
                       />
                     </div>
                   ))}
@@ -274,16 +281,20 @@ export function HandlingEditor() {
 
   return (
     <motion.div className="flex h-full flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
-      <div className="sticky top-0 z-10 space-y-2 border-b border-slate-700/25 bg-[#040d1a]/95 px-4 py-2 backdrop-blur-sm">
+      <div className="sticky top-0 z-10 space-y-2 border-b border-border/70 bg-background px-4 py-3">
         <div className="flex items-center gap-3">
-          <Label className="shrink-0 text-[10px] uppercase tracking-wider text-slate-600">Handling</Label>
+          <Badge variant="outline">Handling</Badge>
           <Input
             value={handling.handlingName}
             onChange={(event) => update({ handlingName: event.target.value.toUpperCase() })}
-            className="h-6 max-w-[220px] border-slate-700/40 bg-transparent text-xs font-mono uppercase"
+            className="h-8 max-w-[220px] bg-card/70 text-xs uppercase"
           />
           <div className="flex-1" />
-          {totalChanges > 0 && <span className="text-[10px] font-medium text-orange-300">{totalChanges} unsaved change{totalChanges === 1 ? "" : "s"}</span>}
+          {totalChanges > 0 && (
+            <Badge variant="outline" className="rounded-md px-1.5 py-0 text-[10px] uppercase tracking-[0.08em]">
+              {totalChanges} unsaved change{totalChanges === 1 ? "" : "s"}
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-3">
@@ -292,32 +303,41 @@ export function HandlingEditor() {
               const Icon = SECTION_ICONS[sectionId];
               const changes = countSectionChanges(handling, sectionId);
               return (
-                <button
+                <Button
                   key={sectionId}
                   type="button"
+                  variant="ghost"
+                  size="xs"
                   onClick={() => scrollToSection(sectionId)}
-                  className="flex items-center gap-1 rounded bg-white/[0.03] px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-slate-200"
+                  className="h-auto gap-1 rounded-md border border-border/60 bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                 >
                   <Icon className="size-3" />
                   <span>{SECTION_VISUALS[sectionId].title}</span>
-                  {changes > 0 && <span className="rounded-full bg-orange-500/15 px-1 py-0.5 text-[8px] font-bold text-orange-300">{changes}</span>}
-                </button>
+                  {changes > 0 ? (
+                    <Badge variant="outline" className="rounded-md px-1 py-0 text-[8px]">
+                      {changes}
+                    </Badge>
+                  ) : null}
+                </Button>
               );
             })}
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => setShowPerf((value) => !value)}
-            className="flex items-center gap-1 text-[10px] font-medium text-slate-500 transition-colors hover:text-slate-300"
+            className="gap-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground"
           >
             {showPerf ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
             Performance
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 space-y-2 overflow-y-auto p-3">
+      <ScrollArea className="flex-1">
+        <div className="space-y-3 p-3">
         <AnimatePresence initial={false}>
           {showPerf && (
             <motion.div
@@ -337,7 +357,8 @@ export function HandlingEditor() {
             <SectionBlock sectionId={sectionId} handling={handling} onUpdate={update} />
           </div>
         ))}
-      </div>
+        </div>
+      </ScrollArea>
     </motion.div>
   );
 }

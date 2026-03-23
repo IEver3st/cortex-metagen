@@ -1,22 +1,17 @@
-import { memo, useMemo, useState, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import {
-  AlertTriangle,
-  XCircle,
-  Info,
-  ChevronUp,
-  FileWarning,
-  X,
-} from "lucide-react";
+﻿import { memo, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { AlertTriangle, ChevronRight, FileWarning, X, XCircle } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-
 import type { ValidationIssue } from "@/lib/xml-validator";
 
 interface ProblemsGroup {
   fileName: string;
   issues: ValidationIssue[];
-  worstSeverity: "error" | "warning" | "info";
+  worstSeverity: "error" | "warning";
 }
 
 interface ProblemsPanelProps {
@@ -28,43 +23,27 @@ interface ProblemsPanelProps {
   onToggleVisible?: () => void;
 }
 
-const severityIcon: Record<string, typeof AlertTriangle> = {
+const severityIcon: Record<ValidationIssue["severity"], typeof AlertTriangle> = {
   error: XCircle,
   warning: AlertTriangle,
-  info: Info,
 };
 
 const severityConfig = {
   error: {
-    dot: "bg-red-500 shadow-[0_0_8px_rgba(248,113,113,0.5)]",
-    text: "text-red-400",
-    bg: "bg-red-500/10",
-    border: "border-red-500/30",
+    dot: "bg-destructive",
+    text: "text-destructive",
+    badge: "destructive" as const,
   },
   warning: {
-    dot: "bg-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.5)]",
-    text: "text-amber-400",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/30",
-  },
-  info: {
-    dot: "bg-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.5)]",
-    text: "text-sky-400",
-    bg: "bg-sky-500/10",
-    border: "border-sky-500/30",
+    dot: "bg-primary",
+    text: "text-primary",
+    badge: "default" as const,
   },
 };
 
-function worstOf(issues: ValidationIssue[]): "error" | "warning" | "info" {
-  let hasError = false;
-  let hasWarning = false;
-  for (const issue of issues) {
-    if (issue.severity === "error") hasError = true;
-    else if (issue.severity === "warning") hasWarning = true;
-  }
-  if (hasError) return "error";
-  if (hasWarning) return "warning";
-  return "info";
+function worstOf(issues: ValidationIssue[]): "error" | "warning" {
+  if (issues.some((issue) => issue.severity === "error")) return "error";
+  return "warning";
 }
 
 export const ProblemsPanel = memo(function ProblemsPanel({
@@ -76,245 +55,159 @@ export const ProblemsPanel = memo(function ProblemsPanel({
   onToggleVisible,
 }: ProblemsPanelProps) {
   const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(new Set());
-  const [hovered, setHovered] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
 
   const counts = useMemo(() => {
     let errors = 0;
     let warnings = 0;
-    let infos = 0;
+
     for (const issue of issues) {
-      if (issue.severity === "error") errors++;
-      else if (issue.severity === "warning") warnings++;
-      else infos++;
+      if (issue.severity === "error") errors += 1;
+      else if (issue.severity === "warning") warnings += 1;
     }
-    return { errors, warnings, infos, total: issues.length };
+
+    return { errors, warnings, total: issues.length };
   }, [issues]);
 
   const groups = useMemo<ProblemsGroup[]>(() => {
-    const map = new Map<string, ValidationIssue[]>();
+    const grouped = new Map<string, ValidationIssue[]>();
+
     for (const issue of issues) {
       const match = issue.message.match(/^\[([^\]]+)\]\s*/);
       const key = match ? match[1] : fileName;
-      const existing = map.get(key) ?? [];
+      const existing = grouped.get(key) ?? [];
       existing.push(issue);
-      map.set(key, existing);
+      grouped.set(key, existing);
     }
-    return [...map.entries()].map(([name, fileIssues]) => ({
+
+    return [...grouped.entries()].map(([name, fileIssues]) => ({
       fileName: name,
       issues: fileIssues,
       worstSeverity: worstOf(fileIssues),
     }));
   }, [issues, fileName]);
 
-  const toggleFile = (file: string) => {
-    setCollapsedFiles((prev) => {
-      const next = new Set(prev);
-      if (next.has(file)) {
-        next.delete(file);
-      } else {
-        next.add(file);
-      }
+  if (!issues.length) return null;
+
+  const worstOverall = counts.errors > 0 ? "error" : "warning";
+  const worstConfig = severityConfig[worstOverall];
+
+  const toggleFile = (nextFile: string) => {
+    setCollapsedFiles((state) => {
+      const next = new Set(state);
+      if (next.has(nextFile)) next.delete(nextFile);
+      else next.add(nextFile);
       return next;
     });
   };
 
-  const hasProblems = issues.length > 0;
-  const worstOverall = useMemo(() => {
-    if (counts.errors > 0) return "error";
-    if (counts.warnings > 0) return "warning";
-    return "info";
-  }, [counts]);
-
-  if (!hasProblems) return null;
-
-  const config = severityConfig[worstOverall];
-
-  const formatCount = (n: number) => n.toString().padStart(2, "0");
-
   return (
     <motion.div
-      ref={panelRef}
       initial={false}
-      animate={visible ? { height: "auto" } : { height: 28 }}
-      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-      className="border-t border-[#1a2744] bg-[#0a1628]/95 backdrop-blur-sm z-40 relative overflow-hidden"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      animate={{ opacity: 1 }}
+      className="relative z-40 overflow-hidden border-t border-border/70 bg-card/95 shadow-sm"
     >
-      <AnimatePresence>
-        {!visible && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0"
-          >
-            <button
-              type="button"
-              onClick={onToggleVisible}
-              className="w-full h-full flex items-center px-3 gap-2 text-[11px] font-medium tracking-wide group"
-            >
-              <div className="flex items-center gap-1.5">
-                <span className={cn("size-2 rounded-full", config.dot)} />
-                <span className={cn("font-semibold tracking-wider uppercase", config.text)}>
-                  {counts.errors + counts.warnings} Problems
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1 ml-auto">
-                {counts.errors > 0 && (
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/25">
-                    <XCircle className="size-3 text-red-400" />
-                    <span className="text-[10px] font-mono text-red-300 tabular-nums">{formatCount(counts.errors)}</span>
-                  </span>
-                )}
-                {counts.warnings > 0 && (
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/25">
-                    <AlertTriangle className="size-3 text-amber-400" />
-                    <span className="text-[10px] font-mono text-amber-300 tabular-nums">{formatCount(counts.warnings)}</span>
-                  </span>
-                )}
-              </div>
-
-              <span className="text-[10px] text-slate-500 group-hover:text-slate-400 transition-colors ml-2">
-                {hovered ? "Click to expand" : ""}
-              </span>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {visible && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2 }}
-            className="flex flex-col"
-          >
-            <div className="flex items-center justify-between px-3 h-7 border-b border-[#1a2744] bg-[#0d1a2e]">
-              <button
-                type="button"
-                onClick={onToggleVisible}
-                className="flex items-center gap-2 text-[11px] font-medium tracking-wide group"
-              >
-                <FileWarning className="size-3.5 text-slate-500 group-hover:text-primary/80 transition-colors" />
-                <span className="text-slate-400 group-hover:text-slate-200 transition-colors uppercase tracking-wider">
-                  Problems
-                </span>
-                <div className="flex items-center gap-1 ml-1">
-                  {counts.errors > 0 && (
-                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/25">
-                      <span className="text-[10px] font-mono text-red-300 tabular-nums">{counts.errors}</span>
-                    </span>
-                  )}
-                  {counts.warnings > 0 && (
-                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/25">
-                      <span className="text-[10px] font-mono text-amber-300 tabular-nums">{counts.warnings}</span>
-                    </span>
-                  )}
-                </div>
-              </button>
-
-              <div className="flex items-center gap-1">
-                {onDismiss && (
-                  <button
-                    type="button"
-                    onClick={onDismiss}
-                    className="inline-flex items-center justify-center size-5 rounded text-slate-500 hover:text-slate-300 hover:bg-slate-700/30 transition-all"
-                  >
-                    <X className="size-3" />
-                  </button>
-                )}
-              </div>
+      {!visible ? (
+        <button
+          type="button"
+          onClick={onToggleVisible}
+          className="flex h-7 w-full items-center gap-2 px-3 text-[11px] font-medium tracking-[0.08em] uppercase transition-colors hover:bg-muted/30"
+        >
+          <span className={cn("size-2 rounded-full", worstConfig.dot)} />
+          <span className={cn(worstConfig.text)}>{counts.errors + counts.warnings} problems</span>
+          <div className="ml-auto flex items-center gap-1">
+            {counts.errors > 0 ? <Badge variant="destructive">{counts.errors} errors</Badge> : null}
+            {counts.warnings > 0 ? <Badge variant="default">{counts.warnings} warnings</Badge> : null}
+          </div>
+        </button>
+      ) : (
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.2 }}>
+          <div className="flex h-10 items-center justify-between border-b border-border/60 px-3">
+            <div className="flex items-center gap-2 text-xs">
+              <FileWarning className={cn("size-3.5", worstConfig.text)} />
+              <span className="font-medium">Problems</span>
+              {counts.errors > 0 ? <Badge variant="destructive">{counts.errors} errors</Badge> : null}
+              {counts.warnings > 0 ? <Badge variant="default">{counts.warnings} warnings</Badge> : null}
             </div>
 
-            <ScrollArea className="max-h-[160px]">
-              <div className="py-1 px-1 space-y-0.5">
-                {groups.map((group) => {
-                  const isCollapsed = collapsedFiles.has(group.fileName);
-                  const groupConfig = severityConfig[group.worstSeverity];
+            <div className="flex items-center gap-2">
+              {onDismiss ? (
+                <Button variant="ghost" size="xs" onClick={onDismiss} className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground">
+                  Dismiss
+                </Button>
+              ) : null}
+              {onToggleVisible ? (
+                <Button variant="ghost" size="icon-xs" onClick={onToggleVisible} className="text-muted-foreground hover:text-foreground">
+                  <X className="size-3.5" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
 
-                  return (
-                    <div key={group.fileName}>
-                      <button
-                        type="button"
-                        className="group w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] rounded-sm hover:bg-[#142238] transition-colors"
-                        onClick={() => toggleFile(group.fileName)}
-                      >
-                        <span className={cn(
-                          "transition-transform duration-150",
-                          isCollapsed ? "rotate-0" : "rotate-90"
-                        )}>
-                          <ChevronUp className="size-3 text-slate-500 group-hover:text-slate-400 rotate-[-90deg]" />
-                        </span>
-                        <span className={cn("size-1.5 rounded-full shrink-0", groupConfig.dot)} />
-                        <span className="font-medium text-slate-300 group-hover:text-slate-100 transition-colors truncate">
-                          {group.fileName}
-                        </span>
-                        <span className={cn(
-                          "ml-auto text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded",
-                          groupConfig.bg, groupConfig.border, groupConfig.text
-                        )}>
-                          {group.issues.length}
-                        </span>
-                      </button>
+          <ScrollArea className="max-h-[18rem]">
+            <div className="space-y-1 p-1.5">
+              {groups.map((group) => {
+                const isCollapsed = collapsedFiles.has(group.fileName);
+                const groupConfig = severityConfig[group.worstSeverity];
 
-                      <AnimatePresence initial={false}>
-                        {!isCollapsed && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.15, ease: "easeOut" }}
-                            className="overflow-hidden"
-                          >
-                            <div className="ml-6 pl-1 border-l border-[#1a2744]">
-                              {group.issues.map((issue, idx) => {
-                                const Icon = severityIcon[issue.severity] ?? Info;
-                                const issueConfig = severityConfig[issue.severity] ?? severityConfig.info;
-                                const displayMessage = issue.message.replace(/^\[[^\]]+\]\s*/, "");
+                return (
+                  <div key={group.fileName} className="rounded-lg border border-border/60 bg-muted/20">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-full justify-start gap-2 rounded-b-none rounded-t-lg px-2.5 text-left text-[11px]"
+                      onClick={() => toggleFile(group.fileName)}
+                    >
+                      <ChevronRight className={cn("size-3 transition-transform", !isCollapsed && "rotate-90", groupConfig.text)} />
+                      <span className={cn("size-1.5 rounded-full", groupConfig.dot)} />
+                      <span className="truncate font-medium text-foreground/90">{group.fileName}</span>
+                      <Badge variant={groupConfig.badge} className="ml-auto">{group.issues.length}</Badge>
+                    </Button>
 
-                                return (
-                                  <button
-                                    type="button"
-                                    key={`${group.fileName}-${idx}`}
-                                    className="group w-full flex items-start gap-2 px-2.5 py-1.5 text-[10px] text-left hover:bg-[#142238] transition-colors rounded-sm"
-                                    onClick={() => onClickIssue?.(issue)}
-                                  >
-                                    <Icon className={cn("size-3 mt-0.5 shrink-0", issueConfig.text)} />
-                                    <div className="min-w-0 flex-1">
-                                      <span className="text-slate-300 group-hover:text-slate-100 transition-colors leading-relaxed block truncate">
-                                        {displayMessage}
-                                      </span>
-                                      {issue.context && (
-                                        <span className="text-[9px] text-slate-500 truncate block mt-0.5 font-mono">
-                                          {issue.context}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {issue.line > 0 && (
-                                      <span className="text-[9px] text-slate-500 font-mono shrink-0 bg-[#0d1525] px-1 py-0.5 rounded border border-[#1a2744] group-hover:border-slate-600 transition-colors">
-                                        Ln{issue.line}
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                    <AnimatePresence initial={false}>
+                      {!isCollapsed ? (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.15 }}
+                          className="border-t border-border/50"
+                        >
+                          {group.issues.map((issue, index) => {
+                            const Icon = severityIcon[issue.severity];
+                            const issueConfig = severityConfig[issue.severity];
+                            const displayMessage = issue.message.replace(/^\[[^\]]+\]\s*/, "");
+
+                            return (
+                              <Button
+                                type="button"
+                                key={`${group.fileName}-${index}`}
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto w-full items-start justify-start gap-2 rounded-none px-2.5 py-2 text-left text-[11px] last:rounded-b-lg hover:bg-accent/60"
+                                onClick={() => onClickIssue?.(issue)}
+                              >
+                                <Icon className={cn("mt-0.5 size-3 shrink-0", issueConfig.text)} />
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  <span className="block truncate leading-relaxed text-foreground/90">{displayMessage}</span>
+                                  {issue.context ? (
+                                    <span className="block truncate font-mono text-[10px] text-muted-foreground">{issue.context}</span>
+                                  ) : null}
+                                </div>
+                                {issue.line > 0 ? <Badge variant="outline">Ln {issue.line}</Badge> : null}
+                              </Button>
+                            );
+                          })}
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </motion.div>
+      )}
     </motion.div>
   );
 });

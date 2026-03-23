@@ -1,10 +1,19 @@
 import { memo } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { useMetaStore, type MetaFileType } from "@/store/meta-store";
+import { AnimatePresence, motion } from "motion/react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { ValidationIssue } from "@/lib/xml-validator";
+import { useMetaStore, type MetaFileType } from "@/store/meta-store";
+
 import { WarningsDock } from "./WarningsDock";
 
-const allTypes: MetaFileType[] = ["handling", "vehicles", "carcols", "modkits", "carvariations", "vehiclelayouts"];
+const ALL_TYPES: MetaFileType[] = ["handling", "vehicles", "carcols", "modkits", "carvariations", "vehiclelayouts"];
 
 interface StatusBarProps {
   workspacePath?: string | null;
@@ -16,6 +25,10 @@ interface StatusBarProps {
   onToggleProblemsPanel?: () => void;
 }
 
+function SegmentSeparator() {
+  return <span className="status-separator">|</span>;
+}
+
 export const StatusBar = memo(function StatusBar({
   workspacePath,
   workspaceMetaFileCount = 0,
@@ -25,92 +38,107 @@ export const StatusBar = memo(function StatusBar({
   problemsPanelVisible = true,
   onToggleProblemsPanel,
 }: StatusBarProps) {
-  const vehicles = useMetaStore((s) => s.vehicles);
-  const filePath = useMetaStore((s) => s.filePath);
-  const isDirty = useMetaStore((s) => s.isDirty);
-  const lastAutoSavedAt = useMetaStore((s) => s.lastAutoSavedAt);
-  const activeTab = useMetaStore((s) => s.activeTab);
-  const activeVehicleId = useMetaStore((s) => s.activeVehicleId);
+  const vehicles = useMetaStore((state) => state.vehicles);
+  const filePath = useMetaStore((state) => state.filePath);
+  const isDirty = useMetaStore((state) => state.isDirty);
+  const lastAutoSavedAt = useMetaStore((state) => state.lastAutoSavedAt);
+  const activeTab = useMetaStore((state) => state.activeTab);
+  const activeVehicleId = useMetaStore((state) => state.activeVehicleId);
   const activeVehicle = activeVehicleId ? vehicles[activeVehicleId] : null;
 
-  const count = Object.keys(vehicles).length;
   const workspaceName = workspacePath?.split(/[/\\]/).pop();
-
-  // Show folder + filename for breadcrumb
+  const vehicleCount = Object.keys(vehicles).length;
   const pathDisplay = filePath
     ? (() => {
         const parts = filePath.replace(/\\/g, "/").split("/");
         if (parts.length <= 2) return filePath;
-        const folder = parts[parts.length - 2];
-        const file = parts[parts.length - 1];
-        return `${folder}/${file}`;
+        return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
       })()
     : "No file open";
 
   return (
-    <div className="flex items-center justify-between px-3 py-1 border-t border-[#131a2b] bg-[#050d21] text-[11px] text-muted-foreground">
-      <div className="flex items-center gap-3">
-        {workspaceName && (
-          <span className="text-primary/80">
-            Workspace: {workspaceName} ({workspaceMetaFileCount} files)
-          </span>
-        )}
-        <span>
-          {count} vehicle{count !== 1 ? "s" : ""}
-        </span>
-        <span className="uppercase">{activeTab}.meta</span>
-        {activeVehicle && (
-          <span className="flex items-center gap-1">
-            {allTypes.map((t) => (
-              <span
-                key={t}
-                className={`px-1 rounded ${activeVehicle.loadedMeta?.has(t) ? "text-foreground/70" : "text-muted-foreground/30 line-through"}`}
-              >
-                {t}
-              </span>
-            ))}
-          </span>
-        )}
+    <div className="flex h-5 items-center justify-between gap-3 border-t border-primary/25 bg-primary px-3 font-display text-[9px] tracking-[0.08em] text-primary-foreground">
+      <div className="flex min-w-0 items-center gap-1 uppercase">
+        {workspaceName ? (
+          <>
+            <span className="truncate">{workspaceName}</span>
+            <SegmentSeparator />
+            <span>{workspaceMetaFileCount} files</span>
+            <SegmentSeparator />
+          </>
+        ) : null}
+        <span>{vehicleCount} vehicles</span>
+        <SegmentSeparator />
+        <span>{activeTab}.meta</span>
+        {activeVehicle ? (
+          <>
+            <SegmentSeparator />
+            <div className="flex items-center gap-1 normal-case tracking-normal">
+              {ALL_TYPES.map((type) => (
+                <Badge
+                  key={type}
+                  variant={activeVehicle.loadedMeta?.has(type) ? "outline" : "secondary"}
+                  className="border-primary-foreground/25 bg-transparent px-1.5 py-0 text-[9px] font-medium tracking-[0.08em] text-primary-foreground/90"
+                >
+                  {type}
+                </Badge>
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
-      <div className="flex items-center gap-3">
-        {validationIssues && validationIssues.length > 0 && onDismissValidation && (
+
+      <div className="flex min-w-0 items-center gap-1 uppercase">
+        {validationIssues && validationIssues.length > 0 && onDismissValidation ? (
           <WarningsDock
             issues={validationIssues}
             fileName={validationFileName}
             onDismiss={onDismissValidation}
             placement="footer"
           />
-        )}
-        {validationIssues && validationIssues.length > 0 && onToggleProblemsPanel && (
-          <button
-            type="button"
+        ) : null}
+
+        {validationIssues && validationIssues.length > 0 && onToggleProblemsPanel ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="h-4 w-auto px-1 text-[9px] tracking-[0.08em] text-primary-foreground hover:bg-primary-foreground/12 hover:text-primary-foreground"
             onClick={onToggleProblemsPanel}
-            className="text-[10px] uppercase tracking-wide text-primary/80 hover:text-primary"
           >
-            {problemsPanelVisible ? "Hide Problems" : "Show Problems"}
-          </button>
-        )}
+            {problemsPanelVisible ? "Hide" : "Show"} problems
+          </Button>
+        ) : null}
+
         <AnimatePresence>
-          {isDirty && (
+          {isDirty ? (
             <motion.span
-              className="text-yellow-400 font-semibold"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: [1, 0.5, 1], scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" }, scale: { duration: 0.2 } }}
+              className="text-primary-foreground"
+              initial={{ opacity: 0, y: 2 }}
+              animate={{ opacity: [1, 0.65, 1], y: 0 }}
+              exit={{ opacity: 0, y: 2 }}
+              transition={{ opacity: { duration: 1.6, repeat: Infinity, ease: "easeInOut" }, y: { duration: 0.18 } }}
             >
-              ● UNSAVED CHANGES
+              UNSAVED
             </motion.span>
-          )}
+          ) : null}
         </AnimatePresence>
-        {lastAutoSavedAt && (
-          <span className="text-[10px] text-muted-foreground/80">
-            Auto-saved {new Date(lastAutoSavedAt).toLocaleTimeString()}
-          </span>
-        )}
-        <span className="truncate max-w-[300px]" title={filePath ?? undefined}>
-          {pathDisplay}
-        </span>
+
+        {lastAutoSavedAt ? (
+          <>
+            <SegmentSeparator />
+            <span>Auto-saved {new Date(lastAutoSavedAt).toLocaleTimeString()}</span>
+          </>
+        ) : null}
+
+        <SegmentSeparator />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="max-w-72 truncate normal-case tracking-normal text-primary-foreground/90">
+              {pathDisplay}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top">{filePath ?? pathDisplay}</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

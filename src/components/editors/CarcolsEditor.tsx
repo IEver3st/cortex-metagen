@@ -116,15 +116,17 @@ const SequencerPicker = memo(function SequencerPicker({ value, onChange }: { val
         <PopoverContent className="w-56 p-2 space-y-0.5" align="end">
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 px-1">Sequencer Patterns</p>
           {SEQUENCER_PATTERNS.map((p) => (
-            <button
+            <Button
               key={p.label}
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => { onChange(p.binary); setOpen(false); }}
-              className="w-full text-left p-1.5 rounded text-[11px] hover:bg-muted transition-colors"
+              className="h-auto w-full justify-start rounded-md p-1.5 text-left text-[11px]"
             >
               <span className="font-medium">{p.label}</span>
               <span className="text-muted-foreground ml-1">— {p.description}</span>
-            </button>
+            </Button>
           ))}
         </PopoverContent>
       </Popover>
@@ -196,14 +198,16 @@ const LightEditor = memo(function LightEditor({
             onChange={(e) => onChange({ rotation: e.target.value })}
             className="h-6 text-xs font-mono flex-1"
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="xs"
             onClick={() => onChange({ rotation: light.rotation === "0 0 1" ? "0 0 0" : "0 0 1" })}
-            className="text-[9px] px-1.5 py-0.5 rounded border border-border hover:border-muted-foreground/50 transition-colors shrink-0"
+            className="shrink-0 px-1.5 text-[9px]"
             title="Toggle LED (0 0 0) / Rotator (0 0 1)"
           >
             {light.rotation.trim() === "0 0 1" ? "→ LED" : "→ Rotator"}
-          </button>
+          </Button>
         </div>
       </div>
       <SliderField
@@ -343,15 +347,17 @@ export function CarcolsEditor() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25 }}
     >
-      <div className="flex items-center justify-end mb-1">
-        <button
+      <div className="mb-1 flex items-center justify-end">
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => setOpenSections(openSections.length > 0 ? [] : ALL_CARCOLS_SECTIONS)}
-          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          className="gap-1 text-[10px] uppercase tracking-[0.08em] text-muted-foreground"
         >
           {openSections.length > 0 ? <ChevronsDownUp className="h-3 w-3" /> : <ChevronsUpDown className="h-3 w-3" />}
           {openSections.length > 0 ? "Collapse All" : "Expand All"}
-        </button>
+        </Button>
       </div>
 
       <Accordion
@@ -450,16 +456,18 @@ export function CarcolsEditor() {
                     Add Preset Lights ({32 - c.lights.length} slots remaining)
                   </p>
                   {SIREN_LIGHT_PRESETS.map((p) => (
-                    <button
+                    <Button
                       key={p.label}
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => addPresetLights(p.lights)}
                       disabled={c.lights.length + p.lights.length > 32}
-                      className="w-full text-left p-1.5 rounded text-[11px] hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="h-auto w-full justify-start rounded-md p-1.5 text-left text-[11px] disabled:cursor-not-allowed"
                     >
                       <div className="font-medium">{p.label} <span className="text-muted-foreground">({p.lights.length})</span></div>
                       <div className="text-[10px] text-muted-foreground">{p.description}</div>
-                    </button>
+                    </Button>
                   ))}
                 </PopoverContent>
               </Popover>
@@ -499,3 +507,4 @@ export function CarcolsEditor() {
     </motion.div>
   );
 }
+

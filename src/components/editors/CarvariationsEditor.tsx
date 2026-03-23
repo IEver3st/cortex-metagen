@@ -96,15 +96,17 @@ export function CarvariationsEditor() {
         />
       </div>
 
-      <div className="flex items-center justify-end mb-1">
-        <button
+      <div className="mb-1 flex items-center justify-end">
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => setOpenSections(openSections.length > 0 ? [] : ALL_CV_SECTIONS)}
-          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          className="gap-1 text-[10px]"
         >
           {openSections.length > 0 ? <ChevronsDownUp className="h-3 w-3" /> : <ChevronsUpDown className="h-3 w-3" />}
           {openSections.length > 0 ? "Collapse All" : "Expand All"}
-        </button>
+        </Button>
       </div>
 
       <Accordion

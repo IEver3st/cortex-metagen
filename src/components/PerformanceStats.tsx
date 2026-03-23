@@ -1,11 +1,12 @@
-import { useMemo, memo } from "react";
+import { memo, useMemo } from "react";
 import { motion } from "motion/react";
+import { Badge } from "@/components/ui/badge";
 import { useMetaStore, type HandlingData, type PerformanceSpeedUnit } from "@/store/meta-store";
 
 interface Stat {
   label: string;
   value: string;
-  bar: number; // 0-100
+  bar: number;
   color: string;
 }
 
@@ -22,114 +23,81 @@ function isAirVehicle(vehicleType: string): boolean {
   return vehicleType === "VEHICLE_TYPE_HELI" || vehicleType === "VEHICLE_TYPE_PLANE";
 }
 
-function computeGroundStats(h: HandlingData, speedUnit: PerformanceSpeedUnit): Stat[] {
-  // Top Speed: fInitialDriveMaxFlatVel * 0.9 â‰ˆ mph (tested in-game)
-  const topSpeedMph = h.fInitialDriveMaxFlatVel * 0.9;
+function computeGroundStats(handling: HandlingData, speedUnit: PerformanceSpeedUnit): Stat[] {
+  const topSpeedMph = handling.fInitialDriveMaxFlatVel * 0.9;
   const topSpeedBar = Math.min((topSpeedMph / 200) * 100, 100);
-
-  // Acceleration estimate: driveForce / mass * gears factor
-  const accelRaw = (h.fInitialDriveForce * 10000) / h.fMass;
+  const accelRaw = (handling.fInitialDriveForce * 10000) / handling.fMass;
   const accelBar = Math.min((accelRaw / 3) * 100, 100);
-
-  // Braking: brakeForce scaled
-  const brakeBar = Math.min((h.fBrakeForce / 1.5) * 100, 100);
-
-  // Traction: average of curve max and min
-  const tractionAvg = (h.fTractionCurveMax + h.fTractionCurveMin) / 2;
+  const brakeBar = Math.min((handling.fBrakeForce / 1.5) * 100, 100);
+  const tractionAvg = (handling.fTractionCurveMax + handling.fTractionCurveMin) / 2;
   const tractionBar = Math.min((tractionAvg / 3.5) * 100, 100);
-
-  // Handling/cornering: steeringLock + antiRollBar + traction bias
-  const cornerRaw = (h.fSteeringLock / 45) * 0.5 + (h.fAntiRollBarForce / 1.5) * 0.3 + (tractionAvg / 3) * 0.2;
+  const cornerRaw = (handling.fSteeringLock / 45) * 0.5 + (handling.fAntiRollBarForce / 1.5) * 0.3 + (tractionAvg / 3) * 0.2;
   const cornerBar = Math.min(cornerRaw * 100, 100);
-
-  // Suspension quality: force + comp + rebound averaged
-  const suspRaw = (h.fSuspensionForce / 4) * 0.4 + (h.fSuspensionCompDamp / 3) * 0.3 + (h.fSuspensionReboundDamp / 3) * 0.3;
+  const suspRaw = (handling.fSuspensionForce / 4) * 0.4 + (handling.fSuspensionCompDamp / 3) * 0.3 + (handling.fSuspensionReboundDamp / 3) * 0.3;
   const suspBar = Math.min(suspRaw * 100, 100);
-
-  // Durability: inverse of damage mults
-  const durRaw = (1 / Math.max(h.fCollisionDamageMult, 0.1)) * 0.5 + (1 / Math.max(h.fDeformationDamageMult, 0.1)) * 0.5;
+  const durRaw = (1 / Math.max(handling.fCollisionDamageMult, 0.1)) * 0.5 + (1 / Math.max(handling.fDeformationDamageMult, 0.1)) * 0.5;
   const durBar = Math.min((durRaw / 2) * 100, 100);
 
-  // Drivetrain type
   const driveType =
-    h.fDriveBiasFront >= 0.9 ? "FWD" :
-    h.fDriveBiasFront <= 0.1 ? "RWD" :
-    h.fDriveBiasFront >= 0.4 && h.fDriveBiasFront <= 0.6 ? "AWD" :
-    h.fDriveBiasFront > 0.5 ? "Front-biased AWD" : "Rear-biased AWD";
+    handling.fDriveBiasFront >= 0.9 ? "FWD" :
+    handling.fDriveBiasFront <= 0.1 ? "RWD" :
+    handling.fDriveBiasFront >= 0.4 && handling.fDriveBiasFront <= 0.6 ? "AWD" :
+    handling.fDriveBiasFront > 0.5 ? "Front-biased AWD" : "Rear-biased AWD";
 
   return [
-    { label: "Top Speed (Est.)", value: formatSpeed(topSpeedMph, speedUnit), bar: topSpeedBar, color: "#2CD672" },
-    { label: "Acceleration", value: `${accelRaw.toFixed(2)}g (${h.nInitialDriveGears} gears)`, bar: accelBar, color: "#2CD672" },
-    { label: "Braking", value: `${h.fBrakeForce.toFixed(2)} (bias ${(h.fBrakeBiasFront * 100).toFixed(0)}% front)`, bar: brakeBar, color: "#F59E0B" },
-    { label: "Traction", value: `${tractionAvg.toFixed(2)} (${h.fTractionLossMult.toFixed(1)}x loss)`, bar: tractionBar, color: "#3B82F6" },
-    { label: "Cornering", value: `${h.fSteeringLock.toFixed(0)}Â° lock`, bar: cornerBar, color: "#8B5CF6" },
-    { label: "Suspension", value: `${h.fSuspensionForce.toFixed(1)} force / ${h.fSuspensionRaise >= 0 ? "+" : ""}${h.fSuspensionRaise.toFixed(2)} raise`, bar: suspBar, color: "#06B6D4" },
-    { label: "Durability", value: `${h.fCollisionDamageMult.toFixed(2)}x collision`, bar: durBar, color: "#EF4444" },
-    { label: "Drivetrain", value: `${driveType} (${(h.fDriveBiasFront * 100).toFixed(0)}% front)`, bar: h.fDriveBiasFront * 100, color: "#A855F7" },
+    { label: "Top Speed (Est.)", value: formatSpeed(topSpeedMph, speedUnit), bar: topSpeedBar, color: "var(--chart-2)" },
+    { label: "Acceleration", value: `${accelRaw.toFixed(2)}g (${handling.nInitialDriveGears} gears)`, bar: accelBar, color: "var(--chart-2)" },
+    { label: "Braking", value: `${handling.fBrakeForce.toFixed(2)} (bias ${(handling.fBrakeBiasFront * 100).toFixed(0)}% front)`, bar: brakeBar, color: "var(--chart-5)" },
+    { label: "Traction", value: `${tractionAvg.toFixed(2)} (${handling.fTractionLossMult.toFixed(1)}x loss)`, bar: tractionBar, color: "var(--chart-1)" },
+    { label: "Cornering", value: `${handling.fSteeringLock.toFixed(0)}° lock`, bar: cornerBar, color: "var(--chart-4)" },
+    { label: "Suspension", value: `${handling.fSuspensionForce.toFixed(1)} force / ${handling.fSuspensionRaise >= 0 ? "+" : ""}${handling.fSuspensionRaise.toFixed(2)} raise`, bar: suspBar, color: "var(--chart-3)" },
+    { label: "Durability", value: `${handling.fCollisionDamageMult.toFixed(2)}x collision`, bar: durBar, color: "var(--destructive)" },
+    { label: "Drivetrain", value: `${driveType} (${(handling.fDriveBiasFront * 100).toFixed(0)}% front)`, bar: handling.fDriveBiasFront * 100, color: "var(--chart-4)" },
   ];
 }
 
-function computeAirStats(h: HandlingData, vehicleType: string, speedUnit: PerformanceSpeedUnit): Stat[] {
+function computeAirStats(handling: HandlingData, vehicleType: string, speedUnit: PerformanceSpeedUnit): Stat[] {
   const isHeli = vehicleType === "VEHICLE_TYPE_HELI";
-
-  // Top Speed in mph (0.9 factor tested in-game)
-  const topSpeedMph = h.fInitialDriveMaxFlatVel * 0.9;
+  const topSpeedMph = handling.fInitialDriveMaxFlatVel * 0.9;
   const topSpeedBar = Math.min((topSpeedMph / 250) * 100, 100);
-
-  // Thrust / engine power: driveForce scaled for aircraft
-  const thrustRaw = (h.fInitialDriveForce * 10000) / h.fMass;
+  const thrustRaw = (handling.fInitialDriveForce * 10000) / handling.fMass;
   const thrustBar = Math.min((thrustRaw / 3) * 100, 100);
-
-  // Climb rate estimate: driveForce vs mass and drag
-  const climbRaw = (h.fInitialDriveForce * 5000) / (h.fMass * Math.max(h.fInitialDragCoeff, 1));
+  const climbRaw = (handling.fInitialDriveForce * 5000) / (handling.fMass * Math.max(handling.fInitialDragCoeff, 1));
   const climbMph = climbRaw * 15;
   const climbBar = Math.min((climbRaw / 2) * 100, 100);
-
-  // Agility / yaw rate: steeringLock + inertia multipliers
-  const agilityRaw = (h.fSteeringLock / 45) * 0.4
-    + (1 / Math.max(h.vecInertiaMultiplierX, 0.1)) * 0.2
-    + (1 / Math.max(h.vecInertiaMultiplierY, 0.1)) * 0.2
-    + (1 / Math.max(h.vecInertiaMultiplierZ, 0.1)) * 0.2;
+  const agilityRaw = (handling.fSteeringLock / 45) * 0.4
+    + (1 / Math.max(handling.vecInertiaMultiplierX, 0.1)) * 0.2
+    + (1 / Math.max(handling.vecInertiaMultiplierY, 0.1)) * 0.2
+    + (1 / Math.max(handling.vecInertiaMultiplierZ, 0.1)) * 0.2;
   const agilityBar = Math.min(agilityRaw * 100, 100);
-
-  // Stability: inertia multipliers averaged (higher = more stable)
-  const stabilityRaw = (h.vecInertiaMultiplierX + h.vecInertiaMultiplierY + h.vecInertiaMultiplierZ) / 3;
+  const stabilityRaw = (handling.vecInertiaMultiplierX + handling.vecInertiaMultiplierY + handling.vecInertiaMultiplierZ) / 3;
   const stabilityBar = Math.min((stabilityRaw / 3) * 100, 100);
-
-  // Drag profile
-  const dragBar = Math.min((h.fInitialDragCoeff / 20) * 100, 100);
-
-  // Braking / deceleration
-  const brakeBar = Math.min((h.fBrakeForce / 1.5) * 100, 100);
-
-  // Durability
-  const durRaw = (1 / Math.max(h.fCollisionDamageMult, 0.1)) * 0.5 + (1 / Math.max(h.fDeformationDamageMult, 0.1)) * 0.5;
+  const dragBar = Math.min((handling.fInitialDragCoeff / 20) * 100, 100);
+  const brakeBar = Math.min((handling.fBrakeForce / 1.5) * 100, 100);
+  const durRaw = (1 / Math.max(handling.fCollisionDamageMult, 0.1)) * 0.5 + (1 / Math.max(handling.fDeformationDamageMult, 0.1)) * 0.5;
   const durBar = Math.min((durRaw / 2) * 100, 100);
-
-  // Weight class
-  const weightBar = Math.min((h.fMass / 10000) * 100, 100);
+  const weightBar = Math.min((handling.fMass / 10000) * 100, 100);
 
   return [
-    { label: "Top Speed (Est.)", value: formatSpeed(topSpeedMph, speedUnit), bar: topSpeedBar, color: "#2CD672" },
-    { label: isHeli ? "Rotor Thrust" : "Engine Thrust", value: `${thrustRaw.toFixed(2)}g (${h.nInitialDriveGears} stage)`, bar: thrustBar, color: "#2CD672" },
-    { label: "Climb Rate", value: `~${formatSpeed(climbMph, speedUnit)} vertical`, bar: climbBar, color: "#38BDF8" },
-    { label: isHeli ? "Yaw Agility" : "Roll Agility", value: `${h.fSteeringLock.toFixed(0)}Â° authority`, bar: agilityBar, color: "#8B5CF6" },
-    { label: "Stability", value: `${stabilityRaw.toFixed(2)} inertia avg`, bar: stabilityBar, color: "#06B6D4" },
-    { label: "Drag Profile", value: `${h.fInitialDragCoeff.toFixed(1)} coeff`, bar: dragBar, color: "#F59E0B" },
-    { label: isHeli ? "Rotor Brake" : "Air Brake", value: `${h.fBrakeForce.toFixed(2)} force`, bar: brakeBar, color: "#F59E0B" },
-    { label: "Durability", value: `${h.fCollisionDamageMult.toFixed(2)}x collision`, bar: durBar, color: "#EF4444" },
-    { label: "Weight Class", value: `${h.fMass.toFixed(0)} kg`, bar: weightBar, color: "#A855F7" },
+    { label: "Top Speed (Est.)", value: formatSpeed(topSpeedMph, speedUnit), bar: topSpeedBar, color: "var(--chart-2)" },
+    { label: isHeli ? "Rotor Thrust" : "Engine Thrust", value: `${thrustRaw.toFixed(2)}g (${handling.nInitialDriveGears} stage)`, bar: thrustBar, color: "var(--chart-2)" },
+    { label: "Climb Rate", value: `~${formatSpeed(climbMph, speedUnit)} vertical`, bar: climbBar, color: "var(--chart-1)" },
+    { label: isHeli ? "Yaw Agility" : "Roll Agility", value: `${handling.fSteeringLock.toFixed(0)}° authority`, bar: agilityBar, color: "var(--chart-4)" },
+    { label: "Stability", value: `${stabilityRaw.toFixed(2)} inertia avg`, bar: stabilityBar, color: "var(--chart-3)" },
+    { label: "Drag Profile", value: `${handling.fInitialDragCoeff.toFixed(1)} coeff`, bar: dragBar, color: "var(--chart-5)" },
+    { label: isHeli ? "Rotor Brake" : "Air Brake", value: `${handling.fBrakeForce.toFixed(2)} force`, bar: brakeBar, color: "var(--chart-5)" },
+    { label: "Durability", value: `${handling.fCollisionDamageMult.toFixed(2)}x collision`, bar: durBar, color: "var(--destructive)" },
+    { label: "Weight Class", value: `${handling.fMass.toFixed(0)} kg`, bar: weightBar, color: "var(--chart-4)" },
   ];
 }
 
-/** Color legend mapping for performance stat categories */
 const PERF_LEGEND: { color: string; label: string }[] = [
-  { color: "#2CD672", label: "Speed/Power" },
-  { color: "#F59E0B", label: "Braking" },
-  { color: "#3B82F6", label: "Traction" },
-  { color: "#8B5CF6", label: "Handling" },
-  { color: "#06B6D4", label: "Suspension" },
-  { color: "#EF4444", label: "Durability" },
+  { color: "var(--chart-2)", label: "Speed/Power" },
+  { color: "var(--chart-5)", label: "Braking" },
+  { color: "var(--chart-1)", label: "Traction" },
+  { color: "var(--chart-4)", label: "Handling" },
+  { color: "var(--chart-3)", label: "Suspension" },
+  { color: "var(--destructive)", label: "Durability" },
 ];
 
 interface PerformanceStatsProps {
@@ -151,66 +119,56 @@ export const PerformanceStats = memo(function PerformanceStats({ handling, vehic
 
   return (
     <motion.div
-      className="space-y-2 p-3 rounded-md border border-slate-700/30 bg-white/[0.01]"
+      className="space-y-2 rounded-xl border border-border/70 bg-card/90 p-3 shadow-sm"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Estimated Performance
+          <h3 className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+            Estimated performance
           </h3>
-          {typeLabel && (
-            <motion.span
-              className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 border border-slate-500/20"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.25, delay: 0.1 }}
-            >
-              {typeLabel}
-            </motion.span>
-          )}
+          {typeLabel && <Badge variant="outline">{typeLabel}</Badge>}
         </div>
-        {/* Color legend */}
         <div className="flex items-center gap-2">
           {PERF_LEGEND.map((item) => (
             <div key={item.label} className="flex items-center gap-1">
               <div className="size-1.5 rounded-full" style={{ backgroundColor: item.color, opacity: 0.8 }} />
-              <span className="text-[8px] text-slate-600">{item.label}</span>
+              <span className="text-[8px] text-muted-foreground">{item.label}</span>
             </div>
           ))}
         </div>
       </div>
       <motion.div
-        className="text-[9px] text-slate-600 mb-1"
+        className="mb-1 text-[10px] text-muted-foreground"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.1, duration: 0.25 }}
       >
         Mass: {handling.fMass.toFixed(0)} kg &middot; Drag: {handling.fInitialDragCoeff.toFixed(1)}
-        {isAir && ` \u00B7 Inertia: ${((handling.vecInertiaMultiplierX + handling.vecInertiaMultiplierY + handling.vecInertiaMultiplierZ) / 3).toFixed(2)} avg`}
+        {isAir && ` · Inertia: ${((handling.vecInertiaMultiplierX + handling.vecInertiaMultiplierY + handling.vecInertiaMultiplierZ) / 3).toFixed(2)} avg`}
       </motion.div>
       <div className="space-y-1">
-        {stats.map((stat, i) => (
+        {stats.map((stat, index) => (
           <motion.div
             key={stat.label}
             className="space-y-0.5"
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.2, delay: i * 0.03, ease: "easeOut" }}
+            transition={{ duration: 0.2, delay: index * 0.03, ease: "easeOut" }}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium text-slate-400">{stat.label}</span>
-              <span className="text-[9px] text-slate-500 font-mono">{stat.value}</span>
+              <span className="text-[10px] font-medium text-foreground/85">{stat.label}</span>
+              <span className="font-mono text-[9px] text-muted-foreground">{stat.value}</span>
             </div>
-            <div className="h-1.5 w-full bg-white/[0.04] rounded-sm overflow-hidden">
+            <div className="h-1.5 w-full overflow-hidden rounded-sm bg-muted/60">
               <motion.div
                 className="h-full rounded-sm"
                 initial={{ width: "2%" }}
                 animate={{ width: `${Math.max(stat.bar, 2)}%` }}
-                transition={{ duration: 0.5, delay: i * 0.03 + 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
-                style={{ backgroundColor: stat.color, opacity: 0.75 }}
+                transition={{ duration: 0.5, delay: index * 0.03 + 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
+                style={{ backgroundColor: stat.color, opacity: 0.8 }}
               />
             </div>
           </motion.div>

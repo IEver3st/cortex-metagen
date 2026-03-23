@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import type { ComponentType } from "react";
 import { AnimatePresence, motion } from "motion/react";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -134,7 +136,7 @@ export function IdeSidebar({
         initial={false}
         animate={{ width: collapsed ? 56 : 288 }}
         transition={{ duration: 0.24, ease: "easeOut" }}
-        className="h-full border-r border-[#131a2b] bg-[#050d21] flex flex-col"
+        className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
       >
         {/* Workspace name header — visible when expanded and workspace is open */}
         <AnimatePresence>
@@ -149,7 +151,7 @@ export function IdeSidebar({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <FolderTree className="size-3.5 shrink-0 text-primary/80" />
-                  <span className="text-[11px] font-semibold text-slate-200 truncate tracking-wide uppercase">
+                  <span className="truncate text-[11px] font-medium uppercase tracking-[0.08em] text-sidebar-foreground">
                     {workspaceName}
                   </span>
                 </div>
@@ -210,7 +212,7 @@ export function IdeSidebar({
 
         {!collapsed && (
           <>
-            <Separator className="bg-[#131a2b]" />
+            <Separator />
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -222,7 +224,7 @@ export function IdeSidebar({
           </>
         )}
 
-        <Separator className="bg-[#131a2b]" />
+        <Separator />
 
         {effectiveExplorerVisible ? (
           <div className="flex-1 min-h-0 flex flex-col">
@@ -234,7 +236,7 @@ export function IdeSidebar({
                   value={explorerSearch}
                   onChange={(e) => setExplorerSearch(e.target.value)}
                   placeholder="Filter files..."
-                  className="h-7 border-[#1e2d47] bg-[#0a1628] pl-7 pr-2 text-[11px] text-slate-200 placeholder:text-slate-600 focus-visible:ring-primary/30"
+                  className="h-8 border-sidebar-border bg-background pl-7 pr-2 text-[11px]"
                 />
               </div>
             </div>
@@ -245,7 +247,7 @@ export function IdeSidebar({
             </div>
           </div>
         ) : (
-          <motion.nav variants={sectionVariants} initial="hidden" animate="show" className="p-2 space-y-1 overflow-y-auto">
+          <motion.nav variants={sectionVariants} initial="hidden" animate="show" className="space-y-1 p-2">
             {navItems.map((item) => {
               const count = metaTypeCounts[item.key];
               return (
@@ -305,9 +307,9 @@ function SidebarAction({ collapsed, label, icon: Icon, onClick, onMouseEnter, ac
         variant="ghost"
         size="sm"
         className={cn(
-          "w-full h-9 border border-transparent text-slate-300 hover:bg-[#14233b] hover:text-slate-100",
+          "h-9 w-full border border-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
           collapsed ? "px-0" : "justify-start px-2",
-          active && "bg-[#1b2c47] border-[#2a3f60] text-[#dbe8ff] shadow-[inset_0_0_0_1px_rgba(93,129,184,0.2)]",
+          active && "border-sidebar-ring/40 bg-sidebar-primary/15 text-sidebar-primary shadow-xs",
         )}
         onMouseEnter={onMouseEnter}
         onClick={onClick}
@@ -337,9 +339,11 @@ function SidebarAction({ collapsed, label, icon: Icon, onClick, onMouseEnter, ac
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.14 }}
-              className="ml-auto text-[10px] tabular-nums text-muted-foreground bg-[#14233b] px-1.5 py-0.5 rounded"
+              className="ml-auto"
             >
-              {badge}
+              <Badge variant={active ? "default" : "outline"} className="rounded-md px-1.5 py-0 text-[9px] tabular-nums">
+                {badge}
+              </Badge>
             </motion.span>
           )}
         </AnimatePresence>
@@ -352,7 +356,7 @@ function SidebarAction({ collapsed, label, icon: Icon, onClick, onMouseEnter, ac
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right" className="border-[#2a3f60] bg-[#111c31] text-slate-100">
+      <TooltipContent side="right">
         {label}
         {badge !== undefined && badge > 0 && (
           <span className="ml-1.5 text-muted-foreground">({badge})</span>

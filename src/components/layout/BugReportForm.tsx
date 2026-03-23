@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { logger } from "@/lib/logger";
 import { AlertCircle, Bug, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -67,10 +68,10 @@ export function BugReportForm() {
   if (formState === "success") {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
-        <CheckCircle2 className="size-8 text-emerald-400" />
+        <CheckCircle2 className="size-8 text-primary" />
         <div>
-          <p className="text-sm font-medium text-slate-200">Report submitted</p>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="text-sm font-medium text-foreground">Report submitted</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Your bug report was created on GitHub. Thank you for helping improve
             Cortex Metagen.
           </p>
@@ -78,7 +79,7 @@ export function BugReportForm() {
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 text-xs text-slate-400 hover:text-slate-200"
+          className="h-9 text-xs text-muted-foreground hover:text-foreground"
           onClick={() => setFormState("idle")}
         >
           Submit another report
@@ -89,30 +90,28 @@ export function BugReportForm() {
 
   return (
     <div className="space-y-4">
-      {/* Title */}
       <div className="space-y-1.5">
-        <Label htmlFor="bug-title" className="text-xs font-medium text-slate-300">
-          Title <span className="text-red-400">*</span>
+        <Label htmlFor="bug-title" className="text-xs font-medium text-foreground">
+          Title <span className="text-destructive">*</span>
         </Label>
         <Input
           id="bug-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Short summary of the issue"
-          className="h-8 border-[#1b2b46] bg-[#0b1424] text-sm text-slate-100 placeholder:text-slate-600"
+          className="h-9 text-sm"
           disabled={formState === "submitting"}
         />
       </div>
 
-      {/* Description */}
       <div className="space-y-1.5">
         <Label
           htmlFor="bug-description"
-          className="text-xs font-medium text-slate-300"
+          className="text-xs font-medium text-foreground"
         >
-          Description <span className="text-red-400">*</span>
+          Description <span className="text-destructive">*</span>
         </Label>
-        <textarea
+        <Textarea
           id="bug-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -120,23 +119,21 @@ export function BugReportForm() {
           rows={4}
           disabled={formState === "submitting"}
           className={cn(
-            "w-full resize-none rounded-md border border-[#1b2b46] bg-[#0b1424] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600",
-            "focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/50",
+            "min-h-28 resize-none rounded-xl bg-card/80 text-sm shadow-xs",
             "disabled:cursor-not-allowed disabled:opacity-50",
           )}
         />
       </div>
 
-      {/* Steps */}
       <div className="space-y-1.5">
         <Label
           htmlFor="bug-steps"
-          className="text-xs font-medium text-slate-300"
+          className="text-xs font-medium text-foreground"
         >
           Steps to reproduce
-          <span className="ml-1.5 font-normal text-slate-600">(optional)</span>
+          <span className="ml-1.5 font-normal text-muted-foreground">(optional)</span>
         </Label>
-        <textarea
+        <Textarea
           id="bug-steps"
           value={steps}
           onChange={(e) => setSteps(e.target.value)}
@@ -144,37 +141,35 @@ export function BugReportForm() {
           rows={3}
           disabled={formState === "submitting"}
           className={cn(
-            "w-full resize-none rounded-md border border-[#1b2b46] bg-[#0b1424] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600",
-            "focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/50",
+            "min-h-24 resize-none rounded-xl bg-card/80 text-sm shadow-xs",
             "disabled:cursor-not-allowed disabled:opacity-50",
           )}
         />
       </div>
 
-      <p className="text-[11px] leading-5 text-slate-500">
+      <p className="text-xs text-muted-foreground leading-5">
         Recent in-app debug logs are attached automatically so bug reports
         include background context.
       </p>
 
-      {/* Error state */}
       {formState === "error" && (
-        <div className="flex items-start gap-2.5 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2.5">
-          <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-400" />
+        <div className="flex items-start gap-2.5 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2.5">
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
           <div className="space-y-1 text-xs">
-            <p className="font-medium text-red-300">Couldn't submit report</p>
-            {errorMessage && <p className="text-slate-500">{errorMessage}</p>}
-            <p className="text-slate-500">
+            <p className="font-medium text-destructive">Couldn't submit report</p>
+            {errorMessage && <p className="text-muted-foreground">{errorMessage}</p>}
+            <p className="text-muted-foreground">
               You can still report manually — copy the link below and open it in
               your browser:
             </p>
             <div className="flex items-center gap-2 pt-0.5">
-              <code className="rounded bg-[#0b1424] px-2 py-0.5 text-[11px] text-slate-400 select-all">
+              <code className="rounded bg-muted/50 px-2 py-0.5 text-[11px] text-muted-foreground select-all">
                 {FALLBACK_URL}
               </code>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-[11px] text-slate-400 hover:text-slate-200"
+                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                 onClick={handleCopyUrl}
               >
                 {copied ? "Copied!" : "Copy"}
@@ -184,18 +179,17 @@ export function BugReportForm() {
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-1">
         <Button
           size="sm"
-          className="h-8 gap-1.5 text-xs"
+          className="h-9 gap-1.5 text-xs"
           disabled={!canSubmit}
           onClick={handleSubmit}
         >
           {formState === "submitting" ? (
             <>
               <Loader2 className="size-3.5 animate-spin" />
-              Submitting…
+              Submitting...
             </>
           ) : (
             <>

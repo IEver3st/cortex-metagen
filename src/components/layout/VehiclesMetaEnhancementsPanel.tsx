@@ -4,6 +4,9 @@ import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { FIRST_PERSON_IK_OFFSET_NAMES, type VehicleVec3, type VehiclesData } from "@/store/meta-store";
 import { useMetaStore } from "@/store/meta-store";
 
@@ -19,16 +22,18 @@ function Section({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="rounded-lg border border-slate-700/50 bg-[#081120]">
-      <button
+    <div className="rounded-xl border border-border/70 bg-card/90 shadow-sm">
+      <Button
         type="button"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left"
+        variant="ghost"
+        size="sm"
+        className="flex h-9 w-full items-center justify-start gap-2 rounded-b-none px-3 text-left text-xs font-medium text-foreground hover:bg-accent/60"
         onClick={() => setOpen((value) => !value)}
       >
-        {open ? <ChevronDown className="size-3.5 text-slate-400" /> : <ChevronRight className="size-3.5 text-slate-400" />}
-        <span className="text-xs font-semibold tracking-wide text-slate-200">{title}</span>
-      </button>
-      {open ? <div className="space-y-3 border-t border-slate-700/40 p-3">{children}</div> : null}
+        {open ? <ChevronDown className="size-3.5 text-muted-foreground" /> : <ChevronRight className="size-3.5 text-muted-foreground" />}
+        <span className="uppercase tracking-[0.08em] text-muted-foreground">{title}</span>
+      </Button>
+      {open ? <div className="space-y-3 border-t border-border/60 p-3">{children}</div> : null}
     </div>
   );
 }
@@ -46,12 +51,12 @@ function TextField({
 }) {
   return (
     <div className="space-y-1">
-      <Label className="text-[11px] text-slate-400">{label}</Label>
+      <Label className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</Label>
       <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="h-8 border-slate-700/60 bg-[#0c1728] text-xs"
+        className="h-9 bg-background/70 text-xs shadow-xs"
       />
     </div>
   );
@@ -70,13 +75,13 @@ function NumberField({
 }) {
   return (
     <div className="space-y-1">
-      <Label className="text-[11px] text-slate-400">{label}</Label>
+      <Label className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</Label>
       <Input
         type="number"
         step={step}
         value={Number.isFinite(value) ? value : 0}
         onChange={(event) => onChange(Number(event.target.value) || 0)}
-        className="h-8 border-slate-700/60 bg-[#0c1728] text-xs"
+        className="h-9 bg-background/70 text-xs shadow-xs"
       />
     </div>
   );
@@ -97,7 +102,7 @@ function Vec3Editor({
 
   return (
     <div className="space-y-1">
-      <Label className="text-[11px] text-slate-400">{label}</Label>
+      <Label className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</Label>
       <div className="grid grid-cols-3 gap-2">
         <NumberField label="X" value={value.x} onChange={(next) => setAxis("x", next)} />
         <NumberField label="Y" value={value.y} onChange={(next) => setAxis("y", next)} />
@@ -134,15 +139,15 @@ function ExplosionEditor({
 
   return (
     <div className="space-y-2">
-      <Label className="text-[11px] text-slate-400">Explosion Info (raw JSON)</Label>
-      <textarea
+      <Label className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Explosion info (raw JSON)</Label>
+      <Textarea
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         rows={8}
-        className="w-full rounded-md border border-slate-700/60 bg-[#0c1728] px-3 py-2 font-mono text-[11px] text-slate-100 outline-none"
+        className="min-h-40 rounded-xl bg-background/70 font-mono text-[11px] shadow-xs"
       />
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-rose-400">{error}</span>
+        <span className="text-[10px] text-destructive">{error}</span>
         <Button type="button" size="sm" className="h-7 text-[11px]" onClick={applyDraft}>
           Apply JSON
         </Button>
@@ -203,25 +208,27 @@ function VehiclesMetaEnhancementsContent({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <button
+          <Button
             type="button"
-            className={`rounded-md border px-3 py-2 text-left text-xs ${data.bumpersNeedToCollideWithMap ? "border-primary bg-primary/10 text-primary" : "border-slate-700/60 text-slate-300"}`}
+            variant={data.bumpersNeedToCollideWithMap ? "secondary" : "outline"}
+            className={cn("h-auto justify-start px-3 py-2 text-left text-xs", data.bumpersNeedToCollideWithMap && "border-primary/30 text-primary")}
             onClick={() => update({ bumpersNeedToCollideWithMap: !data.bumpersNeedToCollideWithMap })}
           >
             Bumpers Need Map Collision
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={`rounded-md border px-3 py-2 text-left text-xs ${data.needsRopeTexture ? "border-primary bg-primary/10 text-primary" : "border-slate-700/60 text-slate-300"}`}
+            variant={data.needsRopeTexture ? "secondary" : "outline"}
+            className={cn("h-auto justify-start px-3 py-2 text-left text-xs", data.needsRopeTexture && "border-primary/30 text-primary")}
             onClick={() => update({ needsRopeTexture: !data.needsRopeTexture })}
           >
             Needs Rope Texture
-          </button>
+          </Button>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-[11px] text-slate-400">Door Stiffness Multipliers</Label>
+            <Label className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Door stiffness multipliers</Label>
             <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]" onClick={addDoorStiffness}>
               <Plus className="mr-1 size-3.5" /> Add
             </Button>
@@ -286,8 +293,8 @@ function VehiclesMetaEnhancementsContent({
           />
         </div>
 
-        <details className="rounded-md border border-slate-700/60 bg-[#0c1728] p-3">
-          <summary className="cursor-pointer text-xs font-medium text-slate-200">IK Offset Entries</summary>
+        <details className="rounded-xl border border-border/70 bg-background/60 p-3 shadow-xs">
+          <summary className="cursor-pointer text-xs font-medium text-foreground">IK offset entries</summary>
           <div className="mt-3 space-y-3">
             {FIRST_PERSON_IK_OFFSET_NAMES.map((offsetName) => (
               <Vec3Editor
@@ -326,17 +333,23 @@ export const VehiclesMetaEnhancementsPanel = memo(function VehiclesMetaEnhanceme
   }
 
   return (
-    <aside className="fixed bottom-12 right-2 top-24 z-30 hidden w-[24rem] overflow-y-auto rounded-xl border border-slate-700/60 bg-[#050d1a]/95 p-3 shadow-2xl backdrop-blur md:block">
-      <div className="mb-3">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Vehicles.meta Enhancements</div>
-        <div className="mt-1 text-sm font-semibold text-slate-100">{title}</div>
-      </div>
+    <aside className="fixed right-2 top-24 bottom-12 z-30 hidden w-[24rem] rounded-xl border border-border/70 bg-background-app/95 shadow md:block">
+      <ScrollArea className="h-full">
+        <div className="p-3">
+          <div className="mb-3">
+            <div className="font-display text-[10px] uppercase tracking-[0.14em] text-primary/80">
+              Vehicles.meta enhancements
+            </div>
+            <div className="mt-1 text-sm font-semibold text-foreground">{title}</div>
+          </div>
 
-      <VehiclesMetaEnhancementsContent
-        key={activeVehicleId}
-        vehicleId={activeVehicleId}
-        data={vehicle.vehicles}
-      />
+          <VehiclesMetaEnhancementsContent
+            key={activeVehicleId}
+            vehicleId={activeVehicleId}
+            data={vehicle.vehicles}
+          />
+        </div>
+      </ScrollArea>
     </aside>
   );
 });

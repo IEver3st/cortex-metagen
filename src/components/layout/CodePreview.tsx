@@ -383,14 +383,14 @@ export function CodePreview() {
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#050c16]">
-      <div className="flex h-8 shrink-0 items-center justify-between border-b border-[#0f1e32] bg-[#07101c] px-3">
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-background-app">
+      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/60 bg-card/90 px-3">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] uppercase tracking-wider text-cyan-100/60">
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
             {activeTab}.meta
           </span>
           {editorEditMode && (
-            <span className="font-mono text-[9px] uppercase tracking-widest text-amber-400/70">
+            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-primary">
               edit
             </span>
           )}
@@ -398,21 +398,21 @@ export function CodePreview() {
         <div className="flex items-center gap-2">
           {validationSummary.errors > 0 ? (
             <div className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-rose-400" />
-              <span className="font-mono text-[10px] text-rose-400/80">
+              <span className="size-1.5 rounded-full bg-destructive" />
+              <span className="font-mono text-[10px] text-destructive">
                 {validationSummary.errors}
               </span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-emerald-400/70" />
-              <span className="font-mono text-[10px] text-emerald-400/70">ok</span>
+              <span className="size-1.5 rounded-full bg-primary" />
+              <span className="font-mono text-[10px] text-primary">ok</span>
             </div>
           )}
           {validationSummary.warnings > 0 && (
             <div className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-amber-400" />
-              <span className="font-mono text-[10px] text-amber-400/80">
+              <span className="size-1.5 rounded-full bg-primary/70" />
+              <span className="font-mono text-[10px] text-primary">
                 {validationSummary.warnings}
               </span>
             </div>
@@ -421,7 +421,7 @@ export function CodePreview() {
       </div>
 
       <div className="min-h-0 flex-1 p-[5px]">
-        <div className="relative h-full overflow-hidden rounded-[4px] border border-[#0f1e32] bg-[#08101c] shadow-[inset_0_1px_2px_rgba(0,0,0,0.35)]">
+        <div className="relative h-full overflow-hidden rounded-md border border-border/60 bg-card shadow-sm">
           <Editor
             beforeMount={handleBeforeMount}
             height="100%"

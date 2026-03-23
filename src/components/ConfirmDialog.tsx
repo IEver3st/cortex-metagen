@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -26,28 +28,30 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "Proceed",
-  cancelLabel = "No Thanks",
+  cancelLabel = "Cancel",
   variant = "default",
   onConfirm,
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-sm">
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+      <AlertDialogContent className="max-w-md rounded-xl border-border/70 bg-card">
+        <AlertDialogHeader className="space-y-3">
+          <Badge variant={variant === "destructive" ? "destructive" : "outline"} className="w-fit">
+            {variant === "destructive" ? "Destructive action" : "Confirmation"}
+          </Badge>
+          <AlertDialogTitle className="text-base font-medium">{title}</AlertDialogTitle>
+          <AlertDialogDescription className="text-sm leading-6 text-muted-foreground">
+            {description}
+          </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel className="text-xs h-8">
-            {cancelLabel}
-          </AlertDialogCancel>
+        <AlertDialogFooter className="gap-2">
+          <AlertDialogCancel className="h-9 text-sm">{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className={`text-xs h-8 ${
-              variant === "destructive"
-                ? "bg-red-600 hover:bg-red-700 text-white"
-                : ""
-            }`}
+            className={cn(
+              "h-9 text-sm",
+              variant === "destructive" && "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+            )}
           >
             {confirmLabel}
           </AlertDialogAction>

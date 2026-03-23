@@ -261,20 +261,20 @@ export function CommandPalette({
       title="Command Palette"
       description="Search for commands, vehicles, or workspaces"
       showCloseButton={false}
-      className="border-[#2a3f60] bg-[#0a1628] max-w-xl"
+      className="max-w-xl border-border/70 bg-popover shadow"
     >
       <CommandInput
         placeholder="Type a command or search..."
-        className="text-slate-100 placeholder:text-slate-500"
+        className="text-foreground placeholder:text-muted-foreground"
       />
-      <CommandList className="max-h-[400px] border-t border-[#1a2940]">
-        <CommandEmpty className="text-slate-400">
+      <CommandList className="max-h-[400px] border-t border-border/60">
+        <CommandEmpty className="text-muted-foreground">
           No results found.
         </CommandEmpty>
 
         {/* Vehicle entries for quick switch */}
         {vehicleEntries.length > 0 && (
-          <CommandGroup heading="Vehicles" className="text-slate-400">
+          <CommandGroup heading="Vehicles" className="text-muted-foreground">
             {vehicleEntries.map((v) => (
               <CommandItem
                 key={v.id}
@@ -285,11 +285,11 @@ export function CommandPalette({
                     setUIView("workspace");
                   })
                 }
-                className="text-slate-200 data-[selected=true]:bg-[#1b2c47] data-[selected=true]:text-white"
+                className="text-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
               >
-                <CarFront className="size-4 text-slate-400" />
+                <CarFront className="size-4 text-muted-foreground" />
                 <span>{v.name}</span>
-                <span className="ml-auto text-[10px] text-slate-500 font-mono">
+                <span className="ml-auto font-mono text-[10px] text-muted-foreground">
                   {v.vehicles.modelName}
                 </span>
               </CommandItem>
@@ -297,12 +297,12 @@ export function CommandPalette({
           </CommandGroup>
         )}
 
-        <CommandSeparator className="bg-[#1a2940]" />
+        <CommandSeparator className="bg-border/60" />
 
         {/* Recent workspaces */}
         {descriptors.length > 0 && (
           <>
-            <CommandGroup heading="Workspaces" className="text-slate-400">
+            <CommandGroup heading="Workspaces" className="text-muted-foreground">
               {descriptors.slice(0, 8).map((ws) => {
                 const rootPath = ws.roots[0] ?? "";
                 return (
@@ -314,28 +314,28 @@ export function CommandPalette({
                         if (rootPath) onOpenRecentWorkspace?.(rootPath);
                       })
                     }
-                    className="text-slate-200 data-[selected=true]:bg-[#1b2c47] data-[selected=true]:text-white"
+                    className="text-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
                   >
                     {ws.pinned ? (
                       <Pin className="size-4 text-primary" />
                     ) : (
-                      <FolderTree className="size-4 text-slate-400" />
+                      <FolderTree className="size-4 text-muted-foreground" />
                     )}
                     <span>{ws.name}</span>
-                    <span className="ml-auto text-[10px] text-slate-500 truncate max-w-[200px]">
+                    <span className="ml-auto max-w-[200px] truncate text-[10px] text-muted-foreground">
                       {rootPath}
                     </span>
                   </CommandItem>
                 );
               })}
             </CommandGroup>
-            <CommandSeparator className="bg-[#1a2940]" />
+            <CommandSeparator className="bg-border/60" />
           </>
         )}
 
         {/* Command groups */}
         {[...groups.entries()].map(([group, cmds]) => (
-          <CommandGroup key={group} heading={group} className="text-slate-400">
+          <CommandGroup key={group} heading={group} className="text-muted-foreground">
             {cmds.map((cmd) => {
               const Icon = cmd.icon;
               return (
@@ -344,12 +344,12 @@ export function CommandPalette({
                   value={cmd.label}
                   disabled={cmd.disabled}
                   onSelect={() => runAction(cmd.action)}
-                  className="text-slate-200 data-[selected=true]:bg-[#1b2c47] data-[selected=true]:text-white"
+                  className="text-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
                 >
-                  <Icon className="size-4 text-slate-400" />
+                  <Icon className="size-4 text-muted-foreground" />
                   <span>{cmd.label}</span>
                   {cmd.shortcut && (
-                    <CommandShortcut className="text-slate-500">
+                    <CommandShortcut className="text-muted-foreground">
                       {cmd.shortcut}
                     </CommandShortcut>
                   )}

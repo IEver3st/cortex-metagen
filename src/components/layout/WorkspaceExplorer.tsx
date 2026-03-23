@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useMetaStore, type MetaFileType } from "@/store/meta-store";
 import { ChevronDown, ChevronRight, FileCode2, Folder, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -60,7 +62,7 @@ function buildTree(paths: string[], workspacePath: string | null): TreeNode {
       }
 
       const existing = current.children.find(
-        (c): c is Extract<TreeNode, { type: "dir" }> => c.type === "dir" && c.name === part
+        (child): child is Extract<TreeNode, { type: "dir" }> => child.type === "dir" && child.name === part,
       );
       if (existing) {
         current = existing;
@@ -78,21 +80,21 @@ function buildTree(paths: string[], workspacePath: string | null): TreeNode {
     }
   };
 
-  for (const p of paths) {
-    const rel = getRelativePath(p, workspacePath);
-    insert(normalizePath(rel), p);
+  for (const path of paths) {
+    const relative = getRelativePath(path, workspacePath);
+    insert(normalizePath(relative), path);
   }
 
   const sortNode = (node: TreeNode) => {
     if (node.type !== "dir") return;
-    node.children.sort((a, b) => {
-      if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
-      return a.name.localeCompare(b.name);
+    node.children.sort((left, right) => {
+      if (left.type !== right.type) return left.type === "dir" ? -1 : 1;
+      return left.name.localeCompare(right.name);
     });
-    for (const c of node.children) sortNode(c);
+    for (const child of node.children) sortNode(child);
   };
-  sortNode(root);
 
+  sortNode(root);
   return root;
 }
 
@@ -128,33 +130,32 @@ export function WorkspaceExplorer({ filterQuery = "" }: WorkspaceExplorerProps) 
 
   const tree = useMemo(() => buildTree(filteredWorkspaceMetaFiles, workspacePath), [filteredWorkspaceMetaFiles, workspacePath]);
 
-  const [openDirs, setOpenDirs] = useState<Record<string, boolean>>({
-    root: true,
-  });
+  const [openDirs, setOpenDirs] = useState<Record<string, boolean>>({ root: true });
 
-  const toggleDir = (key: string) => setOpenDirs((s) => ({ ...s, [key]: !s[key] }));
+  const toggleDir = (key: string) => setOpenDirs((state) => ({ ...state, [key]: !state[key] }));
 
   const renderNode = (node: TreeNode, depth: number, key: string) => {
     if (node.type === "dir") {
       const open = openDirs[key] ?? depth < 1;
       const Icon = open ? FolderOpen : Folder;
+
       return (
         <div key={key}>
-          <button
-            type="button"
-            className="w-full h-7 px-2 text-xs flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-accent/30 rounded-sm"
+          <Button
+            variant="ghost"
+            size="xs"
+            className="h-6 w-full justify-start gap-2 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
             style={{ paddingLeft: 8 + depth * 12 }}
             onClick={() => toggleDir(key)}
-            title={node.name}
           >
             {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             <Icon className="h-3.5 w-3.5" />
             <span className="truncate">{node.name}</span>
-          </button>
+          </Button>
 
           {open && (
             <div>
-              {node.children.map((child, idx) => renderNode(child, depth + 1, `${key}/${child.name}-${idx}`))}
+              {node.children.map((child, index) => renderNode(child, depth + 1, `${key}/${child.name}-${index}`))}
             </div>
           )}
         </div>
@@ -166,29 +167,32 @@ export function WorkspaceExplorer({ filterQuery = "" }: WorkspaceExplorerProps) 
     const supported = Boolean(node.metaType);
 
     return (
-      <button
+      <Button
         key={key}
-        type="button"
         disabled={!supported}
-        className={`w-full h-7 px-2 text-xs flex items-center gap-2 rounded-sm text-left transition-colors disabled:opacity-50 disabled:pointer-events-none ${
+        variant="ghost"
+        size="xs"
+        className={cn(
+          "h-6 w-full justify-start gap-2 rounded-md px-2 text-left text-xs disabled:pointer-events-none disabled:opacity-50",
           active
-            ? "bg-card text-foreground"
-            : "text-muted-foreground hover:text-foreground hover:bg-accent/30"
-        }`}
+            ? "bg-card text-foreground shadow-xs hover:bg-card"
+            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+        )}
         style={{ paddingLeft: 8 + depth * 12 }}
         onClick={() => {
           if (!node.metaType) return;
           setUIView("workspace");
           setActiveTab(node.metaType);
         }}
-        title={node.path}
       >
         <FileCode2 className={`h-3.5 w-3.5 ${className}`} />
         <span className="truncate">{node.name}</span>
         {node.metaType && (
-          <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+          <Badge variant={active ? "default" : "outline"} className="ml-auto px-1.5 py-0 text-[9px]">
+            {label}
+          </Badge>
         )}
-      </button>
+      </Button>
     );
   };
 
@@ -200,3 +204,4 @@ export function WorkspaceExplorer({ filterQuery = "" }: WorkspaceExplorerProps) 
     </ScrollArea>
   );
 }
+

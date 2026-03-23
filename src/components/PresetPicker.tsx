@@ -1,4 +1,7 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Car } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -6,47 +9,49 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Car } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMetaStore } from "@/store/meta-store";
 import { createVehicleFromPreset, presetConfigs, type PresetType } from "@/lib/presets";
 
 export function PresetPicker() {
-  const addVehicle = useMetaStore((s) => s.addVehicle);
+  const addVehicle = useMetaStore((state) => state.addVehicle);
   const [open, setOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<PresetType | null>(null);
   const [name, setName] = useState("");
   const [search, setSearch] = useState("");
 
   const categories = useMemo(() => {
-    const map = new Map<string, { key: PresetType; label: string }[]>();
+    const groups = new Map<string, { key: PresetType; label: string }[]>();
+
     for (const [key, config] of Object.entries(presetConfigs)) {
-      const cat = config.category;
-      if (!map.has(cat)) map.set(cat, []);
-      map.get(cat)!.push({ key: key as PresetType, label: config.label });
+      const category = config.category;
+      groups.set(category, [...(groups.get(category) ?? []), { key: key as PresetType, label: config.label }]);
     }
-    return map;
+
+    return groups;
   }, []);
 
   const filteredCategories = useMemo(() => {
     if (!search.trim()) return categories;
-    const q = search.toLowerCase();
+
+    const query = search.toLowerCase();
     const filtered = new Map<string, { key: PresetType; label: string }[]>();
-    for (const [cat, items] of categories) {
-      const matched = items.filter(
-        (i) =>
-          i.label.toLowerCase().includes(q) ||
-          cat.toLowerCase().includes(q) ||
-          presetConfigs[i.key].description.toLowerCase().includes(q)
-      );
-      if (matched.length > 0) filtered.set(cat, matched);
+
+    for (const [category, items] of categories) {
+      const matches = items.filter(({ key, label }) => {
+        const preset = presetConfigs[key];
+        return label.toLowerCase().includes(query) || category.toLowerCase().includes(query) || preset.description.toLowerCase().includes(query);
+      });
+
+      if (matches.length) filtered.set(category, matches);
     }
+
     return filtered;
   }, [categories, search]);
 
   const handleCreate = () => {
     if (!selectedPreset || !name.trim()) return;
-    const entry = createVehicleFromPreset(name.trim(), selectedPreset);
-    addVehicle(entry);
+    addVehicle(createVehicleFromPreset(name.trim(), selectedPreset));
     setName("");
     setSelectedPreset(null);
     setSearch("");
@@ -56,66 +61,60 @@ export function PresetPicker() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 border-none bg-transparent shadow-none">
-          <Car className="h-3.5 w-3.5" />
+        <Button variant="ghost" size="sm" className="h-9 gap-1.5 text-xs">
+          <Car className="size-3.5" />
           Presets
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-3 space-y-2" align="start">
-        <p className="text-xs font-medium">Create from Preset</p>
-        <Input
-          placeholder="Search presets..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-7 text-xs"
-        />
-        <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-          {[...filteredCategories.entries()].map(([cat, items]) => (
-            <div key={cat}>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 px-0.5">
-                {cat}
-              </div>
-              <div className="grid grid-cols-2 gap-1">
-                {items.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setSelectedPreset(key)}
-                    className={`text-left p-1.5 rounded border text-[11px] transition-colors ${
-                      selectedPreset === key
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border hover:border-muted-foreground/50"
-                    }`}
-                  >
-                    <div className="font-medium truncate">{label}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-          {filteredCategories.size === 0 && (
-            <p className="text-[11px] text-muted-foreground text-center py-2">No presets match "{search}"</p>
-          )}
+      <PopoverContent className="w-96 space-y-3 border-border/80 bg-popover p-4 shadow-sm" align="start">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <p className="panel-label">Preset library</p>
+            {selectedPreset ? <Badge variant="default">{presetConfigs[selectedPreset].label}</Badge> : null}
+          </div>
+          <p className="text-sm text-muted-foreground">Create a new vehicle from the current template catalog.</p>
         </div>
-        {selectedPreset && (
-          <p className="text-[10px] text-muted-foreground border-t pt-2">
-            {presetConfigs[selectedPreset].description}
-          </p>
-        )}
+
+        <Input placeholder="Search presets" value={search} onChange={(event) => setSearch(event.target.value)} />
+
+        <ScrollArea className="h-72 rounded-lg border border-border/70 bg-background/30 p-2">
+          <div className="space-y-3 pr-2">
+            {[...filteredCategories.entries()].map(([category, items]) => (
+              <div key={category} className="space-y-2">
+                <p className="panel-label">{category}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {items.map(({ key, label }) => (
+                    <Button
+                      key={key}
+                      type="button"
+                      variant={selectedPreset === key ? "default" : "outline"}
+                      className="h-auto justify-start px-3 py-2 text-left text-xs"
+                      onClick={() => setSelectedPreset(key)}
+                    >
+                      <span className="truncate">{label}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {!filteredCategories.size ? <p className="py-8 text-center text-sm text-muted-foreground">No presets match “{search}”.</p> : null}
+          </div>
+        </ScrollArea>
+
+        {selectedPreset ? <p className="text-xs text-muted-foreground">{presetConfigs[selectedPreset].description}</p> : null}
+
         <Input
-          placeholder="Vehicle name..."
+          placeholder="Vehicle name or hash"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-          className="h-7 text-xs"
+          onChange={(event) => setName(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") handleCreate();
+          }}
         />
-        <Button
-          size="sm"
-          className="w-full h-7 text-xs"
-          onClick={handleCreate}
-          disabled={!selectedPreset || !name.trim()}
-        >
-          Create Vehicle
+
+        <Button className="w-full" onClick={handleCreate} disabled={!selectedPreset || !name.trim()}>
+          Create vehicle
         </Button>
       </PopoverContent>
     </Popover>

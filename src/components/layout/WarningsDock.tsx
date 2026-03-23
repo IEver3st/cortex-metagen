@@ -1,8 +1,22 @@
 import { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { AlertTriangle, X, XCircle } from "lucide-react";
+import { AlertTriangle, FileWarning, XCircle } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { ValidationIssue } from "@/lib/xml-validator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface WarningsDockProps {
   issues: ValidationIssue[];
@@ -15,135 +29,87 @@ export function WarningsDock({ issues, fileName, onDismiss, placement = "floatin
   const [open, setOpen] = useState(false);
 
   const { errors, warnings } = useMemo(() => {
-    const errors = issues.filter((i) => i.severity === "error");
-    const warnings = issues.filter((i) => i.severity === "warning");
-    return { errors, warnings };
+    const groupedErrors = issues.filter((issue) => issue.severity === "error");
+    const groupedWarnings = issues.filter((issue) => issue.severity === "warning");
+    return { errors: groupedErrors, warnings: groupedWarnings };
   }, [issues]);
 
-  if (!issues || issues.length === 0) return null;
+  if (!issues.length) return null;
 
-  const label =
-    `${errors.length} error${errors.length === 1 ? "" : "s"}` +
-    (errors.length > 0 && warnings.length > 0 ? ", " : "") +
-    `${warnings.length} warning${warnings.length === 1 ? "" : "s"}`;
+  const hasErrors = errors.length > 0;
+  const summary = `${errors.length} error${errors.length === 1 ? "" : "s"}${errors.length && warnings.length ? ", " : ""}${warnings.length} warning${warnings.length === 1 ? "" : "s"}`;
+  const Icon = hasErrors ? XCircle : AlertTriangle;
 
   return (
     <>
-      <TooltipProvider>
-        <div className={placement === "floating" ? "fixed bottom-3 right-3 z-40" : ""}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => setOpen(true)}
-                className={`border bg-card/95 flex items-center justify-center transition-colors ${
-                  placement === "floating" ? "h-9 w-9" : "h-6 w-6 rounded-sm"
-                } ${
-                  errors.length > 0
-                    ? "border-red-500/40 hover:bg-red-500/10"
-                    : "border-yellow-500/40 hover:bg-yellow-500/10"
-                }`}
-                aria-label={label}
-              >
-                {errors.length > 0 ? (
-                  <XCircle className={placement === "floating" ? "h-4 w-4 text-red-400" : "h-3.5 w-3.5 text-red-400"} />
-                ) : (
-                  <AlertTriangle className={placement === "floating" ? "h-4 w-4 text-yellow-400" : "h-3.5 w-3.5 text-yellow-400"} />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side={placement === "floating" ? "left" : "top"}>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{label}</span>
-                <span className="text-muted-foreground">Click to view</span>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size={placement === "floating" ? "icon-sm" : "icon-xs"}
+            className={placement === "floating" ? "h-9 w-9 border border-border/80 bg-card/90 hover:bg-accent" : "h-4 w-4 text-primary-foreground hover:bg-primary-foreground/12 hover:text-primary-foreground"}
+            onClick={() => setOpen(true)}
+            aria-label={summary}
+          >
+            <Icon className={hasErrors ? "text-destructive" : "text-primary"} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side={placement === "floating" ? "left" : "top"}>{summary}</TooltipContent>
+      </Tooltip>
 
-      <AnimatePresence>
-        {open && (
-          <>
-            <motion.button
-              type="button"
-              className="fixed inset-0 z-40 bg-background/40"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setOpen(false)}
-              aria-label="Close warnings"
-            />
-            <motion.div
-              className="fixed inset-x-0 bottom-0 z-50 border-t bg-card"
-              initial={{ y: 260 }}
-              animate={{ y: 0 }}
-              exit={{ y: 260 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-            >
-              <div className="h-10 px-3 flex items-center justify-between border-b">
-                <div className="flex items-center gap-2 text-xs">
-                  {errors.length > 0 ? (
-                    <XCircle className="h-3.5 w-3.5 text-red-400" />
-                  ) : (
-                    <AlertTriangle className="h-3.5 w-3.5 text-yellow-400" />
-                  )}
-                  <span className="font-medium">{label}</span>
-                  {fileName && <span className="text-muted-foreground">in {fileName}</span>}
-                </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl border-border/80 bg-card p-0 shadow-sm" showCloseButton={false}>
+          <DialogHeader className="border-b border-border/70 px-5 py-4 text-left">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-2 text-left">
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onDismiss}
-                    className="text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 hover:bg-muted/40"
-                    title="Dismiss warnings"
-                  >
-                    Dismiss
-                  </button>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => setOpen(false)}
-                        className="h-8 w-8 flex items-center justify-center hover:bg-muted/40"
-                      >
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">Close</TooltipContent>
-                  </Tooltip>
+                  <p className="panel-label">Validation</p>
+                  <Badge variant={hasErrors ? "destructive" : "default"}>{summary}</Badge>
                 </div>
+                <DialogTitle className="flex items-center gap-2 text-base font-medium text-card-foreground">
+                  <FileWarning className="size-4 text-primary" />
+                  Review import issues
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  {fileName ? `Source: ${fileName}` : "The active workspace contains issues that need attention."}
+                </DialogDescription>
               </div>
 
-              <div className="max-h-[50vh] overflow-y-auto">
-                {issues.map((issue, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-2 px-3 py-2 text-[11px] border-b border-border/30 last:border-b-0 hover:bg-muted/20"
-                  >
-                    {issue.severity === "error" ? (
-                      <XCircle className="h-3 w-3 text-red-400 mt-0.5 shrink-0" />
-                    ) : (
-                      <AlertTriangle className="h-3 w-3 text-yellow-400 mt-0.5 shrink-0" />
-                    )}
-                    <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={onDismiss}>
+                  Dismiss issues
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[50vh]">
+            <div className="space-y-2 p-4">
+              {issues.map((issue, index) => {
+                const IssueIcon = issue.severity === "error" ? XCircle : AlertTriangle;
+                const badgeVariant = issue.severity === "error" ? "destructive" : "default";
+
+                return (
+                  <div key={`${issue.message}-${index}`} className="surface-panel flex items-start gap-3 px-4 py-3">
+                    <IssueIcon className={issue.severity === "error" ? "mt-0.5 size-4 text-destructive" : "mt-0.5 size-4 text-primary"} />
+                    <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-muted-foreground shrink-0">Ln {issue.line}</span>
-                        <span className="text-foreground/90">{issue.message}</span>
+                        <Badge variant={badgeVariant}>{issue.severity}</Badge>
+                        <span className="text-xs text-muted-foreground">Line {issue.line}</span>
                       </div>
-                      {issue.context && (
-                        <div className="font-mono text-[10px] text-muted-foreground/60 truncate mt-0.5">
-                          {issue.context}
-                        </div>
-                      )}
+                      <p className="text-sm text-card-foreground">{issue.message}</p>
+                      {issue.context ? <p className="text-xs text-muted-foreground">{issue.context}</p> : null}
                     </div>
                   </div>
-                ))}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

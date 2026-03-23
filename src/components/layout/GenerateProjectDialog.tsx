@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMetaStore } from "@/store/meta-store";
@@ -115,22 +116,18 @@ export function GenerateProjectDialog({ open, onOpenChange }: GenerateProjectDia
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {items.map((item) => (
-                      <button
+                      <Button
                         key={item.key}
                         type="button"
+                        variant={selectedPreset === item.key ? "secondary" : "outline"}
                         onClick={() => setSelectedPreset(item.key)}
-                        className={
-                          "rounded-md border px-2.5 py-2 text-left text-xs transition-colors " +
-                          (selectedPreset === item.key
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border hover:bg-accent hover:text-accent-foreground")
-                        }
+                        className="h-auto min-h-20 flex-col items-start rounded-xl px-2.5 py-2 text-left text-xs transition-colors"
                       >
                         <div className="font-medium leading-none">{item.label}</div>
                         <div className="mt-1 text-[10px] text-muted-foreground whitespace-normal">
                           {item.description}
                         </div>
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>
