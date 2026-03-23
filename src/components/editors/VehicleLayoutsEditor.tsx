@@ -1,7 +1,6 @@
 import { useState, memo } from "react";
 import { motion } from "motion/react";
-import { useMetaStore } from "@/store/meta-store";
-import { SliderField } from "@/components/SliderField";
+
 import { SquareToggle } from "@/components/SquareToggle";
 import {
   Accordion,
@@ -9,9 +8,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { useMetaStore } from "@/store/meta-store";
 import { Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Shield, Eye } from "lucide-react";
 import type {
   VehicleLayoutsData,

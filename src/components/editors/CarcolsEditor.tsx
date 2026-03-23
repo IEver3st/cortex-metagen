@@ -19,7 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Plus, Trash2, ChevronsDownUp, ChevronsUpDown, Lightbulb, Zap } from "lucide-react";
-import type { SirenLight } from "@/store/meta-store";
+import type { CarcolsData, SirenLight } from "@/store/meta-store";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 // ── Sequencer pattern presets ────────────────────────────────
@@ -285,7 +285,7 @@ export function CarcolsEditor() {
   const [openSections, setOpenSections] = useState<string[]>(ALL_CARCOLS_SECTIONS);
   const [presetOpen, setPresetOpen] = useState(false);
   const carcols = vehicle?.carcols;
-  const update = useCallback((data: Record<string, any>) => {
+  const update = useCallback((data: Partial<CarcolsData>) => {
     if (!activeId) return;
     updateCarcols(activeId, data);
   }, [updateCarcols, activeId]);
