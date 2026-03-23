@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { UpdateToast } from "@/components/layout/UpdateToast";
 import { useMetaStore, type MetaFileType, type SessionSnapshot, type VehicleEntry } from "@/store/meta-store";
 import { parseMetaFile, detectMetaType, type ParseDiagnostic } from "@/lib/xml-parser";
 import { validateMetaXml, type ValidationIssue } from "@/lib/xml-validator";
 import { serializeActiveTab, serializeHandlingMeta, serializeVehiclesMeta, serializeCarcolsMeta, serializeCarvariationsMeta, serializeVehicleLayoutsMeta, serializeModkitsMeta } from "@/lib/xml-serializer";
+import { useUpdateChecker } from "@/lib/updater";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { RestoreSessionDialog } from "@/components/layout/RestoreSessionDialog";
 import { VehiclesMetaEnhancementsPanel } from "@/components/layout/VehiclesMetaEnhancementsPanel";
 import { WorkspaceQuickActions } from "@/components/layout/WorkspaceQuickActions";
 import { CommandPalette } from "@/components/layout/CommandPalette";
+import { logger } from "@/lib/logger";
 import { useWorkspaceStore } from "@/store/workspace-store";
 
 const SESSION_KEY = "cortex-metagen.session.v1";
@@ -133,6 +136,10 @@ function readInitialSessionState(): InitialSessionState {
     const recentWorkspaces = parsed.recentWorkspaces.filter((recent): recent is string => typeof recent === "string");
     const hasVehicles = Object.keys(parsed.vehicles).length > 0;
 
+    if (hasVehicles) {
+      logger.info("session", "Prior session snapshot found", { vehicles: Object.keys(parsed.vehicles).length });
+    }
+
     return {
       pendingSnapshot: hasVehicles ? parsed : null,
       recentFiles,
@@ -184,9 +191,11 @@ function App() {
   const [initialSession] = useState<InitialSessionState>(readInitialSessionState);
   const [pendingSnapshot, setPendingSnapshot] = useState<SessionSnapshot | null>(initialSession.pendingSnapshot);
   const [restoreOpen, setRestoreOpen] = useState(Boolean(initialSession.pendingSnapshot));
+  const update = useUpdateChecker();
   const duplicateIssues = detectDuplicateEntryIssues(vehicles);
 
   const openMetaPath = useCallback(async (filePath: string) => {
+    logger.info("app", `Opening file: ${filePath}`);
     const content = await invoke<string>("read_meta_file", { path: filePath });
 
     const validation = validateMetaXml(content);
@@ -209,6 +218,13 @@ function App() {
       } satisfies ValidationIssue)),
     ]);
 
+    if (!detectedType) {
+      logger.warn("app", "Opened file but could not detect meta type", {
+        filePath,
+        fileName,
+      });
+    }
+
     loadVehicles(parsedVehicles);
     for (const type of ALL_META_TYPES) {
       setSourceFilePath(type, null);
@@ -221,6 +237,13 @@ function App() {
     setWorkspace(null, []);
     addRecentFile(filePath);
     markClean();
+    logger.info("app", "File opened successfully", {
+      filePath,
+      detectedType: detectedType ?? "unknown",
+      vehicles: Object.keys(parsedVehicles).length,
+      validationIssues: validation.issues.length,
+      parseDiagnostics: parseDiagnostics.length,
+    });
   }, [loadVehicles, setActiveTab, setFilePath, setSourceFilePath, setWorkspace, addRecentFile, markClean]);
 
   const collectMetaFiles = useCallback(async (rootPath: string): Promise<string[]> => {
@@ -229,9 +252,13 @@ function App() {
 
   const openWorkspacePath = useCallback(async (folderPath: string) => {
     try {
+      logger.info("workspace", "Opening workspace folder", { folderPath });
       const metaPaths = await collectMetaFiles(folderPath);
 
       if (metaPaths.length === 0) {
+        logger.warn("workspace", "Workspace contained no supported meta files", {
+          folderPath,
+        });
         setValidationFileName("Workspace");
         setValidationIssues([
           {
@@ -286,6 +313,7 @@ function App() {
             });
           }
         } catch (error) {
+          logger.warn("workspace", `Failed to load workspace file: ${relativePath}`, error);
           issues.push({
             line: 1,
             severity: "warning",
@@ -296,6 +324,10 @@ function App() {
       }
 
       if (Object.keys(mergedVehicles).length === 0) {
+        logger.warn("workspace", "Workspace scan found files but parsed no supported data", {
+          folderPath,
+          scannedFiles: metaPaths.length,
+        });
         setValidationFileName("Workspace");
         setValidationIssues([
           {
@@ -324,11 +356,18 @@ function App() {
       setValidationIssues(issues);
       addRecentWorkspace(folderPath);
       markClean();
+      logger.info("workspace", "Workspace opened successfully", {
+        folderPath,
+        scannedFiles: metaPaths.length,
+        loadedFiles: loadedWorkspaceFiles.length,
+        vehicles: Object.keys(mergedVehicles).length,
+        issues: issues.length,
+      });
 
       // Also register with workspace store for persistence
       void openWorkspaceFromFolder(folderPath);
     } catch (err) {
-      console.error("Failed to open workspace folder:", err);
+      logger.error("workspace", "Failed to open workspace folder", err);
     }
   }, [collectMetaFiles, loadVehicles, setWorkspace, setFilePath, setSourceFilePath, setActiveTab, addRecentWorkspace, markClean, openWorkspaceFromFolder]);
 
@@ -343,7 +382,7 @@ function App() {
 
       await openWorkspacePath(selected);
     } catch (err) {
-      console.error("Failed to open workspace folder dialog:", err);
+      logger.error("workspace", "Failed to open workspace folder dialog", err);
     }
   }, [openWorkspacePath]);
 
@@ -356,12 +395,13 @@ function App() {
       if (!selected || typeof selected !== "string") return;
       await openMetaPath(selected);
     } catch (err) {
-      console.error("Failed to open file:", err);
+      logger.error("app", "Failed to open file", err);
     }
   }, [openMetaPath]);
 
   const handleOpenRecentFile = useCallback(async (path: string) => {
     const resolved = resolveWorkspaceFilePath(workspacePath, path) ?? path;
+    logger.info("app", "Opening recent file", { path, resolved });
     await openMetaPath(resolved);
   }, [openMetaPath, workspacePath]);
 
@@ -385,8 +425,13 @@ function App() {
       setFilePath(storedPath);
       addRecentFile(targetPath);
       markClean();
+      logger.info("app", "Saved meta file", {
+        targetPath,
+        activeTab,
+        vehicles: vehicleList.length,
+      });
     } catch (err) {
-      console.error("Failed to save file:", err);
+      logger.error("app", "Failed to save file", err);
     }
   }, [vehicles, activeTab, sourceFileByType, workspacePath, setSourceFilePath, setFilePath, markClean, addRecentFile]);
 
@@ -411,8 +456,13 @@ function App() {
       ];
 
       await invoke("write_zip_archive", { path: targetPath, entries });
+      logger.info("app", "Exported archive", {
+        targetPath,
+        entries: entries.length,
+        vehicles: vehicleList.length,
+      });
     } catch (err) {
-      console.error("Failed to export archive:", err);
+      logger.error("app", "Failed to export archive", err);
     }
   }, [vehicles]);
 
@@ -446,6 +496,7 @@ function App() {
   }, [handleOpenFile, handleSaveFile, undo, redo, canUndo, canRedo, toggleCommandPalette]);
 
   useEffect(() => {
+    logger.info("app", "Cortex Metagen started");
     setUIView("home");
     for (const recent of initialSession.recentFiles) {
       addRecentFile(recent);
@@ -460,6 +511,10 @@ function App() {
 
   const handleRestore = () => {
     if (!pendingSnapshot) return;
+    logger.info("session", "Restoring saved session snapshot", {
+      vehicles: Object.keys(pendingSnapshot.vehicles).length,
+      timestamp: pendingSnapshot.timestamp,
+    });
     hydrateSessionSnapshot(pendingSnapshot);
     setUIView("workspace");
     setRestoreOpen(false);
@@ -467,6 +522,7 @@ function App() {
   };
 
   const handleDiscard = () => {
+    logger.info("session", "Discarded saved session snapshot");
     setRestoreOpen(false);
     setPendingSnapshot(null);
     setUIView("home");
@@ -478,8 +534,9 @@ function App() {
       setPendingSnapshot(null);
       setRestoreOpen(false);
       setLastAutoSavedAt(null);
+      logger.info("session", "Cleared saved session snapshot");
     } catch (error) {
-      console.warn("Failed to clear saved session snapshot:", error);
+      logger.warn("session", "Failed to clear saved session snapshot", error);
     }
   }, [setLastAutoSavedAt]);
 
@@ -492,7 +549,10 @@ function App() {
         const serialized = JSON.stringify(snapshot);
 
         if (serialized.length > SESSION_MAX_BYTES) {
-          console.warn("Skipping session auto-save because snapshot is too large.");
+          logger.warn("session", "Skipping session auto-save because snapshot is too large", {
+            bytes: serialized.length,
+            limit: SESSION_MAX_BYTES,
+          });
           return;
         }
 
@@ -501,7 +561,7 @@ function App() {
           setLastAutoSavedAt(Date.now());
         }
       } catch (error) {
-        console.warn("Session persistence failed:", error);
+        logger.warn("session", "Session persistence failed", error);
       }
     };
 
@@ -578,8 +638,9 @@ function App() {
 
       try {
         await openMetaPath(filePath);
+        logger.info("app", "Imported dropped file", { filePath });
       } catch (error) {
-        console.error("Failed to import dropped file:", error);
+        logger.error("app", "Failed to import dropped file", error);
       }
     };
 
@@ -640,6 +701,8 @@ function App() {
         onRestore={handleRestore}
         onDiscard={handleDiscard}
       />
+
+      <UpdateToast update={update} />
     </>
   );
 }

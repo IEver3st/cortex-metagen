@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { logger } from "@/lib/logger";
 import { AlertCircle, Bug, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,17 +31,25 @@ export function BugReportForm() {
     setErrorMessage(null);
 
     try {
+      logger.info("bug-report", "Submitting bug report", {
+        title: title.trim(),
+        hasSteps: steps.trim().length > 0,
+      });
+
       await invoke("submit_bug_report", {
         title: title.trim(),
         description: description.trim(),
         steps: steps.trim() || "No steps provided.",
+        logs: logger.getLogsAsText(),
       });
 
+      logger.info("bug-report", "Bug report submitted successfully");
       setFormState("success");
       setTitle("");
       setDescription("");
       setSteps("");
     } catch (err) {
+      logger.error("bug-report", "Failed to submit bug report", err);
       setFormState("error");
       setErrorMessage(
         typeof err === "string" ? err : "Unexpected error. Please try again.",
@@ -141,6 +150,11 @@ export function BugReportForm() {
           )}
         />
       </div>
+
+      <p className="text-[11px] leading-5 text-slate-500">
+        Recent in-app debug logs are attached automatically so bug reports
+        include background context.
+      </p>
 
       {/* Error state */}
       {formState === "error" && (

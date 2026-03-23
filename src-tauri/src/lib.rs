@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 const MAX_SCAN_DEPTH: usize = 32;
 const MAX_SCAN_FILES: usize = 20_000;
 const MAX_SCAN_DURATION: Duration = Duration::from_secs(8);
+const MAX_BUG_REPORT_LOG_CHARS: usize = 40_000;
 
 #[tauri::command]
 fn read_meta_file(path: String) -> Result<String, String> {
@@ -140,18 +141,52 @@ struct GitHubConfig {
     repo: String,
 }
 
+fn trim_to_last_chars(value: &str, max_chars: usize) -> (String, bool) {
+    let char_count = value.chars().count();
+    if char_count <= max_chars {
+        return (value.to_string(), false);
+    }
+
+    let start = value
+        .char_indices()
+        .nth(char_count - max_chars)
+        .map(|(idx, _)| idx)
+        .unwrap_or(0);
+
+    (value[start..].to_string(), true)
+}
+
 #[tauri::command]
 async fn submit_bug_report(
     title: String,
     description: String,
     steps: String,
+    logs: String,
     state: tauri::State<'_, GitHubConfig>,
 ) -> Result<(), String> {
     let version = env!("CARGO_PKG_VERSION");
     let os = std::env::consts::OS;
+    let trimmed_logs = logs.trim();
+    let logs_section = if trimmed_logs.is_empty() {
+        String::new()
+    } else {
+        let (recent_logs, truncated) = trim_to_last_chars(trimmed_logs, MAX_BUG_REPORT_LOG_CHARS);
+        let truncation_notice = if truncated {
+            format!(
+                "_Logs were truncated to the most recent {} characters._\n\n",
+                MAX_BUG_REPORT_LOG_CHARS
+            )
+        } else {
+            String::new()
+        };
+
+        format!(
+            "\n\n## Attached logs\n{truncation_notice}```text\n{recent_logs}\n```"
+        )
+    };
 
     let body = format!(
-        "## Description\n{description}\n\n## Steps to reproduce\n{steps}\n\n---\n**App version:** {version}\n**Platform:** {os}\n**Reported via:** in-app bug report"
+        "## Description\n{description}\n\n## Steps to reproduce\n{steps}{logs_section}\n\n---\n**App version:** {version}\n**Platform:** {os}\n**Reported via:** in-app bug report"
     );
 
     let payload = serde_json::json!({

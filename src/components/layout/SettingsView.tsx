@@ -1,5 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { getVersion } from "@tauri-apps/api/app";
+import type { ReactNode } from "react";
 import { SquareToggle } from "@/components/SquareToggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,8 +9,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { useUpdateChecker } from "@/lib/updater";
 import { useMetaStore, type PerformanceSpeedUnit } from "@/store/meta-store";
 import { BugReportForm } from "./BugReportForm";
+import { UpdateSettingsCard } from "./UpdateSettingsCard";
 import {
   ArchiveX,
   PanelLeft,
@@ -44,25 +45,8 @@ export function SettingsView({
   const setPerformanceSpeedUnit = useMetaStore((s) => s.setPerformanceSpeedUnit);
   const recentFiles = useMetaStore((s) => s.recentFiles);
   const clearRecentFiles = useMetaStore((s) => s.clearRecentFiles);
-  const [appVersion, setAppVersion] = useState<string>("…");
-
-  useEffect(() => {
-    let active = true;
-
-    getVersion()
-      .then((version) => {
-        if (!active) return;
-        setAppVersion(version);
-      })
-      .catch(() => {
-        if (!active) return;
-        setAppVersion("unknown");
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const update = useUpdateChecker();
+  const appVersion = update.currentVersion ?? "...";
 
   return (
     <div className="relative h-full w-full overflow-y-auto bg-[#040d1a] font-sans text-slate-100">
@@ -190,6 +174,11 @@ export function SettingsView({
                   Clearing recent files only removes the recent file/workspace list. Resetting session clears the full local workspace snapshot.
                 </p>
               </div>
+            </section>
+
+            <section className="space-y-4">
+              <SectionHeader title="Updates" />
+              <UpdateSettingsCard update={update} />
             </section>
 
             {/* Support Section */}
