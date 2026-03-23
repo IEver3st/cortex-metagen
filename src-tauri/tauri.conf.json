@@ -1,6 +1,6 @@
 {
   "productName": "Cortex METAGEN",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "identifier": "com.cortexlabs.metagen",
   "build": {
     "frontendDist": "../dist",
@@ -48,6 +48,7 @@
     }
   }
 }
+
 
 
 

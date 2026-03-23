@@ -54,23 +54,31 @@ export const WorkspaceScene = memo(function WorkspaceScene({
   const vehicleCount = workspace.snapshot ? Object.keys(workspace.snapshot.vehicles).length : 0;
   const activeTab = workspace.snapshot?.activeTab ?? "handling";
   const sidebarCollapsed = workspace.snapshot?.sidebarCollapsed ?? false;
-  const codePreviewVisible = true;
+  const codePreviewVisible = !compact;
   const emptyState = metaFiles.length === 0;
 
-  const editorRows = activeFile
-    ? [
-        `<${activeTab}>`,
-        `  <path>${toDisplayPath(activeFile)}</path>`,
-        `  <vehicles>${vehicleCount}</vehicles>`,
-        `  <dirty>${workspace.hasUnsavedState ? "true" : "false"}</dirty>`,
-        `</${activeTab}>`,
-      ]
-    : [
-        "<workspace>",
-        "  <state>empty</state>",
-        "  <hint>open a folder or file</hint>",
-        "</workspace>",
-      ];
+  const editorRows = compact
+    ? emptyState
+      ? ["empty workspace", "open a file", folderLabel]
+      : [
+          toDisplayPath(activeFile ?? activeTab),
+          `${vehicleCount} vehicles`,
+          workspace.hasUnsavedState ? "unsaved changes" : `${metaFiles.length} tabs open`,
+        ]
+    : activeFile
+      ? [
+          `<${activeTab}>`,
+          `  <path>${toDisplayPath(activeFile)}</path>`,
+          `  <vehicles>${vehicleCount}</vehicles>`,
+          `  <dirty>${workspace.hasUnsavedState ? "true" : "false"}</dirty>`,
+          `</${activeTab}>`,
+        ]
+      : [
+          "<workspace>",
+          "  <state>empty</state>",
+          "  <hint>open a folder or file</hint>",
+          "</workspace>",
+        ];
 
   return (
     <div
@@ -107,8 +115,8 @@ export const WorkspaceScene = memo(function WorkspaceScene({
             <span
               className="truncate"
               style={{
-                maxWidth: compact ? 68 : 160,
-                fontSize: compact ? 7 : 12,
+                maxWidth: compact ? 118 : 160,
+                fontSize: compact ? 10 : 12,
                 color: TEXT_SECONDARY,
               }}
             >
@@ -137,7 +145,7 @@ export const WorkspaceScene = memo(function WorkspaceScene({
           <div
             className="min-h-0 shrink-0 border-r"
             style={{
-              width: compact ? (sidebarCollapsed ? "14%" : "22%") : (sidebarCollapsed ? "16%" : "24%"),
+              width: compact ? (sidebarCollapsed ? "10%" : "16%") : (sidebarCollapsed ? "16%" : "24%"),
               borderColor: BORDER_SUBTLE,
               backgroundColor: SURFACE_SECONDARY,
               opacity: sidebarCollapsed ? 0.42 : 1,
@@ -171,7 +179,7 @@ export const WorkspaceScene = memo(function WorkspaceScene({
                 {folderLabel}
               </div>
 
-              {metaFiles.slice(0, compact ? 3 : 5).map((filePath) => {
+              {metaFiles.slice(0, compact ? 2 : 5).map((filePath) => {
                 const active = filePath === activeFile;
                 return (
                   <div
@@ -210,7 +218,7 @@ export const WorkspaceScene = memo(function WorkspaceScene({
                       key={filePath}
                       className="truncate rounded-t-[4px] border border-b-0 px-2"
                       style={{
-                        maxWidth: compact ? 42 : 140,
+                        maxWidth: compact ? 72 : 140,
                         height: compact ? 14 : 22,
                         borderColor: active ? BORDER_DEFAULT : BORDER_SUBTLE,
                         backgroundColor: active ? SURFACE_ELEVATED : SURFACE_PRIMARY,

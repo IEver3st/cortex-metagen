@@ -9,6 +9,12 @@ import type { WorkspaceSwitcherWorkspace } from "@/store/workspace-switcher-stor
 
 import { WorkspaceScene } from "./WorkspaceScene";
 
+const THUMBNAIL_WIDTH = 132;
+const THUMBNAIL_HEIGHT = 84;
+const THUMBNAIL_SCENE_WIDTH = 320;
+const THUMBNAIL_SCENE_HEIGHT = 204;
+const THUMBNAIL_SCENE_SCALE = THUMBNAIL_WIDTH / THUMBNAIL_SCENE_WIDTH;
+
 interface WorkspaceSwitcherProps {
   open: boolean;
   workspaces: WorkspaceSwitcherWorkspace[];
@@ -45,7 +51,7 @@ interface WorkspaceLabelProps {
   onDeleteWorkspace: (id: string) => void;
 }
 
-function WorkspaceLabel({
+const WorkspaceLabel = memo(function WorkspaceLabel({
   workspace,
   index,
   active,
@@ -84,16 +90,24 @@ function WorkspaceLabel({
   };
 
   return (
-    <div className="flex w-[100px] shrink-0 flex-col items-center gap-1.5">
+    <div
+      className="flex shrink-0 flex-col items-center gap-2"
+      style={{ width: THUMBNAIL_WIDTH }}
+    >
       <button
         type="button"
         className={cn(
-          "group relative h-16 w-[100px] overflow-visible rounded-[6px] border-[1.5px] bg-card text-left transition-[transform,opacity,border-color] duration-150 ease-out",
+          "group relative overflow-visible rounded-[6px] border-[1.5px] bg-card text-left transition-[transform,opacity,border-color] duration-150 ease-out",
           hovered && "scale-[1.04]",
           (hovered || active) && !deleteConfirming && "border-primary",
           deleteConfirming && "border-destructive",
           !hovered && !active && !deleteConfirming && "border-border/70"
         )}
+        style={{
+          width: THUMBNAIL_WIDTH,
+          height: THUMBNAIL_HEIGHT,
+          willChange: "transform, opacity",
+        }}
         onMouseEnter={() => {
           onHoverWorkspace(workspace.id);
           onHighlightWorkspace(workspace.id);
@@ -115,9 +129,9 @@ function WorkspaceLabel({
         <div className="absolute inset-0 overflow-hidden rounded-[4px]">
           <div
             style={{
-              width: 320,
-              height: 204,
-              transform: "scale(0.3125)",
+              width: THUMBNAIL_SCENE_WIDTH,
+              height: THUMBNAIL_SCENE_HEIGHT,
+              transform: `scale(${THUMBNAIL_SCENE_SCALE})`,
               transformOrigin: "top left",
             }}
           >
@@ -160,13 +174,14 @@ function WorkspaceLabel({
               onSetRenamingWorkspace(null);
             }
           }}
-          className="h-7 w-[100px] rounded-[4px] border-[0.5px] px-2 text-center font-mono text-[10px]"
+          className="h-7 rounded-[4px] border-[0.5px] px-2 text-center font-mono text-[10px]"
+          style={{ width: THUMBNAIL_WIDTH }}
         />
       ) : (
         <button
           type="button"
           className={cn(
-            "w-[100px] truncate text-center font-mono text-[10px] transition-colors",
+            "truncate text-center font-mono text-[10px] transition-colors",
             deleteConfirming
               ? "text-destructive"
               : active
@@ -177,13 +192,24 @@ function WorkspaceLabel({
           )}
           onDoubleClick={() => onSetRenamingWorkspace(workspace.id)}
           onClick={() => onActivateWorkspace(workspace.id)}
+          style={{ width: THUMBNAIL_WIDTH }}
         >
           {deleteConfirming ? "Confirm delete" : workspace.name}
         </button>
       )}
     </div>
   );
-}
+}, (previousProps, nextProps) => {
+  return (
+    previousProps.workspace === nextProps.workspace &&
+    previousProps.index === nextProps.index &&
+    previousProps.active === nextProps.active &&
+    previousProps.hovered === nextProps.hovered &&
+    previousProps.renaming === nextProps.renaming &&
+    previousProps.deleteConfirming === nextProps.deleteConfirming &&
+    previousProps.open === nextProps.open
+  );
+});
 
 export const WorkspaceSwitcher = memo(function WorkspaceSwitcher({
   open,
@@ -233,7 +259,7 @@ export const WorkspaceSwitcher = memo(function WorkspaceSwitcher({
         )}
       >
         <div className="border-b border-[0.5px] border-border/60 bg-background-app px-4 pt-4">
-          <div className="flex items-start gap-3 overflow-hidden pb-4">
+          <div className="mx-auto flex max-w-[1180px] flex-wrap items-start justify-center gap-4 pb-4">
             {workspaces.map((workspace, index) => {
               const hovered =
                 workspace.id === hoveredWorkspaceId ||
@@ -270,17 +296,28 @@ export const WorkspaceSwitcher = memo(function WorkspaceSwitcher({
               );
             })}
 
-            <div className="flex w-[100px] shrink-0 flex-col items-center gap-1.5">
+            <div
+              className="flex shrink-0 flex-col items-center gap-2"
+              style={{ width: THUMBNAIL_WIDTH }}
+            >
               <Button
                 type="button"
                 variant="outline"
                 className="h-16 w-[100px] rounded-[6px] border-[0.5px] border-dashed border-border bg-card font-mono text-[10px] text-muted-foreground transition-[transform,opacity,border-color,color] duration-150 ease-out hover:border-primary hover:text-primary"
+                style={{
+                  width: THUMBNAIL_WIDTH,
+                  height: THUMBNAIL_HEIGHT,
+                  willChange: "transform, opacity",
+                }}
                 onMouseEnter={() => onHoverWorkspace(null)}
                 onClick={onCreateWorkspace}
               >
                 <Plus className="size-4" />
               </Button>
-              <span className="w-[100px] truncate text-center font-mono text-[10px] text-muted-foreground">
+              <span
+                className="truncate text-center font-mono text-[10px] text-muted-foreground"
+                style={{ width: THUMBNAIL_WIDTH }}
+              >
                 Add workspace
               </span>
             </div>
@@ -299,6 +336,8 @@ export const WorkspaceSwitcher = memo(function WorkspaceSwitcher({
                   opacity: visible ? 1 : 0,
                   visibility: visible ? "visible" : "hidden",
                   pointerEvents: visible ? "auto" : "none",
+                  willChange: "opacity",
+                  contain: "layout paint style",
                 }}
               >
                 <WorkspaceScene workspace={workspace} />
