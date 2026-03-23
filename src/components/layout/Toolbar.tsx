@@ -252,37 +252,39 @@ export const Toolbar = memo(function Toolbar({
         {uiView === "workspace" && hasSelection && (
           <div className="absolute left-1/2 top-1/2 w-full max-w-[520px] -translate-x-1/2 -translate-y-1/2 px-2">
             <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="h-8 w-8"
-                    onClick={undo}
-                    disabled={!canUndo()}
-                  >
-                    <Undo2 className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
-              </Tooltip>
+              <div className="flex items-center gap-1 shrink-0">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="h-8 w-8"
+                      onClick={undo}
+                      disabled={!canUndo()}
+                    >
+                      <Undo2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
+                </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="h-8 w-8"
-                    onClick={redo}
-                    disabled={!canRedo()}
-                  >
-                    <Redo2 className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Redo (Ctrl+Y)</TooltipContent>
-              </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="h-8 w-8"
+                      onClick={redo}
+                      disabled={!canRedo()}
+                    >
+                      <Redo2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Redo (Ctrl+Y)</TooltipContent>
+                </Tooltip>
+              </div>
 
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
