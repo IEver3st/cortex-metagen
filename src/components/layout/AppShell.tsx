@@ -14,6 +14,8 @@ import { StatusBar } from "./StatusBar";
 import { Toolbar } from "./Toolbar";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { WorkspaceHome } from "./WorkspaceHome";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import type { WorkspaceSwitcherWorkspace } from "@/store/workspace-switcher-store";
 
 const CodePreview = lazy(() => import("./CodePreview").then((module) => ({ default: module.CodePreview })));
 const HandlingEditor = lazy(() => import("@/components/editors/HandlingEditor").then((module) => ({ default: module.HandlingEditor })));
@@ -146,6 +148,23 @@ interface AppShellProps {
   onClearSession?: () => void;
   problemsPanelVisible?: boolean;
   onToggleProblemsPanel?: () => void;
+  workspaceSwitcherOpen?: boolean;
+  workspaceSwitcherWorkspaceCount?: number;
+  switcherWorkspaces?: WorkspaceSwitcherWorkspace[];
+  activeWorkspaceId?: string | null;
+  highlightedWorkspaceId?: string | null;
+  hoveredWorkspaceId?: string | null;
+  keyboardPreviewActive?: boolean;
+  renamingWorkspaceId?: string | null;
+  deleteConfirmationId?: string | null;
+  onHoverWorkspace?: (workspaceId: string | null) => void;
+  onHighlightWorkspace?: (workspaceId: string | null) => void;
+  onActivateWorkspace?: (workspaceId: string) => void;
+  onCreateWorkspace?: () => void;
+  onRenameWorkspace?: (workspaceId: string, name: string) => void;
+  onSetRenamingWorkspace?: (workspaceId: string | null) => void;
+  onRequestDeleteWorkspace?: (workspaceId: string | null) => void;
+  onDeleteWorkspace?: (workspaceId: string) => void;
 }
 
 export function AppShell({
@@ -166,6 +185,23 @@ export function AppShell({
   onClearSession,
   problemsPanelVisible = true,
   onToggleProblemsPanel,
+  workspaceSwitcherOpen = false,
+  workspaceSwitcherWorkspaceCount = 0,
+  switcherWorkspaces = [],
+  activeWorkspaceId = null,
+  highlightedWorkspaceId = null,
+  hoveredWorkspaceId = null,
+  keyboardPreviewActive = false,
+  renamingWorkspaceId = null,
+  deleteConfirmationId = null,
+  onHoverWorkspace,
+  onHighlightWorkspace,
+  onActivateWorkspace,
+  onCreateWorkspace,
+  onRenameWorkspace,
+  onSetRenamingWorkspace,
+  onRequestDeleteWorkspace,
+  onDeleteWorkspace,
 }: AppShellProps) {
   const codePreviewVisible = useMetaStore((state) => state.codePreviewVisible);
   const vehicles = useMetaStore((state) => state.vehicles);
@@ -192,55 +228,86 @@ export function AppShell({
         uiView={uiView}
       />
 
-      <div className="flex min-h-0 flex-1 overflow-hidden border-t border-border/70 bg-background-app">
-        <IdeSidebar
-          collapsed={sidebarCollapsed}
-          onOpenFile={onOpenFile}
-          onOpenFolder={onOpenFolder}
-          uiView={uiView}
-        />
+      <div className="relative flex min-h-0 flex-1 overflow-hidden border-t border-border/70 bg-background-app">
+        <div
+          className="flex min-h-0 flex-1 overflow-hidden"
+          style={{
+            opacity: workspaceSwitcherOpen ? 0.4 : 1,
+            transform: workspaceSwitcherOpen ? "scale(0.97)" : "scale(1)",
+            transformOrigin: "center top",
+            transition: workspaceSwitcherOpen
+              ? "transform 180ms ease-out, opacity 180ms ease-out"
+              : "transform 180ms ease-in, opacity 180ms ease-in",
+          }}
+        >
+          <IdeSidebar
+            collapsed={sidebarCollapsed}
+            onOpenFile={onOpenFile}
+            onOpenFolder={onOpenFolder}
+            uiView={uiView}
+          />
 
-        <div className="min-w-0 flex-1 overflow-hidden">
-          {uiView === "settings" ? (
-            <SettingsView onClearSession={onClearSession} />
-          ) : uiView === "merge" ? (
-            <Suspense fallback={<EditorFallback />}>
-              <MetaMergingView />
-            </Suspense>
-          ) : uiView === "workspace" && hasVehicles ? (
-            <ResizablePanelGroup direction="horizontal">
-              <ResizablePanel defaultSize={60} minSize={30}>
-                <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-                  <WorkspaceHeader />
-                  <div className="min-h-0 flex-1 overflow-hidden">
-                    <EditorPanel />
+          <div className="min-w-0 flex-1 overflow-hidden">
+            {uiView === "settings" ? (
+              <SettingsView onClearSession={onClearSession} />
+            ) : uiView === "merge" ? (
+              <Suspense fallback={<EditorFallback />}>
+                <MetaMergingView />
+              </Suspense>
+            ) : uiView === "workspace" && hasVehicles ? (
+              <ResizablePanelGroup direction="horizontal">
+                <ResizablePanel defaultSize={60} minSize={30}>
+                  <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+                    <WorkspaceHeader />
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                      <EditorPanel />
+                    </div>
                   </div>
-                </div>
-              </ResizablePanel>
+                </ResizablePanel>
 
-              {codePreviewVisible ? (
-                <>
-                  <ResizableHandle className="w-1.5" />
-                  <ResizablePanel defaultSize={40} minSize={20}>
-                    <Suspense fallback={<EditorFallback />}>
-                      <CodePreview />
-                    </Suspense>
-                  </ResizablePanel>
-                </>
-              ) : null}
-            </ResizablePanelGroup>
-          ) : (
-            <WorkspaceHome
-              onOpenFolder={onOpenFolder}
-              onOpenFile={onOpenFile}
-              onOpenRecentFile={onOpenRecentFile}
-              onOpenRecentWorkspace={onOpenRecentWorkspace || onOpenFolder}
-              recentFiles={recentFiles ?? []}
-              recentWorkspaces={recentWorkspaces ?? []}
-              workspacePath={workspacePath}
-            />
-          )}
+                {codePreviewVisible ? (
+                  <>
+                    <ResizableHandle className="w-1.5" />
+                    <ResizablePanel defaultSize={40} minSize={20}>
+                      <Suspense fallback={<EditorFallback />}>
+                        <CodePreview />
+                      </Suspense>
+                    </ResizablePanel>
+                  </>
+                ) : null}
+              </ResizablePanelGroup>
+            ) : (
+              <WorkspaceHome
+                onOpenFolder={onOpenFolder}
+                onOpenFile={onOpenFile}
+                onOpenRecentFile={onOpenRecentFile}
+                onOpenRecentWorkspace={onOpenRecentWorkspace || onOpenFolder}
+                recentFiles={recentFiles ?? []}
+                recentWorkspaces={recentWorkspaces ?? []}
+                workspacePath={workspacePath}
+              />
+            )}
+          </div>
         </div>
+
+        <WorkspaceSwitcher
+          open={workspaceSwitcherOpen}
+          workspaces={switcherWorkspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          highlightedWorkspaceId={highlightedWorkspaceId}
+          hoveredWorkspaceId={hoveredWorkspaceId}
+          keyboardPreviewActive={keyboardPreviewActive}
+          renamingWorkspaceId={renamingWorkspaceId}
+          deleteConfirmationId={deleteConfirmationId}
+          onHoverWorkspace={onHoverWorkspace ?? (() => undefined)}
+          onHighlightWorkspace={onHighlightWorkspace ?? (() => undefined)}
+          onActivateWorkspace={onActivateWorkspace ?? (() => undefined)}
+          onCreateWorkspace={onCreateWorkspace ?? (() => undefined)}
+          onRenameWorkspace={onRenameWorkspace ?? (() => undefined)}
+          onSetRenamingWorkspace={onSetRenamingWorkspace ?? (() => undefined)}
+          onRequestDeleteWorkspace={onRequestDeleteWorkspace ?? (() => undefined)}
+          onDeleteWorkspace={onDeleteWorkspace ?? (() => undefined)}
+        />
       </div>
 
       <AnimatePresence>
@@ -263,6 +330,8 @@ export function AppShell({
         onDismissValidation={onDismissValidation}
         problemsPanelVisible={problemsPanelVisible}
         onToggleProblemsPanel={onToggleProblemsPanel}
+        workspaceSwitcherOpen={workspaceSwitcherOpen}
+        workspaceCount={workspaceSwitcherWorkspaceCount}
       />
 
       {isDragActive ? (

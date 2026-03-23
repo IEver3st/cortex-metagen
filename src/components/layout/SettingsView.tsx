@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { SquareToggle } from "@/components/SquareToggle";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -9,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUpdateChecker } from "@/lib/updater";
 import { useMetaStore, type PerformanceSpeedUnit } from "@/store/meta-store";
 import { BugReportForm } from "./BugReportForm";
@@ -19,9 +21,11 @@ import {
   FileClock,
   Gauge,
   Code2,
+  Keyboard,
   PencilLine,
   Trash2,
   Bug,
+  Settings,
 } from "lucide-react";
 
 interface SettingsViewProps {
@@ -49,35 +53,34 @@ export function SettingsView({
   const appVersion = update.currentVersion ?? "...";
 
   return (
-    <div className="relative h-full w-full overflow-y-auto bg-[#040d1a] font-sans text-slate-100">
-      {/* Background Decorative Element (Subtle Gradient) */}
-      <div className="fixed inset-0 bg-gradient-to-br from-[#040d1a] via-[#06152a] to-[#040d1a] opacity-50 pointer-events-none" />
-      
-      <div className="relative px-6 py-8">
+    <ScrollArea className="h-full w-full bg-background-app">
+      <div className="px-6 py-8">
         <div className="mx-auto max-w-3xl space-y-10">
-          {/* Header */}
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-white">Settings</h1>
-            <p className="text-sm text-slate-400">
-              Configure your interface preferences and manage local session data.
-            </p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            <Header />
+          </motion.div>
 
           <div className="space-y-8">
-            {/* Interface Section */}
-            <section className="space-y-4">
+            <motion.section
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut", delay: 0.05 }}
+            >
               <SectionHeader title="Interface" />
-              <div className="divide-y divide-[#1b2b46] rounded-md border border-[#1b2b46] bg-[#0b1424]">
+              <div className="mt-4 divide-y divide-border rounded-lg border border-border bg-card">
                 <SettingRow
                   icon={<PanelLeft className="size-4" />}
                   title="Compact Sidebar"
                   description="Minimize the navigation rail to icons only."
                   control={
-                    <SquareToggle
+                    <Switch
                       checked={sidebarCollapsed}
                       onCheckedChange={setSidebarCollapsed}
-                      ariaLabel="Compact Sidebar"
-                      variant="slider"
+                      aria-label="Compact Sidebar"
                     />
                   }
                 />
@@ -86,11 +89,10 @@ export function SettingsView({
                   title="Live Code Preview"
                   description="Display the generated XML output alongside the editor."
                   control={
-                    <SquareToggle
+                    <Switch
                       checked={codePreviewVisible}
                       onCheckedChange={setCodePreviewVisible}
-                      ariaLabel="Live Code Preview"
-                      variant="slider"
+                      aria-label="Live Code Preview"
                     />
                   }
                 />
@@ -107,10 +109,10 @@ export function SettingsView({
                         }
                       }}
                     >
-                      <SelectTrigger className="h-8 w-[164px] border-[#1b2b46] bg-[#0b1424] text-xs text-slate-200">
+                      <SelectTrigger className="h-9 w-[164px]">
                         <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
-                      <SelectContent className="border-[#1b2b46] bg-[#0b1424] text-slate-100">
+                      <SelectContent>
                         <SelectItem value="mph">MPH (Imperial)</SelectItem>
                         <SelectItem value="kph">KPH (Metric)</SelectItem>
                       </SelectContent>
@@ -122,76 +124,140 @@ export function SettingsView({
                   title="Direct Edit Mode"
                   description="Enable manual editing of the XML code panel."
                   control={
-                    <SquareToggle
+                    <Switch
                       checked={editorEditMode}
-                      onCheckedChange={(checked) => {
-                        if (checked !== editorEditMode) toggleEditorEditMode();
+                      onCheckedChange={() => {
+                        toggleEditorEditMode();
                       }}
-                      ariaLabel="Direct Edit Mode"
-                      variant="slider"
+                      aria-label="Direct Edit Mode"
                     />
                   }
                 />
               </div>
-            </section>
+            </motion.section>
 
-            {/* Session Section */}
-            <section className="space-y-4">
+            <motion.section
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut", delay: 0.1 }}
+            >
               <SectionHeader title="Session Data" />
-              <div className="rounded-md border border-[#1b2b46] bg-[#0b1424] p-4 space-y-4">
+              <div className="mt-4 rounded-lg border border-border bg-card p-4">
                 <div className="flex items-center justify-between gap-6">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <FileClock className="size-4 shrink-0 text-slate-400" />
-                      <span className="text-sm font-medium text-slate-200">Recent file history</span>
+                      <FileClock className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="text-sm font-medium text-card-foreground">Recent file history</span>
                     </div>
-                    <p className="text-xs text-slate-500">{recentFiles.length} entries stored locally</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{recentFiles.length} entries stored locally</p>
                   </div>
 
                   <div className="flex shrink-0 gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      className="h-9 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={clearRecentFiles}
                     >
-                      <Trash2 className="size-3.5 mr-1" /> Clear Recent Files
+                      <Trash2 className="size-3.5 mr-1.5" /> Clear Recent Files
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      className="h-9 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={onClearSession}
                     >
-                      <ArchiveX className="size-3.5 mr-1" /> Reset Session
+                      <ArchiveX className="size-3.5 mr-1.5" /> Reset Session
                     </Button>
                   </div>
                 </div>
 
-                <Separator className="bg-[#1b2b46]" />
+                <Separator className="my-4" />
 
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground leading-5">
                   Clearing recent files only removes the recent file/workspace list. Resetting session clears the full local workspace snapshot.
                 </p>
               </div>
-            </section>
+            </motion.section>
 
-            <section className="space-y-4">
+            <motion.section
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut", delay: 0.15 }}
+            >
+              <SectionHeader title="Hotkeys & shortcuts" />
+              <div className="mt-4 rounded-lg border border-border bg-card">
+                <ShortcutRow
+                  icon={<Keyboard className="size-4" />}
+                  title="Open workspace switcher"
+                  description="Zoom out into the workspace swapper and preview other workspaces."
+                  shortcut="Ctrl+`"
+                />
+                <ShortcutRow
+                  icon={<Keyboard className="size-4" />}
+                  title="Jump to a workspace"
+                  description="Switch directly to the first nine workspaces by index."
+                  shortcut="Ctrl+1–9"
+                />
+                <ShortcutRow
+                  icon={<Keyboard className="size-4" />}
+                  title="Navigate the switcher"
+                  description="Move the highlight, preview, confirm, or cancel from the keyboard."
+                  shortcut="Arrow keys / Enter / Escape"
+                />
+                <ShortcutRow
+                  icon={<Keyboard className="size-4" />}
+                  title="Open command palette"
+                  description="Search actions, navigation, and workspace commands."
+                  shortcut="Ctrl+Shift+P"
+                />
+                <ShortcutRow
+                  icon={<Keyboard className="size-4" />}
+                  title="Open file"
+                  description="Import a single `.meta` or `.xml` file."
+                  shortcut="Ctrl+O"
+                />
+                <ShortcutRow
+                  icon={<Keyboard className="size-4" />}
+                  title="Save current file"
+                  description="Write the active metadata document back to disk."
+                  shortcut="Ctrl+S"
+                />
+                <ShortcutRow
+                  icon={<Keyboard className="size-4" />}
+                  title="Undo and redo"
+                  description="Step backward or forward through recent editor changes."
+                  shortcut="Ctrl+Z / Ctrl+Y"
+                  last
+                />
+              </div>
+            </motion.section>
+
+            <motion.section
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut", delay: 0.18 }}
+            >
               <SectionHeader title="Updates" />
-              <UpdateSettingsCard update={update} />
-            </section>
+              <div className="mt-4">
+                <UpdateSettingsCard update={update} />
+              </div>
+            </motion.section>
 
-            {/* Support Section */}
-            <section className="space-y-4">
+            <motion.section
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut", delay: 0.22 }}
+            >
               <SectionHeader title="Support" />
-              <div className="rounded-md border border-[#1b2b46] bg-[#0b1424]">
-                <div className="flex items-start gap-4 p-4 border-b border-[#1b2b46]">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded bg-white/[0.03] border border-white/5 text-slate-300">
+              <div className="mt-4 rounded-lg border border-border bg-card">
+                <div className="flex items-start gap-4 p-4 border-b border-border">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded bg-muted/30 border border-border text-muted-foreground">
                     <Bug className="size-4" />
                   </div>
                   <div className="space-y-0.5">
-                    <h4 className="text-sm font-medium leading-none text-slate-200">Report a Bug</h4>
-                    <p className="text-xs text-slate-500">
+                    <h4 className="text-sm font-medium leading-none text-card-foreground">Report a Bug</h4>
+                    <p className="text-xs text-muted-foreground">
                       Found something broken? Submit a report and it will be filed directly on GitHub.
                     </p>
                   </div>
@@ -200,14 +266,34 @@ export function SettingsView({
                   <BugReportForm />
                 </div>
               </div>
-            </section>
+            </motion.section>
           </div>
 
-          {/* Footer Info */}
-          <div className="pt-4 border-t border-[#1b2b46] flex items-center justify-end text-[10px] uppercase tracking-widest text-slate-500">
+          <motion.footer
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2, ease: "easeOut", delay: 0.28 }}
+            className="pt-4 border-t border-border flex items-center justify-end text-[10px] uppercase tracking-[0.08em] text-muted-foreground"
+          >
             <span>Cortex Metagen v{appVersion}</span>
-          </div>
+          </motion.footer>
         </div>
+      </div>
+    </ScrollArea>
+  );
+}
+
+function Header() {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+        <Settings className="size-5 text-primary" />
+      </div>
+      <div className="space-y-0.5">
+        <h1 className="text-base font-semibold tracking-tight text-foreground">Settings</h1>
+        <p className="text-xs text-muted-foreground">
+          Configure your interface preferences and manage local session data.
+        </p>
       </div>
     </div>
   );
@@ -215,7 +301,9 @@ export function SettingsView({
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">{title}</h3>
+    <h3 className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground px-1">
+      {title}
+    </h3>
   );
 }
 
@@ -228,17 +316,48 @@ interface SettingRowProps {
 
 function SettingRow({ icon, title, description, control }: SettingRowProps) {
   return (
-    <div className="flex items-center justify-between p-4 transition-colors hover:bg-white/[0.02]">
+    <div className="flex items-center justify-between p-4 transition-colors hover:bg-muted/30">
       <div className="flex items-start gap-4">
-        <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded bg-white/[0.03] border border-white/5 text-slate-300">
+        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded bg-muted/30 border border-border text-muted-foreground">
           {icon}
         </div>
         <div className="space-y-0.5">
-          <h4 className="text-sm font-medium leading-none text-slate-200">{title}</h4>
-          <p className="text-xs text-slate-500">{description}</p>
+          <h4 className="text-sm font-medium leading-none text-card-foreground">{title}</h4>
+          <p className="text-xs text-muted-foreground leading-5">{description}</p>
         </div>
       </div>
       <div className="shrink-0">{control}</div>
+    </div>
+  );
+}
+
+interface ShortcutRowProps {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  shortcut: string;
+  last?: boolean;
+}
+
+function ShortcutRow({
+  icon,
+  title,
+  description,
+  shortcut,
+  last = false,
+}: ShortcutRowProps) {
+  return (
+    <div className={last ? undefined : "border-b border-border"}>
+      <SettingRow
+        icon={icon}
+        title={title}
+        description={description}
+        control={(
+          <div className="rounded-md border border-border bg-muted/30 px-2 py-1 font-mono text-[10px] tracking-[0.08em] text-muted-foreground">
+            {shortcut}
+          </div>
+        )}
+      />
     </div>
   );
 }

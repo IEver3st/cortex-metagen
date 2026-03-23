@@ -3,11 +3,13 @@ use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
+use tauri::Manager;
 
 const MAX_SCAN_DEPTH: usize = 32;
 const MAX_SCAN_FILES: usize = 20_000;
 const MAX_SCAN_DURATION: Duration = Duration::from_secs(8);
 const MAX_BUG_REPORT_LOG_CHARS: usize = 40_000;
+const WORKSPACE_SWITCHER_FILENAME: &str = "workspace-switcher.json";
 
 #[tauri::command]
 fn read_meta_file(path: String) -> Result<String, String> {
@@ -17,6 +19,31 @@ fn read_meta_file(path: String) -> Result<String, String> {
 #[tauri::command]
 fn write_meta_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+fn workspace_switcher_state_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join(WORKSPACE_SWITCHER_FILENAME))
+}
+
+#[tauri::command]
+fn read_workspace_switcher_state(app: tauri::AppHandle) -> Result<String, String> {
+    let path = workspace_switcher_state_path(&app)?;
+    if !path.exists() {
+        return Ok(String::new());
+    }
+
+    std::fs::read_to_string(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn write_workspace_switcher_state(
+    app: tauri::AppHandle,
+    content: String,
+) -> Result<(), String> {
+    let path = workspace_switcher_state_path(&app)?;
+    std::fs::write(path, content).map_err(|e| e.to_string())
 }
 
 #[derive(serde::Deserialize)]
@@ -303,6 +330,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_meta_file,
             write_meta_file,
+            read_workspace_switcher_state,
+            write_workspace_switcher_state,
             list_workspace_meta_files,
             write_zip_archive,
             inspect_updater_release,

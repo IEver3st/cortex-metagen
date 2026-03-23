@@ -23,6 +23,8 @@ interface StatusBarProps {
   onDismissValidation?: () => void;
   problemsPanelVisible?: boolean;
   onToggleProblemsPanel?: () => void;
+  workspaceSwitcherOpen?: boolean;
+  workspaceCount?: number;
 }
 
 function SegmentSeparator() {
@@ -37,6 +39,8 @@ export const StatusBar = memo(function StatusBar({
   onDismissValidation,
   problemsPanelVisible = true,
   onToggleProblemsPanel,
+  workspaceSwitcherOpen = false,
+  workspaceCount = 0,
 }: StatusBarProps) {
   const vehicles = useMetaStore((state) => state.vehicles);
   const filePath = useMetaStore((state) => state.filePath);
@@ -55,6 +59,16 @@ export const StatusBar = memo(function StatusBar({
         return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
       })()
     : "No file open";
+
+  if (workspaceSwitcherOpen) {
+    return (
+      <div className="flex h-5 items-center justify-between gap-3 border-t border-primary/25 bg-primary px-3 font-mono text-[9px] tracking-[0.08em] text-primary-foreground">
+        <span className="uppercase">workspace switcher</span>
+        <span className="uppercase">{workspaceCount} workspaces</span>
+        <span className="uppercase">Ctrl+1–9 to jump</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-5 items-center justify-between gap-3 border-t border-primary/25 bg-primary px-3 font-display text-[9px] tracking-[0.08em] text-primary-foreground">

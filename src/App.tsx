@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { WorkspaceRestoreBanner } from "@/components/layout/WorkspaceRestoreBanner";
 import { UpdateToast } from "@/components/layout/UpdateToast";
 import { useMetaStore, type MetaFileType, type SessionSnapshot, type VehicleEntry } from "@/store/meta-store";
 import { parseMetaFile, detectMetaType, type ParseDiagnostic } from "@/lib/xml-parser";
@@ -13,6 +14,11 @@ import { VehiclesMetaEnhancementsPanel } from "@/components/layout/VehiclesMetaE
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { logger } from "@/lib/logger";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import {
+  buildPersistedWorkspaceSwitcherState,
+  useWorkspaceSwitcherStore,
+  type PersistedWorkspaceSwitcherState,
+} from "@/store/workspace-switcher-store";
 
 const SESSION_KEY = "cortex-metagen.session.v1";
 const SESSION_MAX_BYTES = 2_500_000;
@@ -154,12 +160,35 @@ function readInitialSessionState(): InitialSessionState {
   }
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+}
+
+function createBlankWorkspaceSnapshot(snapshot: SessionSnapshot): SessionSnapshot {
+  return {
+    ...snapshot,
+    vehicles: {},
+    activeVehicleId: null,
+    uiView: "home",
+    explorerVisible: true,
+    filePath: null,
+    workspacePath: null,
+    workspaceMetaFiles: [],
+    sourceFileByType: {},
+    openVehicleIds: [],
+    isDirty: false,
+    timestamp: Date.now(),
+  };
+}
+
 function App() {
   const setUIView = useMetaStore((s) => s.setUIView);
   const loadVehicles = useMetaStore((s) => s.loadVehicles);
   const vehicles = useMetaStore((s) => s.vehicles);
   const activeTab = useMetaStore((s) => s.activeTab);
   const setActiveTab = useMetaStore((s) => s.setActiveTab);
+  const filePath = useMetaStore((s) => s.filePath);
   const setFilePath = useMetaStore((s) => s.setFilePath);
   const setSourceFilePath = useMetaStore((s) => s.setSourceFilePath);
   const sourceFileByType = useMetaStore((s) => s.sourceFileByType);
@@ -179,9 +208,34 @@ function App() {
   const hydrateSessionSnapshot = useMetaStore((s) => s.hydrateSessionSnapshot);
   const isDirty = useMetaStore((s) => s.isDirty);
   const setLastAutoSavedAt = useMetaStore((s) => s.setLastAutoSavedAt);
+  const startNewProject = useMetaStore((s) => s.startNewProject);
 
   const toggleCommandPalette = useWorkspaceStore((s) => s.toggleCommandPalette);
   const openWorkspaceFromFolder = useWorkspaceStore((s) => s.openWorkspaceFromFolder);
+  const workspaceSwitcherOpen = useWorkspaceSwitcherStore((s) => s.isOpen);
+  const keyboardPreviewActive = useWorkspaceSwitcherStore((s) => s.keyboardPreviewActive);
+  const switcherReady = useWorkspaceSwitcherStore((s) => s.ready);
+  const switcherActiveWorkspaceId = useWorkspaceSwitcherStore((s) => s.activeWorkspaceId);
+  const highlightedWorkspaceId = useWorkspaceSwitcherStore((s) => s.highlightedWorkspaceId);
+  const hoveredWorkspaceId = useWorkspaceSwitcherStore((s) => s.hoveredWorkspaceId);
+  const renamingWorkspaceId = useWorkspaceSwitcherStore((s) => s.renamingWorkspaceId);
+  const deleteConfirmationId = useWorkspaceSwitcherStore((s) => s.deleteConfirmationId);
+  const switcherWorkspaces = useWorkspaceSwitcherStore((s) => s.workspaces);
+  const restoredUnsavedWorkspaceId = useWorkspaceSwitcherStore((s) => s.restoredUnsavedWorkspaceId);
+  const initializeWorkspaceSwitcher = useWorkspaceSwitcherStore((s) => s.initialize);
+  const openWorkspaceSwitcher = useWorkspaceSwitcherStore((s) => s.openSwitcher);
+  const closeWorkspaceSwitcher = useWorkspaceSwitcherStore((s) => s.closeSwitcher);
+  const setHoveredWorkspace = useWorkspaceSwitcherStore((s) => s.setHoveredWorkspace);
+  const moveWorkspaceHighlight = useWorkspaceSwitcherStore((s) => s.moveHighlight);
+  const setHighlightedWorkspace = useWorkspaceSwitcherStore((s) => s.setHighlightedWorkspace);
+  const activateSwitcherWorkspace = useWorkspaceSwitcherStore((s) => s.activateWorkspace);
+  const syncActiveWorkspace = useWorkspaceSwitcherStore((s) => s.syncActiveWorkspace);
+  const createSwitcherWorkspace = useWorkspaceSwitcherStore((s) => s.createWorkspace);
+  const renameSwitcherWorkspace = useWorkspaceSwitcherStore((s) => s.renameWorkspace);
+  const setRenamingWorkspace = useWorkspaceSwitcherStore((s) => s.setRenamingWorkspace);
+  const requestDeleteWorkspace = useWorkspaceSwitcherStore((s) => s.requestDeleteWorkspace);
+  const deleteSwitcherWorkspace = useWorkspaceSwitcherStore((s) => s.deleteWorkspace);
+  const dismissRestoredUnsavedState = useWorkspaceSwitcherStore((s) => s.dismissRestoredUnsavedState);
 
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
   const [validationFileName, setValidationFileName] = useState<string>("");
@@ -190,8 +244,71 @@ function App() {
   const [initialSession] = useState<InitialSessionState>(readInitialSessionState);
   const [pendingSnapshot, setPendingSnapshot] = useState<SessionSnapshot | null>(initialSession.pendingSnapshot);
   const [restoreOpen, setRestoreOpen] = useState(Boolean(initialSession.pendingSnapshot));
+  const workspaceBootstrapRef = useRef(false);
   const update = useUpdateChecker();
   const duplicateIssues = detectDuplicateEntryIssues(vehicles);
+  const restoredUnsavedWorkspace = useMemo(
+    () => switcherWorkspaces.find((workspace) => workspace.id === restoredUnsavedWorkspaceId) ?? null,
+    [restoredUnsavedWorkspaceId, switcherWorkspaces],
+  );
+
+  const syncActiveWorkspaceFromStore = useCallback((overrideSnapshot?: SessionSnapshot) => {
+    const snapshot = overrideSnapshot ?? getSessionSnapshot();
+    const openFiles = workspacePath
+      ? workspaceMetaFiles
+      : [snapshot.filePath, ...Object.values(snapshot.sourceFileByType)].filter(
+          (path): path is string => typeof path === "string" && path.length > 0,
+        );
+
+    syncActiveWorkspace({
+      folderPath: workspacePath,
+      openFiles,
+      activeFile: snapshot.filePath,
+      snapshot,
+      hasUnsavedState: snapshot.isDirty,
+    });
+  }, [getSessionSnapshot, syncActiveWorkspace, workspaceMetaFiles, workspacePath]);
+
+  const activateWorkspace = useCallback((workspaceId: string) => {
+    syncActiveWorkspaceFromStore();
+    const targetWorkspace = useWorkspaceSwitcherStore.getState().workspaces.find((workspace) => workspace.id === workspaceId) ?? null;
+    if (!targetWorkspace) return;
+
+    activateSwitcherWorkspace(workspaceId);
+    if (targetWorkspace.snapshot) {
+      hydrateSessionSnapshot(targetWorkspace.snapshot);
+      setUIView(targetWorkspace.snapshot.uiView);
+      setLastAutoSavedAt(targetWorkspace.snapshot.timestamp ?? Date.now());
+      return;
+    }
+
+    startNewProject();
+    setUIView("home");
+    setWorkspace(targetWorkspace.folderPath, targetWorkspace.openFiles);
+    setFilePath(targetWorkspace.activeFile);
+    setLastAutoSavedAt(null);
+  }, [
+    activateSwitcherWorkspace,
+    hydrateSessionSnapshot,
+    setFilePath,
+    setLastAutoSavedAt,
+    setUIView,
+    setWorkspace,
+    startNewProject,
+    syncActiveWorkspaceFromStore,
+  ]);
+
+  const handleDeleteWorkspace = useCallback((workspaceId: string) => {
+    const fallbackWorkspaceId = switcherWorkspaces.find((workspace) => workspace.id !== workspaceId)?.id ?? null;
+    const deletingActiveWorkspace = switcherActiveWorkspaceId === workspaceId;
+    deleteSwitcherWorkspace(workspaceId);
+
+    if (deletingActiveWorkspace && fallbackWorkspaceId) {
+      window.setTimeout(() => {
+        activateWorkspace(fallbackWorkspaceId);
+      }, 0);
+    }
+  }, [activateWorkspace, deleteSwitcherWorkspace, switcherActiveWorkspaceId, switcherWorkspaces]);
 
   const openMetaPath = useCallback(async (filePath: string) => {
     logger.info("app", `Opening file: ${filePath}`);
@@ -466,7 +583,138 @@ function App() {
   }, [vehicles]);
 
   useEffect(() => {
+    if (workspaceBootstrapRef.current) return;
+    workspaceBootstrapRef.current = true;
+
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      try {
+        const raw = await invoke<string>("read_workspace_switcher_state");
+        if (cancelled) return;
+
+        const parsed = raw ? JSON.parse(raw) as PersistedWorkspaceSwitcherState : null;
+        initializeWorkspaceSwitcher(parsed);
+      } catch (error) {
+        logger.warn("workspace-switcher", "Failed to read workspace switcher state", error);
+        initializeWorkspaceSwitcher(null);
+      }
+    };
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [initializeWorkspaceSwitcher]);
+
+  useEffect(() => {
+    if (!switcherReady || switcherWorkspaces.length > 0) return;
+
+    const snapshot = pendingSnapshot ?? createBlankWorkspaceSnapshot(getSessionSnapshot());
+    const createdWorkspaceId = createSwitcherWorkspace();
+    activateSwitcherWorkspace(createdWorkspaceId);
+    syncActiveWorkspaceFromStore(snapshot);
+  }, [
+    activateSwitcherWorkspace,
+    createSwitcherWorkspace,
+    getSessionSnapshot,
+    pendingSnapshot,
+    switcherReady,
+    switcherWorkspaces.length,
+    syncActiveWorkspaceFromStore,
+  ]);
+
+  useEffect(() => {
+    if (!switcherReady || !switcherActiveWorkspaceId) return;
+
+    syncActiveWorkspaceFromStore();
+  }, [
+    activeTab,
+    filePath,
+    getSessionSnapshot,
+    isDirty,
+    setFilePath,
+    sourceFileByType,
+    switcherActiveWorkspaceId,
+    switcherReady,
+    syncActiveWorkspaceFromStore,
+    vehicles,
+    workspaceMetaFiles,
+    workspacePath,
+  ]);
+
+  useEffect(() => {
+    if (!switcherReady) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void invoke("write_workspace_switcher_state", {
+        content: JSON.stringify(
+          buildPersistedWorkspaceSwitcherState(switcherActiveWorkspaceId, switcherWorkspaces),
+          null,
+          2,
+        ),
+      }).catch((error) => {
+        logger.warn("workspace-switcher", "Failed to persist workspace switcher state", error);
+      });
+    }, 180);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [switcherActiveWorkspaceId, switcherReady, switcherWorkspaces]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target) && !(e.ctrlKey && e.key === "`")) {
+        return;
+      }
+
+      if (e.ctrlKey && e.key === "`") {
+        e.preventDefault();
+        if (workspaceSwitcherOpen) {
+          closeWorkspaceSwitcher();
+        } else {
+          syncActiveWorkspaceFromStore();
+          openWorkspaceSwitcher();
+        }
+        return;
+      }
+
+      if (workspaceSwitcherOpen) {
+        if (e.ctrlKey && /^[1-9]$/.test(e.key)) {
+          e.preventDefault();
+          const targetWorkspace = switcherWorkspaces[Number(e.key) - 1];
+          if (targetWorkspace) {
+            activateWorkspace(targetWorkspace.id);
+          }
+          return;
+        }
+
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          e.preventDefault();
+          moveWorkspaceHighlight(1);
+          return;
+        }
+
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault();
+          moveWorkspaceHighlight(-1);
+          return;
+        }
+
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (highlightedWorkspaceId) {
+            activateWorkspace(highlightedWorkspaceId);
+          }
+          return;
+        }
+
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeWorkspaceSwitcher();
+          return;
+        }
+      }
+
       // Command palette: Ctrl+Shift+P
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "p") {
         e.preventDefault();
@@ -492,7 +740,23 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleOpenFile, handleSaveFile, undo, redo, canUndo, canRedo, toggleCommandPalette]);
+  }, [
+    activateWorkspace,
+    canRedo,
+    canUndo,
+    closeWorkspaceSwitcher,
+    handleOpenFile,
+    handleSaveFile,
+    highlightedWorkspaceId,
+    moveWorkspaceHighlight,
+    openWorkspaceSwitcher,
+    redo,
+    switcherWorkspaces,
+    syncActiveWorkspaceFromStore,
+    toggleCommandPalette,
+    undo,
+    workspaceSwitcherOpen,
+  ]);
 
   useEffect(() => {
     logger.info("app", "Cortex Metagen started");
@@ -675,6 +939,26 @@ function App() {
         onClearSession={handleClearSessionSnapshot}
         problemsPanelVisible={problemsPanelVisible}
         onToggleProblemsPanel={() => setProblemsPanelVisible((v) => !v)}
+        workspaceSwitcherOpen={workspaceSwitcherOpen}
+        workspaceSwitcherWorkspaceCount={switcherWorkspaces.length}
+        switcherWorkspaces={switcherWorkspaces}
+        activeWorkspaceId={switcherActiveWorkspaceId}
+        highlightedWorkspaceId={highlightedWorkspaceId}
+        hoveredWorkspaceId={hoveredWorkspaceId}
+        keyboardPreviewActive={keyboardPreviewActive}
+        renamingWorkspaceId={renamingWorkspaceId}
+        deleteConfirmationId={deleteConfirmationId}
+        onHoverWorkspace={setHoveredWorkspace}
+        onHighlightWorkspace={setHighlightedWorkspace}
+        onActivateWorkspace={activateWorkspace}
+        onCreateWorkspace={() => {
+          const createdId = createSwitcherWorkspace();
+          setRenamingWorkspace(createdId);
+        }}
+        onRenameWorkspace={renameSwitcherWorkspace}
+        onSetRenamingWorkspace={setRenamingWorkspace}
+        onRequestDeleteWorkspace={requestDeleteWorkspace}
+        onDeleteWorkspace={handleDeleteWorkspace}
       />
 
       <VehiclesMetaEnhancementsPanel />
@@ -694,6 +978,12 @@ function App() {
         timestamp={restoreTimestamp}
         onRestore={handleRestore}
         onDiscard={handleDiscard}
+      />
+
+      <WorkspaceRestoreBanner
+        open={restoredUnsavedWorkspace !== null}
+        workspaceName={restoredUnsavedWorkspace?.name ?? "workspace"}
+        onDismiss={dismissRestoredUnsavedState}
       />
 
       <UpdateToast update={update} />
