@@ -51,6 +51,7 @@ Thumbs.db
 
 # Tauri / Rust
 src-tauri/target/
+.tauri/
 
 # TypeScript cache
 *.tsbuildinfo

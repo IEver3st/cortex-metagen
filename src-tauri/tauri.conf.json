@@ -1,6 +1,6 @@
 {
   "productName": "Cortex METAGEN",
-  "version": "0.11.0",
+  "version": "0.11.3",
   "identifier": "com.cortexlabs.metagen",
   "build": {
     "frontendDist": "../dist",
@@ -41,7 +41,7 @@
     "updater": {
       "active": true,
       "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNBMTA5MTYxQUVEMjExNkQKUldSdEVkS3VZWkVRT3FKWGI0U1pIak9UMkNyQ09zNzg1eU9iWUszZzRVSmtHeDFMazRmTko1U3UK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRCNkQ0RTMzODMyNjk0MkYKUldRdmxDYURNMDV0UzJ2djRiY2tZekp4Ylk3Y1JGL0hJY0hpK20ydEpHUVlMQzlLelJsMEVhRGoK",
       "endpoints": [
         "https://github.com/IEver3st/cortex-metagen/releases/latest/download/latest.json"
       ]

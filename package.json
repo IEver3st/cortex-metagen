@@ -1,7 +1,7 @@
 {
   "name": "cortex-metagen-app",
   "private": true,
-  "version": "0.11.0",
+  "version": "0.11.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,9 +9,9 @@
     "build": "bun run version:check && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "bun run version:check && tauri build"
+    "tauri": "bun scripts/run-tauri.mjs",
+    "tauri:dev": "bun scripts/run-tauri.mjs dev",
+    "tauri:build": "bun run version:check && bun scripts/run-tauri.mjs build"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
