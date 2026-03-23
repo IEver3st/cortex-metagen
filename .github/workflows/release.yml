@@ -17,6 +17,27 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Resolve release version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Get-Content "package.json" | ConvertFrom-Json).version
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "package.json version is missing"
+          }
+
+          $tag = "v$version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Validate pushed tag matches app version
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_name }}" -ne "${{ steps.version.outputs.tag }}") {
+            throw "Git tag ${{ github.ref_name }} does not match package.json version tag ${{ steps.version.outputs.tag }}"
+          }
+
       - uses: oven-sh/setup-bun@v2
 
       - uses: dtolnay/rust-toolchain@stable
@@ -43,8 +64,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: Cortex Metagen ${{ github.ref_name }}
+          tagName: ${{ steps.version.outputs.tag }}
+          releaseName: Cortex METAGEN - V${{ steps.version.outputs.version }}
           releaseBody: Signed desktop release published by GitHub Actions.
           releaseDraft: false
           prerelease: false
