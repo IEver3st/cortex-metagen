@@ -12,6 +12,7 @@ import { useMetaStore, type MetaFileType } from "@/store/meta-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { cn } from "@/lib/utils";
 import { WorkspaceExplorer } from "./WorkspaceExplorer";
+import { EarlyAccessModal, shouldShowEarlyAccess } from "./EarlyAccessModal";
 import {
   FolderOpen,
   FolderTree,
@@ -30,6 +31,7 @@ interface IdeSidebarProps {
   onOpenFile?: () => void;
   onOpenFolder?: () => void;
   uiView: "home" | "workspace" | "settings" | "merge";
+  onOpenFeedback?: () => void;
 }
 
 const navItems: Array<{ key: MetaFileType; label: string; icon: ComponentType<{ className?: string }> }> = [
@@ -91,6 +93,7 @@ export function IdeSidebar({
   onOpenFile,
   onOpenFolder,
   uiView,
+  onOpenFeedback,
 }: IdeSidebarProps) {
   const activeTab = useMetaStore((s) => s.activeTab);
   const setActiveTab = useMetaStore((s) => s.setActiveTab);
@@ -105,6 +108,7 @@ export function IdeSidebar({
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
 
   const [explorerSearch, setExplorerSearch] = useState("");
+  const [earlyAccessMode, setEarlyAccessMode] = useState<MetaFileType | null>(null);
 
   const effectiveExplorerVisible = explorerVisible && !collapsed;
 
@@ -196,7 +200,6 @@ export function IdeSidebar({
               onClick={onOpenFile}
             />
           </motion.div>
-
         </motion.div>
 
         {!collapsed && (
@@ -254,6 +257,9 @@ export function IdeSidebar({
                     onClick={() => {
                       setActiveTab(item.key);
                       setUIView("workspace");
+                      if (shouldShowEarlyAccess(item.key)) {
+                        setEarlyAccessMode(item.key);
+                      }
                     }}
                   />
                 </motion.div>
@@ -274,6 +280,15 @@ export function IdeSidebar({
           </motion.nav>
         )}
       </motion.aside>
+
+      <EarlyAccessModal
+        mode={earlyAccessMode}
+        onDismiss={() => setEarlyAccessMode(null)}
+        onOpenFeedback={() => {
+          setEarlyAccessMode(null);
+          onOpenFeedback?.();
+        }}
+      />
     </TooltipProvider>
   );
 }

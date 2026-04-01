@@ -10,6 +10,7 @@ import {
   type CarvariationsData,
   type ModKit,
   type VisibleMod,
+  type LinkMod,
   type StatMod,
   type SlotName,
   type CoverBoundOffset,
@@ -239,6 +240,12 @@ function getBoolValue(node: unknown, fallback: boolean): boolean {
     if ("#text" in objectNode) return getBoolValue(objectNode["#text"], fallback);
   }
   return fallback;
+}
+
+const defaultCarvariationPlateNames = ["Standard White", "Yellow/Black", "Blue/White"] as const;
+
+function getDefaultCarvariationPlateName(index: number): string {
+  return defaultCarvariationPlateNames[index] ?? `Plate ${index + 1}`;
 }
 
 function getVec3Value(node: unknown, fallback: VehicleVec3): VehicleVec3 {
@@ -961,6 +968,9 @@ export function parseCarvariationsMeta(
     const colors = colorItems.map((ci: any) => {
       const indicesStr = getTextContent(ci.indices);
       const parts = indicesStr.trim().split(/\s+/).map(Number);
+      const liveries = ensureArray(ci.liveries?.Item ?? ci.liveries?.item).map((entry: unknown) =>
+        getBoolValue(entry, false)
+      );
       return {
         primary: parts[0] ?? 0,
         secondary: parts[1] ?? 0,
@@ -968,29 +978,46 @@ export function parseCarvariationsMeta(
         wheels: parts[3] ?? 156,
         interior: parts[4] ?? 0,
         dashboard: parts[5] ?? 0,
+        liveries,
       };
     });
 
     const kitItems = ensureArray(item.kits?.Item ?? item.kits?.item);
     const kits = kitItems.map((k: any) => getTextContent(k, "0_default_modkit"));
 
+    const windowsWithExposedEdges = ensureArray(
+      item.windowsWithExposedEdges?.Item ?? item.windowsWithExposedEdges?.item
+    )
+      .map((entry: unknown) => getTextContent(entry))
+      .filter(Boolean);
+
     const plateItems = ensureArray(
       item.plateProbabilities?.Item ?? item.plateProbabilities?.item
     );
-    const plateProbabilities = plateItems.map((p: any) => getAttrValue(p, 0));
+    const plateProbabilities = plateItems.map((entry: any, index: number) => ({
+      name: getTextContent(entry.Name ?? entry.name, getDefaultCarvariationPlateName(index)),
+      value: getAttrValue(entry.Value ?? entry.value ?? entry, 0),
+    }));
 
     const carvariations: CarvariationsData = {
       modelName,
       colors:
         colors.length > 0
           ? colors
-          : [{ primary: 0, secondary: 0, pearl: 0, wheels: 156, interior: 0, dashboard: 0 }],
+          : [{ primary: 0, secondary: 0, pearl: 0, wheels: 156, interior: 0, dashboard: 0, liveries: [] }],
       sirenSettings: getAttrValue(item.sirenSettings, 0),
       lightSettings: getAttrValue(item.lightSettings, 0),
       kits: kits.length > 0 ? kits : ["0_default_modkit"],
       windows: getAttrValue(item.windows, 0),
+      windowsWithExposedEdges,
       plateProbabilities:
-        plateProbabilities.length > 0 ? plateProbabilities : [100, 0, 0],
+        plateProbabilities.length > 0
+          ? plateProbabilities
+          : [
+            { name: getDefaultCarvariationPlateName(0), value: 100 },
+            { name: getDefaultCarvariationPlateName(1), value: 0 },
+            { name: getDefaultCarvariationPlateName(2), value: 0 },
+          ],
     };
 
     entry.carvariations = carvariations;
@@ -1159,11 +1186,30 @@ export function parseCarcolsMeta(
           type: getTextContent(vm.type, "VMT_SPOILER"),
           bone: getTextContent(vm.bone, "chassis"),
           collisionBone: getTextContent(vm.collisionBone, "chassis"),
+          cameraPos: Math.max(0, Math.trunc(getAttrValue(vm.cameraPos, 0))),
+          audioApply: getAttrValue(vm.audioApply, 1.0),
+          weight: getAttrValue(vm.weight, 0),
+          turnOffExtra: Math.trunc(getAttrValue(vm.turnOffExtra, -1)),
+          disableBonnetCamera: getBoolValue(vm.disableBonnetCamera, false),
+          allowBonnetSlide: getBoolValue(vm.allowBonnetSlide, false),
+          weaponSlot: getTextContent(vm.weaponSlot, ""),
+          weaponSlotSecondary: getTextContent(vm.weaponSlotSecondary, ""),
+          disableProjectileDriveby: getBoolValue(vm.disableProjectileDriveby, false),
+          disableDriveby: getBoolValue(vm.disableDriveby, false),
+          disableDrivebySeat: getBoolValue(vm.disableDrivebySeat, false),
+          disableDrivebySeatSecondary: getBoolValue(vm.disableDrivebySeatSecondary, false),
           linkedGenerated: false,
           linkedSource: "",
           linkedBoneRef: "",
         };
       });
+
+      const linkModItems = ensureArray(kitItem.linkMods?.Item ?? kitItem.linkMods?.item);
+      const linkMods: LinkMod[] = linkModItems.map((linkItem: any) => ({
+        modelName: getTextContent(linkItem.modelName, ""),
+        bone: getTextContent(linkItem.bone, "chassis"),
+        turnOffExtra: Math.trunc(getAttrValue(linkItem.turnOffExtra, -1)),
+      }));
 
       const statModItems = ensureArray(kitItem.statMods?.Item ?? kitItem.statMods?.item);
       const statMods: StatMod[] = statModItems.map((statItem: any) => ({
@@ -1180,7 +1226,24 @@ export function parseCarcolsMeta(
         name: getTextContent(slotItem.name, ""),
       }));
 
-      return { kitName, id, kitType, visibleMods, statMods, slotNames };
+      const liveryNames = ensureArray(kitItem.liveryNames?.Item ?? kitItem.liveryNames?.item)
+        .map((item: any) => getTextContent(item, ""))
+        .filter(Boolean);
+      const livery2Names = ensureArray(kitItem.livery2Names?.Item ?? kitItem.livery2Names?.item)
+        .map((item: any) => getTextContent(item, ""))
+        .filter(Boolean);
+
+      return {
+        kitName,
+        id,
+        kitType,
+        visibleMods,
+        linkMods,
+        statMods,
+        slotNames,
+        liveryNames,
+        livery2Names,
+      };
     });
 
     const groupedByOwner = new Map<string, ModKit[]>();

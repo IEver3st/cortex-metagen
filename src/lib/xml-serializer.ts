@@ -484,6 +484,13 @@ export function serializeCarvariationsMeta(vehicles: VehicleEntry[]): string {
       lines.push(`${indent(5)}<indices content="int_array">`);
       lines.push(`${indent(6)}${color.primary} ${color.secondary} ${color.pearl} ${color.wheels} ${color.interior} ${color.dashboard}`);
       lines.push(`${indent(5)}</indices>`);
+      if ((color.liveries?.length ?? 0) > 0) {
+        lines.push(`${indent(5)}<liveries>`);
+        for (const liveryEnabled of color.liveries ?? []) {
+          lines.push(`${indent(6)}<Item value="${formatBoolean(liveryEnabled, false)}" />`);
+        }
+        lines.push(`${indent(5)}</liveries>`);
+      }
       lines.push(`${indent(4)}</Item>`);
     }
     lines.push(`${indent(3)}</colors>`);
@@ -495,9 +502,19 @@ export function serializeCarvariationsMeta(vehicles: VehicleEntry[]): string {
     }
     lines.push(`${indent(3)}</kits>`);
     lines.push(`${indent(3)}<windows value="${cv.windows}" />`);
+    if (cv.windowsWithExposedEdges.length > 0) {
+      lines.push(`${indent(3)}<windowsWithExposedEdges>`);
+      for (const windowName of cv.windowsWithExposedEdges) {
+        lines.push(`${indent(4)}<Item>${escapeXml(windowName)}</Item>`);
+      }
+      lines.push(`${indent(3)}</windowsWithExposedEdges>`);
+    }
     lines.push(`${indent(3)}<plateProbabilities>`);
-    for (const prob of cv.plateProbabilities) {
-      lines.push(`${indent(4)}<Item value="${prob}" />`);
+    for (const plate of cv.plateProbabilities) {
+      lines.push(`${indent(4)}<Item>`);
+      lines.push(`${indent(5)}<Name>${escapeXml(formatText(plate.name, "Plate"))}</Name>`);
+      lines.push(`${indent(5)}<Value value="${formatInteger(plate.value, 0)}" />`);
+      lines.push(`${indent(4)}</Item>`);
     }
     lines.push(`${indent(3)}</plateProbabilities>`);
     lines.push(`${indent(2)}</Item>`);

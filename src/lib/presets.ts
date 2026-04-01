@@ -178,13 +178,18 @@ export const defaultCarcols: CarcolsData = {
 export const defaultCarvariations: CarvariationsData = {
   modelName: "newvehicle",
   colors: [
-    { primary: 0, secondary: 0, pearl: 0, wheels: 156, interior: 0, dashboard: 0 },
+    { primary: 0, secondary: 0, pearl: 0, wheels: 156, interior: 0, dashboard: 0, liveries: [] },
   ],
   sirenSettings: 0,
   lightSettings: 0,
   kits: ["0_default_modkit"],
   windows: 0,
-  plateProbabilities: [100, 0, 0],
+  windowsWithExposedEdges: [],
+  plateProbabilities: [
+    { name: "Standard White", value: 100 },
+    { name: "Yellow/Black", value: 0 },
+    { name: "Blue/White", value: 0 },
+  ],
 };
 
 export const defaultVehicleLayouts: VehicleLayoutsData = {

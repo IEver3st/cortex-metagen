@@ -1,7 +1,7 @@
 import { useState, memo } from "react";
 import { motion } from "motion/react";
 import { useMetaStore } from "@/store/meta-store";
-import type { ModKit, VisibleMod, StatMod, SlotName } from "@/store/meta-store";
+import type { LinkMod, ModKit, VisibleMod, StatMod, SlotName } from "@/store/meta-store";
 import { modkitsFields, kitTypes, visibleModTypes, statModTypes, commonBones } from "@/lib/dictionary";
 import {
   Accordion,
@@ -40,21 +40,20 @@ import { Plus, Trash2, Package, Wrench, Gauge, Tag, Info } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 // ── Renameable mod shop slots ──────────────────────────────
-const renameableSlots: { value: string; label: string; description: string }[] = [
-  { value: "VMT_SPOILER",   label: "Spoiler",       description: "Spoiler / Wing category" },
-  { value: "VMT_BUMPER_F",  label: "Front Bumper",  description: "Front bumper category" },
-  { value: "VMT_BUMPER_R",  label: "Rear Bumper",   description: "Rear bumper category" },
-  { value: "VMT_SKIRT",     label: "Side Skirts",   description: "Side skirt category" },
-  { value: "VMT_EXHAUST",   label: "Exhaust",       description: "Exhaust tip category" },
-  { value: "VMT_CHASSIS",   label: "Roll Cage",     description: "Roll cage / chassis mods" },
-  { value: "VMT_GRILL",     label: "Grille",        description: "Front grille category" },
-  { value: "VMT_BONNET",    label: "Hood",          description: "Hood / bonnet category" },
-  { value: "VMT_ROOF",      label: "Roof",          description: "Roof scoop / rack category" },
-  { value: "VMT_FENDER_L",  label: "Left Fender",   description: "Left fender flares" },
-  { value: "VMT_FENDER_R",  label: "Right Fender",  description: "Right fender flares" },
-  { value: "VMT_LIVERY",    label: "Livery",        description: "Livery / decal category" },
-  { value: "VMT_PLAQUE",    label: "Plaques",       description: "Vanity plates / plaques" },
-];
+function formatSlotLabel(value: string): string {
+  return value
+    .replace(/^VMT_/, "")
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+const renameableSlots: { value: string; label: string; description: string }[] = visibleModTypes.map((value) => ({
+  value,
+  label: formatSlotLabel(value),
+  description: `Renames the ${formatSlotLabel(value).toLowerCase()} category`,
+}));
 
 // ── Stat mod defaults per type ─────────────────────────────
 const statModDefaults: Record<string, { modifier: number; audioApply: number; weight: number }> = {
@@ -237,11 +236,12 @@ const VisibleModEditor = memo(function VisibleModEditor({
 
       <div className="flex items-center gap-2">
         <Label className="text-xs text-muted-foreground min-w-[100px]">Linked Models</Label>
+        <FieldTooltip fieldKey="linkModelName" />
         <Input
           value={mod.linkedModels}
           onChange={(e) => onChange({ linkedModels: e.target.value })}
           className="h-6 text-xs font-mono flex-1"
-          placeholder="(usually empty)"
+          placeholder="model_a, model_b"
         />
         <Button
           type="button"
@@ -251,8 +251,120 @@ const VisibleModEditor = memo(function VisibleModEditor({
           onClick={onGenerateLinkedMods}
           disabled={parseLinkedModelsInput(mod.linkedModels).length === 0}
         >
-          Generate
+          Build Link Mods
         </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground min-w-[100px]">Camera Pos</Label>
+          <FieldTooltip fieldKey="cameraPos" />
+          <Input
+            type="number"
+            value={mod.cameraPos}
+            onChange={(e) => onChange({ cameraPos: parseInt(e.target.value, 10) || 0 })}
+            className="h-6 text-xs font-mono flex-1"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground min-w-[100px]">Turn Off Extra</Label>
+          <FieldTooltip fieldKey="turnOffExtra" />
+          <Input
+            type="number"
+            value={mod.turnOffExtra}
+            onChange={(e) => onChange({ turnOffExtra: parseInt(e.target.value, 10) || 0 })}
+            className="h-6 text-xs font-mono flex-1"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground min-w-[100px]">Audio Apply</Label>
+          <FieldTooltip fieldKey="audioApply" />
+          <Input
+            type="number"
+            step="0.1"
+            value={mod.audioApply}
+            onChange={(e) => onChange({ audioApply: parseFloat(e.target.value) || 0 })}
+            className="h-6 text-xs font-mono flex-1"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground min-w-[100px]">Weight</Label>
+          <FieldTooltip fieldKey="weight" />
+          <Input
+            type="number"
+            value={mod.weight}
+            onChange={(e) => onChange({ weight: parseInt(e.target.value, 10) || 0 })}
+            className="h-6 text-xs font-mono flex-1"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground min-w-[100px]">Weapon Slot</Label>
+          <FieldTooltip fieldKey="weaponSlot" />
+          <Input
+            value={mod.weaponSlot}
+            onChange={(e) => onChange({ weaponSlot: e.target.value })}
+            className="h-6 text-xs font-mono flex-1"
+            placeholder="WMS_FRONT"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground min-w-[100px]">Secondary Slot</Label>
+          <FieldTooltip fieldKey="weaponSlotSecondary" />
+          <Input
+            value={mod.weaponSlotSecondary}
+            onChange={(e) => onChange({ weaponSlotSecondary: e.target.value })}
+            className="h-6 text-xs font-mono flex-1"
+            placeholder="WMS_REAR"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center justify-between rounded-md border border-border/50 px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Disable Bonnet Cam</Label>
+            <FieldTooltip fieldKey="disableBonnetCamera" />
+          </div>
+          <SquareToggle checked={mod.disableBonnetCamera} onCheckedChange={(checked) => onChange({ disableBonnetCamera: checked })} />
+        </div>
+        <div className="flex items-center justify-between rounded-md border border-border/50 px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Allow Bonnet Slide</Label>
+            <FieldTooltip fieldKey="allowBonnetSlide" />
+          </div>
+          <SquareToggle checked={mod.allowBonnetSlide} onCheckedChange={(checked) => onChange({ allowBonnetSlide: checked })} />
+        </div>
+        <div className="flex items-center justify-between rounded-md border border-border/50 px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Disable Projectile Driveby</Label>
+            <FieldTooltip fieldKey="disableProjectileDriveby" />
+          </div>
+          <SquareToggle checked={mod.disableProjectileDriveby} onCheckedChange={(checked) => onChange({ disableProjectileDriveby: checked })} />
+        </div>
+        <div className="flex items-center justify-between rounded-md border border-border/50 px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Disable Driveby</Label>
+            <FieldTooltip fieldKey="disableDriveby" />
+          </div>
+          <SquareToggle checked={mod.disableDriveby} onCheckedChange={(checked) => onChange({ disableDriveby: checked })} />
+        </div>
+        <div className="flex items-center justify-between rounded-md border border-border/50 px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Disable Seat Driveby</Label>
+            <FieldTooltip fieldKey="disableDrivebySeat" />
+          </div>
+          <SquareToggle checked={mod.disableDrivebySeat} onCheckedChange={(checked) => onChange({ disableDrivebySeat: checked })} />
+        </div>
+        <div className="flex items-center justify-between rounded-md border border-border/50 px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Disable Secondary Seat</Label>
+            <FieldTooltip fieldKey="disableDrivebySeatSecondary" />
+          </div>
+          <SquareToggle checked={mod.disableDrivebySeatSecondary} onCheckedChange={(checked) => onChange({ disableDrivebySeatSecondary: checked })} />
+        </div>
       </div>
     </div>
   );
@@ -444,6 +556,88 @@ const SlotNameEditor = memo(function SlotNameEditor({
   );
 });
 
+const LinkModEditor = memo(function LinkModEditor({
+  linkMod,
+  index,
+  onChange,
+  onRemove,
+}: {
+  linkMod: LinkMod;
+  index: number;
+  onChange: (data: Partial<LinkMod>) => void;
+  onRemove: () => void;
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  return (
+    <div className="border rounded-md p-2.5 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Package className="h-3 w-3 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">
+            Linked Prop #{index + 1}
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0 text-destructive"
+          onClick={() => setConfirmDelete(true)}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+        <ConfirmDialog
+          open={confirmDelete}
+          onOpenChange={setConfirmDelete}
+          title="Remove Linked Prop"
+          description={`Remove linked prop #${index + 1}? This cannot be undone.`}
+          confirmLabel="Remove"
+          cancelLabel="Cancel"
+          variant="destructive"
+          onConfirm={() => { onRemove(); setConfirmDelete(false); }}
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Label className="text-xs text-muted-foreground min-w-[100px]">Model Name</Label>
+        <FieldTooltip fieldKey="linkModelName" />
+        <Input
+          value={linkMod.modelName}
+          onChange={(e) => onChange({ modelName: e.target.value })}
+          className="h-6 text-xs font-mono flex-1"
+          placeholder="adder_splitter_a"
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Label className="text-xs text-muted-foreground min-w-[100px]">Bone</Label>
+        <FieldTooltip fieldKey="bone" />
+        <Select value={linkMod.bone} onValueChange={(value) => onChange({ bone: value })}>
+          <SelectTrigger className="h-6 text-xs flex-1">
+            <SelectValue placeholder="Select bone..." />
+          </SelectTrigger>
+          <SelectContent>
+            {commonBones.map((bone) => (
+              <SelectItem key={bone} value={bone} className="text-xs">{bone}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Label className="text-xs text-muted-foreground min-w-[100px]">Turn Off Extra</Label>
+        <FieldTooltip fieldKey="turnOffExtra" />
+        <Input
+          type="number"
+          value={linkMod.turnOffExtra}
+          onChange={(e) => onChange({ turnOffExtra: parseInt(e.target.value, 10) || 0 })}
+          className="h-6 text-xs font-mono flex-1"
+        />
+      </div>
+    </div>
+  );
+});
+
 // ── Single Kit Editor ──────────────────────────────────────
 const KitEditor = memo(function KitEditor({
   kit,
@@ -457,7 +651,14 @@ const KitEditor = memo(function KitEditor({
   onRemove: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [openSections, setOpenSections] = useState<string[]>(["header", "visibleMods", "statMods", "slotNames"]);
+  const [openSections, setOpenSections] = useState<string[]>([
+    "header",
+    "visibleMods",
+    "linkMods",
+    "statMods",
+    "slotNames",
+    "liveries",
+  ]);
   const [renamePromptOpen, setRenamePromptOpen] = useState(false);
   const [renamePromptValue, setRenamePromptValue] = useState("");
   const [pendingLinkedSourceIndex, setPendingLinkedSourceIndex] = useState<number | null>(null);
@@ -481,6 +682,18 @@ const KitEditor = memo(function KitEditor({
       type: "VMT_SPOILER",
       bone: "chassis",
       collisionBone: "chassis",
+      cameraPos: 0,
+      audioApply: 1,
+      weight: 0,
+      turnOffExtra: -1,
+      disableBonnetCamera: false,
+      allowBonnetSlide: false,
+      weaponSlot: "",
+      weaponSlotSecondary: "",
+      disableProjectileDriveby: false,
+      disableDriveby: false,
+      disableDrivebySeat: false,
+      disableDrivebySeatSecondary: false,
       linkedGenerated: false,
       linkedSource: "",
       linkedBoneRef: "",
@@ -505,31 +718,41 @@ const KitEditor = memo(function KitEditor({
     }
 
     const existingKeys = new Set(
-      kit.visibleMods
-        .filter((mod) => mod.linkedGenerated)
-        .map((mod) => `${mod.modelName.toLowerCase()}|${mod.bone.toLowerCase()}`)
+      kit.linkMods.map((mod) => `${mod.modelName.toLowerCase()}|${mod.bone.toLowerCase()}`)
     );
 
-    const generatedMods: VisibleMod[] = linkedNames
+    const generatedMods: LinkMod[] = linkedNames
       .filter((name) => !existingKeys.has(`${name.toLowerCase()}|${pendingLinkedBone.toLowerCase()}`))
       .map((name) => ({
         modelName: name,
-        modShopLabel: source.modShopLabel,
-        linkedModels: "",
-        turnOffBones: [],
-        type: source.type || "VMT_SPOILER",
         bone: pendingLinkedBone,
-        collisionBone: pendingLinkedBone,
-        linkedGenerated: true,
-        linkedSource: source.modelName,
-        linkedBoneRef: pendingLinkedBone,
+        turnOffExtra: -1,
       }));
 
     if (generatedMods.length > 0) {
-      onUpdate({ ...kit, visibleMods: [...kit.visibleMods, ...generatedMods] });
+      onUpdate({ ...kit, linkMods: [...kit.linkMods, ...generatedMods] });
     }
 
     setPendingLinkedSourceIndex(null);
+  };
+
+  const updateLinkMod = (index: number, data: Partial<LinkMod>) => {
+    const linkMods = kit.linkMods.map((mod, i) => (i === index ? { ...mod, ...data } : mod));
+    onUpdate({ ...kit, linkMods });
+  };
+
+  const removeLinkMod = (index: number) => {
+    onUpdate({ ...kit, linkMods: kit.linkMods.filter((_, i) => i !== index) });
+  };
+
+  const addLinkMod = () => {
+    onUpdate({
+      ...kit,
+      linkMods: [
+        ...kit.linkMods,
+        { modelName: "", bone: "chassis", turnOffExtra: -1 },
+      ],
+    });
   };
 
   const updateStatMod = (index: number, data: Partial<StatMod>) => {
@@ -579,6 +802,19 @@ const KitEditor = memo(function KitEditor({
     onUpdate({ ...kit, slotNames: [...kit.slotNames, { slot: "VMT_CHASSIS", name: "" }] });
   };
 
+  const updateLiveryName = (collection: "liveryNames" | "livery2Names", index: number, value: string) => {
+    const next = kit[collection].map((item, i) => (i === index ? value : item));
+    onUpdate({ ...kit, [collection]: next });
+  };
+
+  const addLiveryName = (collection: "liveryNames" | "livery2Names") => {
+    onUpdate({ ...kit, [collection]: [...kit[collection], ""] });
+  };
+
+  const removeLiveryName = (collection: "liveryNames" | "livery2Names", index: number) => {
+    onUpdate({ ...kit, [collection]: kit[collection].filter((_, i) => i !== index) });
+  };
+
   return (
     <div className="border border-border/60 rounded-lg overflow-hidden">
       {/* Kit header bar */}
@@ -596,7 +832,6 @@ const KitEditor = memo(function KitEditor({
           size="sm"
           className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
           onClick={() => setConfirmDelete(true)}
-          title="Delete this kit"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
@@ -710,6 +945,40 @@ const KitEditor = memo(function KitEditor({
             </AccordionContent>
           </AccordionItem>
 
+          <AccordionItem value="linkMods" className="border rounded-md px-3">
+            <AccordionTrigger className="text-xs font-medium py-2">
+              <div className="flex items-center gap-2">
+                <Package className="h-3.5 w-3.5" />
+                Linked Props
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  ({kit.linkMods.length})
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pb-3 space-y-2">
+              <p className="text-[10px] text-muted-foreground">
+                Auxiliary models referenced by `linkedModels` and emitted inside the `linkMods` section.
+              </p>
+              {kit.linkMods.map((linkMod, i) => (
+                <LinkModEditor
+                  key={`${linkMod.modelName}_${i}`}
+                  linkMod={linkMod}
+                  index={i}
+                  onChange={(data) => updateLinkMod(i, data)}
+                  onRemove={() => removeLinkMod(i)}
+                />
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-8 text-xs gap-2 border-dashed hover:border-teal-500/50 hover:text-teal-400 transition-colors"
+                onClick={addLinkMod}
+              >
+                <Plus className="h-4 w-4" /> Add Linked Prop
+              </Button>
+            </AccordionContent>
+          </AccordionItem>
+
           {/* ── Performance Upgrades ─────────────────── */}
           <AccordionItem value="statMods" className="border rounded-md px-3">
             <AccordionTrigger className="text-xs font-medium py-2">
@@ -789,6 +1058,69 @@ const KitEditor = memo(function KitEditor({
               </Button>
             </AccordionContent>
           </AccordionItem>
+
+          <AccordionItem value="liveries" className="border rounded-md px-3">
+            <AccordionTrigger className="text-xs font-medium py-2">
+              <div className="flex items-center gap-2">
+                <Tag className="h-3.5 w-3.5" />
+                Livery Labels
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  ({kit.liveryNames.length + kit.livery2Names.length})
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pb-3 space-y-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">Primary Livery Names</Label>
+                    <FieldTooltip fieldKey="liveryName" />
+                  </div>
+                  <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => addLiveryName("liveryNames")}>
+                    <Plus className="h-3.5 w-3.5" /> Add
+                  </Button>
+                </div>
+                {kit.liveryNames.map((name, i) => (
+                  <div key={`livery-${i}`} className="flex items-center gap-2">
+                    <Input
+                      value={name}
+                      onChange={(e) => updateLiveryName("liveryNames", i, e.target.value)}
+                      className="h-7 text-xs font-mono"
+                      placeholder="LIV_PRIMARY_1"
+                    />
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => removeLiveryName("liveryNames", i)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">Secondary Livery Names</Label>
+                    <FieldTooltip fieldKey="livery2Name" />
+                  </div>
+                  <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => addLiveryName("livery2Names")}>
+                    <Plus className="h-3.5 w-3.5" /> Add
+                  </Button>
+                </div>
+                {kit.livery2Names.map((name, i) => (
+                  <div key={`livery2-${i}`} className="flex items-center gap-2">
+                    <Input
+                      value={name}
+                      onChange={(e) => updateLiveryName("livery2Names", i, e.target.value)}
+                      className="h-7 text-xs font-mono"
+                      placeholder="LIV_SECONDARY_1"
+                    />
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => removeLiveryName("livery2Names", i)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
         </Accordion>
       </div>
 
@@ -830,7 +1162,7 @@ const KitEditor = memo(function KitEditor({
           <AlertDialogHeader>
             <AlertDialogTitle>Attach Linked Mods to Bone</AlertDialogTitle>
             <AlertDialogDescription>
-              Select which bone these linked models should reference, then generate linked mod entries at the bottom.
+              Select which bone these linked models should reference, then generate `linkMods` entries for the kit.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
@@ -848,7 +1180,7 @@ const KitEditor = memo(function KitEditor({
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={generateLinkedMods}>Generate Linked Mods</AlertDialogAction>
+            <AlertDialogAction onClick={generateLinkedMods}>Generate Link Mods</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -902,8 +1234,11 @@ export function ModkitsEditor() {
         id: nextId,
         kitType: "MKT_STANDARD",
         visibleMods: [],
+        linkMods: [],
         statMods: [],
         slotNames: [],
+        liveryNames: [],
+        livery2Names: [],
       });
     }
 

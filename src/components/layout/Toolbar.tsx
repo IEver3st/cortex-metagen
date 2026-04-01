@@ -40,6 +40,8 @@ interface ToolbarProps {
   onToggleSidebar?: () => void;
   sidebarCollapsed?: boolean;
   uiView?: "home" | "workspace" | "settings" | "merge";
+  /** When set, immediately opens the feedback dialog on the given tab. */
+  feedbackTrigger?: { tab: "bug" | "feature"; nonce: number } | null;
 }
 
 let _windowApiPromise: Promise<typeof import("@tauri-apps/api/window")> | null = null;
@@ -90,6 +92,7 @@ export const Toolbar = memo(function Toolbar({
   onToggleSidebar,
   sidebarCollapsed = false,
   uiView = "home",
+  feedbackTrigger,
 }: ToolbarProps) {
   const vehicles = useMetaStore((s) => s.vehicles);
   const activeVehicleId = useMetaStore((s) => s.activeVehicleId);
@@ -117,6 +120,14 @@ export const Toolbar = memo(function Toolbar({
   const [isExporting, setIsExporting] = useState(false);
   const [copiedXml, setCopiedXml] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
+  const [bugReportDefaultTab, setBugReportDefaultTab] = useState<"bug" | "feature">("bug");
+
+  // Open the feedback dialog imperatively when feedbackTrigger changes
+  useEffect(() => {
+    if (!feedbackTrigger) return;
+    setBugReportDefaultTab(feedbackTrigger.tab);
+    setBugReportOpen(true);
+  }, [feedbackTrigger]);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarWidth, setToolbarWidth] = useState(1200);
@@ -532,13 +543,13 @@ return (
                         </Button>
                       </DialogTrigger>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">Report bug</TooltipContent>
+                    <TooltipContent side="bottom">Report bug / Suggest feature</TooltipContent>
                   </Tooltip>
-                  <DialogContent className="max-w-lg">
+                  <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                      <DialogTitle>Report a bug</DialogTitle>
+                      <DialogTitle>Feedback</DialogTitle>
                     </DialogHeader>
-                    <BugReportForm />
+                    <BugReportForm defaultTab={bugReportDefaultTab} />
                   </DialogContent>
                 </Dialog>
               )}
@@ -575,7 +586,7 @@ return (
                       </DropdownMenuItem>
                     )}
                     {!showBugReport && (
-                      <DropdownMenuItem onClick={() => setBugReportOpen(true)}>
+                      <DropdownMenuItem onClick={() => { setBugReportDefaultTab("bug"); setBugReportOpen(true); }}>
                         <Bug className="mr-2 size-4" />
                         Report bug
                       </DropdownMenuItem>

@@ -229,6 +229,33 @@ struct GitHubConfig {
     repo: String,
 }
 
+/// Anonymous system information forwarded from the frontend.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SystemInfo {
+    gpu: Option<String>,
+    cpu_cores: Option<u32>,
+    ram_gb: Option<f64>,
+    os: Option<String>,
+}
+
+fn format_system_info_section(info: &SystemInfo, platform_fallback: &str) -> String {
+    let os = info.os.as_deref().unwrap_or(platform_fallback);
+    let mut lines = vec![
+        format!("- **OS:** {os}"),
+    ];
+    if let Some(gpu) = &info.gpu {
+        lines.push(format!("- **GPU:** {gpu}"));
+    }
+    if let Some(cores) = info.cpu_cores {
+        lines.push(format!("- **CPU:** {cores} logical cores"));
+    }
+    if let Some(ram) = info.ram_gb {
+        lines.push(format!("- **RAM:** ~{ram} GB"));
+    }
+    format!("\n\n## System information\n{}", lines.join("\n"))
+}
+
 fn trim_to_last_chars(value: &str, max_chars: usize) -> (String, bool) {
     let char_count = value.chars().count();
     if char_count <= max_chars {
@@ -244,16 +271,55 @@ fn trim_to_last_chars(value: &str, max_chars: usize) -> (String, bool) {
     (value[start..].to_string(), true)
 }
 
+async fn post_github_issue(
+    client: &reqwest::Client,
+    config: &GitHubConfig,
+    title: &str,
+    body: &str,
+    labels: &[&str],
+) -> Result<(), String> {
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/issues",
+        config.owner, config.repo
+    );
+
+    let payload = serde_json::json!({
+        "title": title,
+        "body": body,
+        "labels": labels,
+    });
+
+    let response = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", config.pat))
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .header("User-Agent", "cortex-metagen")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        return Err(format!("GitHub API error {status}: {text}"));
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 async fn submit_bug_report(
     title: String,
     description: String,
     steps: String,
     logs: String,
+    system_info: Option<SystemInfo>,
     state: tauri::State<'_, GitHubConfig>,
 ) -> Result<(), String> {
     let version = env!("CARGO_PKG_VERSION");
-    let os = std::env::consts::OS;
+    let platform = std::env::consts::OS;
     let trimmed_logs = logs.trim();
     let logs_section = if trimmed_logs.is_empty() {
         String::new()
@@ -273,40 +339,41 @@ async fn submit_bug_report(
         )
     };
 
-    let body = format!(
-        "## Description\n{description}\n\n## Steps to reproduce\n{steps}{logs_section}\n\n---\n**App version:** {version}\n**Platform:** {os}\n**Reported via:** in-app bug report"
-    );
+    let sys_section = system_info
+        .as_ref()
+        .map(|s| format_system_info_section(s, platform))
+        .unwrap_or_else(|| format!("\n\n## System information\n- **Platform:** {platform}"));
 
-    let payload = serde_json::json!({
-        "title": title,
-        "body": body,
-        "labels": ["bug", "user-report"]
-    });
+    let body = format!(
+        "## Description\n{description}\n\n## Steps to reproduce\n{steps}{logs_section}{sys_section}\n\n---\n**App version:** {version}\n**Reported via:** in-app bug report"
+    );
 
     let client = reqwest::Client::new();
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/issues",
-        state.owner, state.repo
+    post_github_issue(&client, &state, &title, &body, &["bug", "user-report"]).await
+}
+
+#[tauri::command]
+async fn submit_feature_request(
+    title: String,
+    problem: String,
+    idea: String,
+    system_info: Option<SystemInfo>,
+    state: tauri::State<'_, GitHubConfig>,
+) -> Result<(), String> {
+    let version = env!("CARGO_PKG_VERSION");
+    let platform = std::env::consts::OS;
+
+    let sys_section = system_info
+        .as_ref()
+        .map(|s| format_system_info_section(s, platform))
+        .unwrap_or_else(|| format!("\n\n## System information\n- **Platform:** {platform}"));
+
+    let body = format!(
+        "## Problem this solves\n{problem}\n\n## Proposed solution\n{idea}{sys_section}\n\n---\n**App version:** {version}\n**Reported via:** in-app feature request"
     );
 
-    let response = client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", state.pat))
-        .header("Accept", "application/vnd.github+json")
-        .header("X-GitHub-Api-Version", "2022-11-28")
-        .header("User-Agent", "cortex-metagen")
-        .json(&payload)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let text = response.text().await.unwrap_or_default();
-        return Err(format!("GitHub API error {status}: {text}"));
-    }
-
-    Ok(())
+    let client = reqwest::Client::new();
+    post_github_issue(&client, &state, &title, &body, &["enhancement", "user-report"]).await
 }
 
 // ---------------------------------------------------------------------------
@@ -335,7 +402,8 @@ pub fn run() {
             list_workspace_meta_files,
             write_zip_archive,
             inspect_updater_release,
-            submit_bug_report
+            submit_bug_report,
+            submit_feature_request
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -215,21 +215,30 @@ export interface CarcolsData {
   environmentalLightIntensity: number;
 }
 
+export interface CarvariationColorSet {
+  primary: number;
+  secondary: number;
+  pearl: number;
+  wheels: number;
+  interior: number;
+  dashboard: number;
+  liveries?: boolean[];
+}
+
+export interface CarvariationPlateProbability {
+  name: string;
+  value: number;
+}
+
 export interface CarvariationsData {
   modelName: string;
-  colors: Array<{
-    primary: number;
-    secondary: number;
-    pearl: number;
-    wheels: number;
-    interior: number;
-    dashboard: number;
-  }>;
+  colors: CarvariationColorSet[];
   sirenSettings: number;
   lightSettings: number;
   kits: string[];
   windows: number;
-  plateProbabilities: number[];
+  windowsWithExposedEdges: string[];
+  plateProbabilities: CarvariationPlateProbability[];
 }
 
 export interface VisibleMod {
@@ -240,6 +249,18 @@ export interface VisibleMod {
   type: string;
   bone: string;
   collisionBone: string;
+  cameraPos: number;
+  audioApply: number;
+  weight: number;
+  turnOffExtra: number;
+  disableBonnetCamera: boolean;
+  allowBonnetSlide: boolean;
+  weaponSlot: string;
+  weaponSlotSecondary: string;
+  disableProjectileDriveby: boolean;
+  disableDriveby: boolean;
+  disableDrivebySeat: boolean;
+  disableDrivebySeatSecondary: boolean;
   linkedGenerated?: boolean;
   linkedSource?: string;
   linkedBoneRef?: string;
@@ -258,13 +279,22 @@ export interface SlotName {
   name: string;
 }
 
+export interface LinkMod {
+  modelName: string;
+  bone: string;
+  turnOffExtra: number;
+}
+
 export interface ModKit {
   kitName: string;
   id: number;
   kitType: string;
   visibleMods: VisibleMod[];
+  linkMods: LinkMod[];
   statMods: StatMod[];
   slotNames: SlotName[];
+  liveryNames: string[];
+  livery2Names: string[];
 }
 
 export interface ModkitsData {
@@ -312,11 +342,209 @@ const defaultVehicleLayouts: VehicleLayoutsData = {
   driveByLookAroundData: [],
 };
 
+const defaultCarvariationColor: CarvariationColorSet = {
+  primary: 0,
+  secondary: 0,
+  pearl: 0,
+  wheels: 156,
+  interior: 0,
+  dashboard: 0,
+  liveries: [],
+};
+
+const defaultCarvariationPlateNames = ["Standard White", "Yellow/Black", "Blue/White"] as const;
+
+function getDefaultCarvariationPlateName(index: number): string {
+  return defaultCarvariationPlateNames[index] ?? `Plate ${index + 1}`;
+}
+
 function ensureVehicleLayouts(vl: any): VehicleLayoutsData {
   if (!vl || typeof vl !== "object") return { ...defaultVehicleLayouts };
   return {
     coverBoundOffsets: Array.isArray(vl.coverBoundOffsets) ? vl.coverBoundOffsets : [],
     driveByLookAroundData: Array.isArray(vl.driveByLookAroundData) ? vl.driveByLookAroundData : [],
+  };
+}
+
+function ensureCarvariationsData(carvariations: unknown): CarvariationsData {
+  const raw = carvariations && typeof carvariations === "object"
+    ? carvariations as Partial<CarvariationsData> & { plateProbabilities?: unknown[] }
+    : {};
+
+  const colors = Array.isArray(raw.colors) ? raw.colors : [];
+  const normalizedColors = colors
+    .filter((color): color is Partial<CarvariationColorSet> => Boolean(color) && typeof color === "object")
+    .map((color) => ({
+      primary: typeof color.primary === "number" ? color.primary : defaultCarvariationColor.primary,
+      secondary: typeof color.secondary === "number" ? color.secondary : defaultCarvariationColor.secondary,
+      pearl: typeof color.pearl === "number" ? color.pearl : defaultCarvariationColor.pearl,
+      wheels: typeof color.wheels === "number" ? color.wheels : defaultCarvariationColor.wheels,
+      interior: typeof color.interior === "number" ? color.interior : defaultCarvariationColor.interior,
+      dashboard: typeof color.dashboard === "number" ? color.dashboard : defaultCarvariationColor.dashboard,
+      liveries: Array.isArray(color.liveries) ? color.liveries.map((entry) => Boolean(entry)) : [],
+    }));
+
+  const rawPlateProbabilities = Array.isArray(raw.plateProbabilities) ? raw.plateProbabilities : [];
+  const plateProbabilities = rawPlateProbabilities.map((entry, index) => {
+    if (typeof entry === "number") {
+      return { name: getDefaultCarvariationPlateName(index), value: entry };
+    }
+
+    if (entry && typeof entry === "object") {
+      const candidate = entry as Partial<CarvariationPlateProbability>;
+      return {
+        name: typeof candidate.name === "string" && candidate.name.trim()
+          ? candidate.name.trim()
+          : getDefaultCarvariationPlateName(index),
+        value: typeof candidate.value === "number" ? candidate.value : 0,
+      };
+    }
+
+    return { name: getDefaultCarvariationPlateName(index), value: 0 };
+  });
+
+  return {
+    modelName: typeof raw.modelName === "string" ? raw.modelName : "newvehicle",
+    colors: normalizedColors.length > 0 ? normalizedColors : [{ ...defaultCarvariationColor }],
+    sirenSettings: typeof raw.sirenSettings === "number" ? raw.sirenSettings : 0,
+    lightSettings: typeof raw.lightSettings === "number" ? raw.lightSettings : 0,
+    kits: Array.isArray(raw.kits) && raw.kits.length > 0
+      ? raw.kits.filter((kit): kit is string => typeof kit === "string")
+      : ["0_default_modkit"],
+    windows: typeof raw.windows === "number" ? raw.windows : 0,
+    windowsWithExposedEdges: Array.isArray(raw.windowsWithExposedEdges)
+      ? raw.windowsWithExposedEdges.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+      : [],
+    plateProbabilities: plateProbabilities.length > 0
+      ? plateProbabilities
+      : [{ name: getDefaultCarvariationPlateName(0), value: 100 }],
+  };
+}
+
+const defaultVisibleMod: VisibleMod = {
+  modelName: "",
+  modShopLabel: "",
+  linkedModels: "",
+  turnOffBones: [],
+  type: "VMT_SPOILER",
+  bone: "chassis",
+  collisionBone: "chassis",
+  cameraPos: 0,
+  audioApply: 1,
+  weight: 0,
+  turnOffExtra: -1,
+  disableBonnetCamera: false,
+  allowBonnetSlide: false,
+  weaponSlot: "",
+  weaponSlotSecondary: "",
+  disableProjectileDriveby: false,
+  disableDriveby: false,
+  disableDrivebySeat: false,
+  disableDrivebySeatSecondary: false,
+  linkedGenerated: false,
+  linkedSource: "",
+  linkedBoneRef: "",
+};
+
+const defaultLinkMod: LinkMod = {
+  modelName: "",
+  bone: "chassis",
+  turnOffExtra: -1,
+};
+
+function ensureVisibleMod(value: unknown): VisibleMod {
+  const raw = value && typeof value === "object" ? (value as Partial<VisibleMod>) : {};
+  return {
+    ...defaultVisibleMod,
+    ...raw,
+    modelName: typeof raw.modelName === "string" ? raw.modelName : defaultVisibleMod.modelName,
+    modShopLabel: typeof raw.modShopLabel === "string" ? raw.modShopLabel : defaultVisibleMod.modShopLabel,
+    linkedModels: typeof raw.linkedModels === "string" ? raw.linkedModels : defaultVisibleMod.linkedModels,
+    turnOffBones: Array.isArray(raw.turnOffBones)
+      ? raw.turnOffBones.filter((bone): bone is string => typeof bone === "string")
+      : [],
+    type: typeof raw.type === "string" ? raw.type : defaultVisibleMod.type,
+    bone: typeof raw.bone === "string" ? raw.bone : defaultVisibleMod.bone,
+    collisionBone: typeof raw.collisionBone === "string" ? raw.collisionBone : defaultVisibleMod.collisionBone,
+    cameraPos: typeof raw.cameraPos === "number" ? raw.cameraPos : defaultVisibleMod.cameraPos,
+    audioApply: typeof raw.audioApply === "number" ? raw.audioApply : defaultVisibleMod.audioApply,
+    weight: typeof raw.weight === "number" ? raw.weight : defaultVisibleMod.weight,
+    turnOffExtra: typeof raw.turnOffExtra === "number" ? raw.turnOffExtra : defaultVisibleMod.turnOffExtra,
+    disableBonnetCamera: typeof raw.disableBonnetCamera === "boolean"
+      ? raw.disableBonnetCamera
+      : defaultVisibleMod.disableBonnetCamera,
+    allowBonnetSlide: typeof raw.allowBonnetSlide === "boolean"
+      ? raw.allowBonnetSlide
+      : defaultVisibleMod.allowBonnetSlide,
+    weaponSlot: typeof raw.weaponSlot === "string" ? raw.weaponSlot : defaultVisibleMod.weaponSlot,
+    weaponSlotSecondary: typeof raw.weaponSlotSecondary === "string"
+      ? raw.weaponSlotSecondary
+      : defaultVisibleMod.weaponSlotSecondary,
+    disableProjectileDriveby: typeof raw.disableProjectileDriveby === "boolean"
+      ? raw.disableProjectileDriveby
+      : defaultVisibleMod.disableProjectileDriveby,
+    disableDriveby: typeof raw.disableDriveby === "boolean" ? raw.disableDriveby : defaultVisibleMod.disableDriveby,
+    disableDrivebySeat: typeof raw.disableDrivebySeat === "boolean"
+      ? raw.disableDrivebySeat
+      : defaultVisibleMod.disableDrivebySeat,
+    disableDrivebySeatSecondary: typeof raw.disableDrivebySeatSecondary === "boolean"
+      ? raw.disableDrivebySeatSecondary
+      : defaultVisibleMod.disableDrivebySeatSecondary,
+    linkedGenerated: typeof raw.linkedGenerated === "boolean" ? raw.linkedGenerated : defaultVisibleMod.linkedGenerated,
+    linkedSource: typeof raw.linkedSource === "string" ? raw.linkedSource : defaultVisibleMod.linkedSource,
+    linkedBoneRef: typeof raw.linkedBoneRef === "string" ? raw.linkedBoneRef : defaultVisibleMod.linkedBoneRef,
+  };
+}
+
+function ensureLinkMod(value: unknown): LinkMod {
+  const raw = value && typeof value === "object" ? (value as Partial<LinkMod>) : {};
+  return {
+    ...defaultLinkMod,
+    ...raw,
+    modelName: typeof raw.modelName === "string" ? raw.modelName : defaultLinkMod.modelName,
+    bone: typeof raw.bone === "string" ? raw.bone : defaultLinkMod.bone,
+    turnOffExtra: typeof raw.turnOffExtra === "number" ? raw.turnOffExtra : defaultLinkMod.turnOffExtra,
+  };
+}
+
+function ensureModkitsData(modkits: unknown): ModkitsData {
+  const raw = modkits && typeof modkits === "object" ? (modkits as Partial<ModkitsData>) : {};
+  const kits = Array.isArray(raw.kits) ? raw.kits : [];
+  return {
+    kits: kits
+      .filter((kit): kit is ModKit => Boolean(kit) && typeof kit === "object")
+      .map((kit) => ({
+        kitName: typeof kit.kitName === "string" ? kit.kitName : "",
+        id: typeof kit.id === "number" ? kit.id : 0,
+        kitType: typeof kit.kitType === "string" ? kit.kitType : "MKT_STANDARD",
+        visibleMods: Array.isArray(kit.visibleMods) ? kit.visibleMods.map((mod) => ensureVisibleMod(mod)) : [],
+        linkMods: Array.isArray(kit.linkMods) ? kit.linkMods.map((mod) => ensureLinkMod(mod)) : [],
+        statMods: Array.isArray(kit.statMods)
+          ? kit.statMods
+            .filter((mod): mod is StatMod => Boolean(mod) && typeof mod === "object")
+            .map((mod) => ({
+              identifier: typeof mod.identifier === "string" ? mod.identifier : "",
+              modifier: typeof mod.modifier === "number" ? mod.modifier : 0,
+              audioApply: typeof mod.audioApply === "number" ? mod.audioApply : 1,
+              weight: typeof mod.weight === "number" ? mod.weight : 0,
+              type: typeof mod.type === "string" ? mod.type : "VMT_ENGINE",
+            }))
+          : [],
+        slotNames: Array.isArray(kit.slotNames)
+          ? kit.slotNames
+            .filter((slot): slot is SlotName => Boolean(slot) && typeof slot === "object")
+            .map((slot) => ({
+              slot: typeof slot.slot === "string" ? slot.slot : "",
+              name: typeof slot.name === "string" ? slot.name : "",
+            }))
+          : [],
+        liveryNames: Array.isArray(kit.liveryNames)
+          ? kit.liveryNames.filter((name): name is string => typeof name === "string")
+          : [],
+        livery2Names: Array.isArray(kit.livery2Names)
+          ? kit.livery2Names.filter((name): name is string => typeof name === "string")
+          : [],
+      })),
   };
 }
 
@@ -576,7 +804,9 @@ function deserializeVehicles(vehicles: Record<string, SerializedVehicleEntry>): 
     result[id] = {
       ...clone,
       vehicles: ensureVehiclesData(entry.vehicles),
+      carvariations: ensureCarvariationsData(entry.carvariations),
       vehiclelayouts: ensureVehicleLayouts(entry.vehiclelayouts),
+      modkits: ensureModkitsData(entry.modkits),
       loadedMeta: new Set(entry.loadedMeta ?? []),
     };
   }
@@ -948,7 +1178,13 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
     // Normalize all vehicles to ensure vehiclelayouts has valid defaults
     const normalized: Record<string, VehicleEntry> = {};
     for (const [k, v] of Object.entries(entries)) {
-      normalized[k] = { ...v, vehicles: ensureVehiclesData(v.vehicles), vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts) };
+      normalized[k] = {
+        ...v,
+        vehicles: ensureVehiclesData(v.vehicles),
+        carvariations: ensureCarvariationsData(v.carvariations),
+        vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts),
+        modkits: ensureModkitsData(v.modkits),
+      };
     }
     set({
       vehicles: normalized,
@@ -965,7 +1201,13 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
     set((s) => {
       const normalized: Record<string, VehicleEntry> = {};
       for (const [k, v] of Object.entries(entries)) {
-        normalized[k] = { ...v, vehicles: ensureVehiclesData(v.vehicles), vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts) };
+        normalized[k] = {
+          ...v,
+          vehicles: ensureVehiclesData(v.vehicles),
+          carvariations: ensureCarvariationsData(v.carvariations),
+          vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts),
+          modkits: ensureModkitsData(v.modkits),
+        };
       }
       const nextActive =
         s.activeVehicleId && normalized[s.activeVehicleId]
