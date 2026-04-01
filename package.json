@@ -1,7 +1,7 @@
 {
   "name": "cortex-metagen-app",
   "private": true,
-  "version": "0.14.5",
+  "version": "0.15.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -57,9 +57,3 @@
     "vite": "^7.2.4"
   }
 }
-
-
-
-
-
-
