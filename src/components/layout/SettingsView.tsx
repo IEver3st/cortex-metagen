@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUpdateChecker } from "@/lib/updater";
 import { useMetaStore, type PerformanceSpeedUnit } from "@/store/meta-store";
 import { BugReportForm } from "./BugReportForm";
+import { SidebarCustomizationCard } from "./SidebarCustomizationCard";
 import { UpdateSettingsCard } from "./UpdateSettingsCard";
 import {
   ArchiveX,
@@ -141,6 +142,17 @@ export function SettingsView({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, ease: "easeOut", delay: 0.1 }}
             >
+              <SectionHeader title="Sidebar Layout" />
+              <div className="mt-4">
+                <SidebarCustomizationCard />
+              </div>
+            </motion.section>
+
+            <motion.section
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut", delay: 0.14 }}
+            >
               <SectionHeader title="Session Data" />
               <div className="mt-4 rounded-lg border border-border bg-card p-4">
                 <div className="flex items-center justify-between gap-6">
@@ -183,7 +195,7 @@ export function SettingsView({
             <motion.section
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut", delay: 0.15 }}
+              transition={{ duration: 0.2, ease: "easeOut", delay: 0.18 }}
             >
               <SectionHeader title="Hotkeys & shortcuts" />
               <div className="mt-4 rounded-lg border border-border bg-card">
@@ -236,7 +248,7 @@ export function SettingsView({
             <motion.section
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut", delay: 0.18 }}
+              transition={{ duration: 0.2, ease: "easeOut", delay: 0.22 }}
             >
               <SectionHeader title="Updates" />
               <div className="mt-4">
@@ -247,7 +259,7 @@ export function SettingsView({
             <motion.section
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut", delay: 0.22 }}
+              transition={{ duration: 0.2, ease: "easeOut", delay: 0.26 }}
             >
               <SectionHeader title="Support" />
               <div className="mt-4 rounded-lg border border-border bg-card">
@@ -272,7 +284,7 @@ export function SettingsView({
           <motion.footer
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.2, ease: "easeOut", delay: 0.28 }}
+            transition={{ duration: 0.2, ease: "easeOut", delay: 0.32 }}
             className="pt-4 border-t border-border flex items-center justify-end text-[10px] uppercase tracking-[0.08em] text-muted-foreground"
           >
             <span>Cortex Metagen v{appVersion}</span>

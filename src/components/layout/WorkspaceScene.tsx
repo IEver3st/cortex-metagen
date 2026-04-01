@@ -1,6 +1,8 @@
 import { memo, useMemo } from "react";
 
+import { resolveSidebarCustomization } from "@/lib/sidebar-customization";
 import { cn } from "@/lib/utils";
+import { useSidebarCustomizationStore } from "@/store/sidebar-customization-store";
 import type { WorkspaceSwitcherWorkspace } from "@/store/workspace-switcher-store";
 
 const SURFACE_PRIMARY = "var(--background)";
@@ -54,6 +56,17 @@ export const WorkspaceScene = memo(function WorkspaceScene({
   const vehicleCount = workspace.snapshot ? Object.keys(workspace.snapshot.vehicles).length : 0;
   const activeTab = workspace.snapshot?.activeTab ?? "handling";
   const sidebarCollapsed = workspace.snapshot?.sidebarCollapsed ?? false;
+  const globalSidebarProfile = useSidebarCustomizationStore((state) => state.globalProfile);
+  const sidebarCustomization = useMemo(
+    () => resolveSidebarCustomization(globalSidebarProfile, workspace.snapshot?.workspaceSidebarProfile ?? null),
+    [globalSidebarProfile, workspace.snapshot?.workspaceSidebarProfile],
+  );
+  const sidebarNavItemIds = sidebarCustomization.visibleItemIds
+    .filter((itemId) => itemId !== "workspace-header" && itemId !== "preset-picker")
+    .slice(0, compact ? 3 : 5);
+  const showExplorer =
+    (workspace.snapshot?.explorerVisible ?? true)
+    && sidebarCustomization.visibleItemIds.includes("workspace-toggle");
   const codePreviewVisible = !compact;
   const emptyState = metaFiles.length === 0;
 
@@ -164,26 +177,17 @@ export const WorkspaceScene = memo(function WorkspaceScene({
                 alignItems: "center",
               }}
             >
-              explorer
+              {showExplorer
+                ? sidebarCustomization.labels["workspace-toggle"].toLowerCase()
+                : "navigation"}
             </div>
 
             <div className="space-y-1 px-2 py-2">
-              <div
-                className="truncate"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 10,
-                  color: TEXT_MUTED,
-                }}
-              >
-                {folderLabel}
-              </div>
-
-              {metaFiles.slice(0, compact ? 2 : 5).map((filePath) => {
-                const active = filePath === activeFile;
+              {sidebarNavItemIds.map((itemId) => {
+                const active = itemId === activeTab || (itemId === "workspace-toggle" && showExplorer);
                 return (
                   <div
-                    key={filePath}
+                    key={itemId}
                     className="truncate rounded-[4px] border px-1.5 py-1"
                     style={{
                       borderColor: active ? ACCENT : BORDER_SUBTLE,
@@ -193,10 +197,44 @@ export const WorkspaceScene = memo(function WorkspaceScene({
                       fontSize: 10,
                     }}
                   >
-                    {toDisplayPath(filePath)}
+                    {sidebarCustomization.labels[itemId]}
                   </div>
                 );
               })}
+
+              {showExplorer && (
+                <>
+                  <div
+                    className="truncate pt-1"
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                      color: TEXT_MUTED,
+                    }}
+                  >
+                    {folderLabel}
+                  </div>
+
+                  {metaFiles.slice(0, compact ? 2 : 4).map((filePath) => {
+                    const active = filePath === activeFile;
+                    return (
+                      <div
+                        key={filePath}
+                        className="truncate rounded-[4px] border px-1.5 py-1"
+                        style={{
+                          borderColor: active ? ACCENT : BORDER_SUBTLE,
+                          color: active ? TEXT_PRIMARY : TEXT_FAINT,
+                          backgroundColor: active ? SURFACE_ELEVATED : "transparent",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: 10,
+                        }}
+                      >
+                        {toDisplayPath(filePath)}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
           </div>
 

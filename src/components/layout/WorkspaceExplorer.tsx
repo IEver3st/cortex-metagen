@@ -2,9 +2,11 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useMetaStore, type MetaFileType } from "@/store/meta-store";
-import { ChevronDown, ChevronRight, FileCode2, Folder, FolderOpen } from "lucide-react";
+import { resolveSidebarCustomization } from "@/lib/sidebar-customization";
 import { cn } from "@/lib/utils";
+import { useMetaStore, type MetaFileType } from "@/store/meta-store";
+import { useSidebarCustomizationStore } from "@/store/sidebar-customization-store";
+import { ChevronDown, ChevronRight, FileCode2, Folder, FolderOpen } from "lucide-react";
 
 type TreeNode =
   | {
@@ -98,14 +100,12 @@ function buildTree(paths: string[], workspacePath: string | null): TreeNode {
   return root;
 }
 
-function iconForMetaType(metaType: MetaFileType | null) {
+function iconForMetaType(
+  metaType: MetaFileType | null,
+  labels: ReturnType<typeof resolveSidebarCustomization>["labels"],
+) {
   if (!metaType) return { className: "text-muted-foreground", label: "Unsupported" };
-  if (metaType === "handling") return { className: "text-primary", label: "Handling" };
-  if (metaType === "vehicles") return { className: "text-primary", label: "Vehicles" };
-  if (metaType === "carcols") return { className: "text-primary", label: "Carcols" };
-  if (metaType === "carvariations") return { className: "text-primary", label: "Variations" };
-  if (metaType === "vehiclelayouts") return { className: "text-primary", label: "Layouts" };
-  return { className: "text-primary", label: "Modkits" };
+  return { className: "text-primary", label: labels[metaType] };
 }
 
 interface WorkspaceExplorerProps {
@@ -118,6 +118,12 @@ export function WorkspaceExplorer({ filterQuery = "" }: WorkspaceExplorerProps) 
   const activeTab = useMetaStore((s) => s.activeTab);
   const setActiveTab = useMetaStore((s) => s.setActiveTab);
   const setUIView = useMetaStore((s) => s.setUIView);
+  const workspaceSidebarProfile = useMetaStore((s) => s.workspaceSidebarProfile);
+  const globalSidebarProfile = useSidebarCustomizationStore((s) => s.globalProfile);
+  const sidebarLabels = useMemo(
+    () => resolveSidebarCustomization(globalSidebarProfile, workspaceSidebarProfile).labels,
+    [globalSidebarProfile, workspaceSidebarProfile],
+  );
 
   const filteredWorkspaceMetaFiles = useMemo(() => {
     const query = filterQuery.trim().toLowerCase();
@@ -162,7 +168,7 @@ export function WorkspaceExplorer({ filterQuery = "" }: WorkspaceExplorerProps) 
       );
     }
 
-    const { className, label } = iconForMetaType(node.metaType);
+    const { className, label } = iconForMetaType(node.metaType, sidebarLabels);
     const active = node.metaType ? activeTab === node.metaType : false;
     const supported = Boolean(node.metaType);
 

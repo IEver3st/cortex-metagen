@@ -1,6 +1,8 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useMetaStore } from "@/store/meta-store";
+import { resolveSidebarCustomization } from "@/lib/sidebar-customization";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { useSidebarCustomizationStore } from "@/store/sidebar-customization-store";
 import { createDefaultVehicle } from "@/lib/presets";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -107,6 +109,8 @@ export const Toolbar = memo(function Toolbar({
   const codePreviewVisible = useMetaStore((s) => s.codePreviewVisible);
   const toggleCodePreview = useMetaStore((s) => s.toggleCodePreview);
   const workspacePath = useMetaStore((s) => s.workspacePath);
+  const workspaceSidebarProfile = useMetaStore((s) => s.workspaceSidebarProfile);
+  const globalSidebarProfile = useSidebarCustomizationStore((s) => s.globalProfile);
   const vehicleList = useMemo(() => Object.values(vehicles), [vehicles]);
   const activeVehicle = activeVehicleId ? vehicles[activeVehicleId] : null;
   const hasSelection = vehicleList.length > 0;
@@ -154,6 +158,13 @@ export const Toolbar = memo(function Toolbar({
   const toggleCommandPalette = useWorkspaceStore((s) => s.toggleCommandPalette);
 
   const workspaceName = workspacePath?.replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop();
+  const sidebarCustomization = useMemo(
+    () => resolveSidebarCustomization(globalSidebarProfile, workspaceSidebarProfile),
+    [globalSidebarProfile, workspaceSidebarProfile],
+  );
+  const showWorkspaceToggle = sidebarCustomization.visibleItemIds.includes("workspace-toggle");
+  const showOpenFolderAction = sidebarCustomization.visibleItemIds.includes("open-folder");
+  const showOpenFileAction = sidebarCustomization.visibleItemIds.includes("open-file");
 
   const searchMatches = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -214,7 +225,7 @@ return (
           </Tooltip>
           )}
 
-          {workspaceName && (
+          {workspaceName && showWorkspaceToggle && (
             <>
               <Separator orientation="vertical" className="mx-1 h-5" />
               <DropdownMenu>
@@ -226,10 +237,10 @@ return (
                       </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">{workspaceName}</TooltipContent>
+                  <TooltipContent side="bottom">{sidebarCustomization.labels["workspace-toggle"]}</TooltipContent>
                 </Tooltip>
                 <DropdownMenuContent align="start" className="w-72">
-                  <DropdownMenuLabel className="text-xs">Switch Workspace</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-xs">{sidebarCustomization.labels["workspace-toggle"]}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {descriptors.length === 0 ? (
                     <DropdownMenuItem disabled className="text-xs">No workspaces</DropdownMenuItem>
@@ -268,7 +279,7 @@ return (
 
           {uiView === "workspace" && (
             <>
-              <Separator orientation="vertical" className="mx-1 h-5" />
+              {(workspaceName && showWorkspaceToggle) && <Separator orientation="vertical" className="mx-1 h-5" />}
 
               <div className="flex items-center gap-0.5">
                 <Tooltip>
@@ -283,27 +294,35 @@ return (
 
               <Separator orientation="vertical" className="mx-1 h-5" />
 
-              <div className="flex items-center gap-0.5">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" onClick={() => onOpenFile?.()}>
-                      <Upload />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Import</TooltipContent>
-                </Tooltip>
+              {(showOpenFileAction || showOpenFolderAction) && (
+                <div className="flex items-center gap-0.5">
+                  {showOpenFileAction && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" onClick={() => onOpenFile?.()}>
+                          <Upload />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">{sidebarCustomization.labels["open-file"]}</TooltipContent>
+                    </Tooltip>
+                  )}
 
-                {onOpenFolder && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon-sm" onClick={() => onOpenFolder()}>
-                        <FolderOpen />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">Open folder</TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
+                  {showOpenFolderAction && onOpenFolder && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" onClick={() => onOpenFolder()}>
+                          <FolderOpen />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">{sidebarCustomization.labels["open-folder"]}</TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              )}
+
+              {(showOpenFileAction || showOpenFolderAction) && (
+                <Separator orientation="vertical" className="mx-1 h-5" />
+              )}
             </>
           )}
         </div>
