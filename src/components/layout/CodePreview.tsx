@@ -396,17 +396,12 @@ export function CodePreview() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {validationSummary.errors > 0 ? (
+          {validationSummary.errors > 0 && (
             <div className="flex items-center gap-1.5">
               <span className="size-1.5 rounded-full bg-destructive" />
               <span className="font-mono text-[10px] text-destructive">
                 {validationSummary.errors}
               </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-primary" />
-              <span className="font-mono text-[10px] text-primary">ok</span>
             </div>
           )}
           {validationSummary.warnings > 0 && (
