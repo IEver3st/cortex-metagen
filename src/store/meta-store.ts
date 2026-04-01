@@ -373,7 +373,7 @@ function ensureCarvariationsData(carvariations: unknown): CarvariationsData {
 
   const colors = Array.isArray(raw.colors) ? raw.colors : [];
   const normalizedColors = colors
-    .filter((color): color is Partial<CarvariationColorSet> => Boolean(color) && typeof color === "object")
+    .filter((color) => Boolean(color) && typeof color === "object")
     .map((color) => ({
       primary: typeof color.primary === "number" ? color.primary : defaultCarvariationColor.primary,
       secondary: typeof color.secondary === "number" ? color.secondary : defaultCarvariationColor.secondary,
