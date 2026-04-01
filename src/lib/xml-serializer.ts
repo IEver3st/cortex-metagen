@@ -1,4 +1,12 @@
-import type { VehicleEntry } from "@/store/meta-store";
+import {
+  FIRST_PERSON_IK_OFFSET_NAMES,
+  type LookAroundSideData,
+  type VehicleDoorStiffnessMultiplier,
+  type VehicleDriver,
+  type VehicleEntry,
+  type VehicleUnknownXmlNode,
+  type VehicleVec3,
+} from "@/store/meta-store";
 
 function indent(level: number): string {
   return "  ".repeat(level);
@@ -26,6 +34,157 @@ function formatText(value: unknown, fallback: string): string {
   }
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   return fallback;
+}
+
+function formatBoolean(value: unknown, fallback: boolean): string {
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number" && Number.isFinite(value)) return value !== 0 ? "true" : "false";
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") return "true";
+    if (normalized === "false" || normalized === "0") return "false";
+  }
+  return fallback ? "true" : "false";
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function formatXmlPrimitive(value: unknown): string {
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "string") return value;
+  return "";
+}
+
+function pushTextNode(lines: string[], level: number, tag: string, value: unknown, fallback = ""): void {
+  const resolved = formatText(value, fallback);
+  if (resolved === "") {
+    lines.push(`${indent(level)}<${tag} />`);
+    return;
+  }
+
+  lines.push(`${indent(level)}<${tag}>${escapeXml(resolved)}</${tag}>`);
+}
+
+function pushNumberValueNode(lines: string[], level: number, tag: string, value: unknown, fallback: number): void {
+  lines.push(`${indent(level)}<${tag} value="${formatNumber(value, fallback)}" />`);
+}
+
+function pushIntegerValueNode(lines: string[], level: number, tag: string, value: unknown, fallback: number): void {
+  lines.push(`${indent(level)}<${tag} value="${formatInteger(value, fallback)}" />`);
+}
+
+function pushBooleanValueNode(lines: string[], level: number, tag: string, value: unknown, fallback: boolean): void {
+  lines.push(`${indent(level)}<${tag} value="${formatBoolean(value, fallback)}" />`);
+}
+
+function pushVec3Node(lines: string[], level: number, tag: string, value: VehicleVec3): void {
+  lines.push(
+    `${indent(level)}<${tag} x="${formatNumber(value.x, 0)}" y="${formatNumber(value.y, 0)}" z="${formatNumber(value.z, 0)}" />`,
+  );
+}
+
+function serializeXmlNode(tag: string, value: unknown, level: number): string[] {
+  const prefix = indent(level);
+
+  if (Array.isArray(value)) {
+    const lines = [`${prefix}<${tag}>`];
+    for (const item of value) {
+      lines.push(...serializeXmlNode("Item", item, level + 1));
+    }
+    lines.push(`${prefix}</${tag}>`);
+    return lines;
+  }
+
+  if (!isRecord(value)) {
+    const text = formatXmlPrimitive(value);
+    if (text === "") return [`${prefix}<${tag} />`];
+    return [`${prefix}<${tag}>${escapeXml(text)}</${tag}>`];
+  }
+
+  const attributes = Object.entries(value)
+    .filter(([key]) => key.startsWith("@_"))
+    .map(([key, attrValue]) => `${key.slice(2)}="${escapeXml(formatXmlPrimitive(attrValue))}"`)
+    .join(" ");
+  const openTag = attributes ? `<${tag} ${attributes}` : `<${tag}`;
+  const textValue = "#text" in value ? formatXmlPrimitive(value["#text"]) : "";
+  const childEntries = Object.entries(value).filter(([key]) => !key.startsWith("@_") && key !== "#text");
+
+  if (textValue === "" && childEntries.length === 0) {
+    return [`${prefix}${openTag} />`];
+  }
+
+  if (textValue !== "" && childEntries.length === 0) {
+    return [`${prefix}${openTag}>${escapeXml(textValue)}</${tag}>`];
+  }
+
+  const lines = [`${prefix}${openTag}>`];
+  if (textValue !== "") {
+    lines.push(`${indent(level + 1)}${escapeXml(textValue)}`);
+  }
+
+  for (const [childTag, childValue] of childEntries) {
+    if (Array.isArray(childValue)) {
+      for (const nested of childValue) {
+        lines.push(...serializeXmlNode(childTag, nested, level + 1));
+      }
+      continue;
+    }
+
+    lines.push(...serializeXmlNode(childTag, childValue, level + 1));
+  }
+
+  lines.push(`${prefix}</${tag}>`);
+  return lines;
+}
+
+function pushUnknownNodes(lines: string[], level: number, nodes: VehicleUnknownXmlNode[]): void {
+  for (const node of nodes) {
+    lines.push(...serializeXmlNode(node.tag, node.value, level));
+  }
+}
+
+function pushDriversNode(lines: string[], level: number, drivers: VehicleDriver[]): void {
+  if (drivers.length === 0) {
+    lines.push(`${indent(level)}<drivers />`);
+    return;
+  }
+
+  lines.push(`${indent(level)}<drivers>`);
+  for (const driver of drivers) {
+    lines.push(`${indent(level + 1)}<Item>`);
+    pushTextNode(lines, level + 2, "driverName", driver.driverName);
+    pushTextNode(lines, level + 2, "npcName", driver.npcName);
+    lines.push(`${indent(level + 1)}</Item>`);
+  }
+  lines.push(`${indent(level)}</drivers>`);
+}
+
+function pushDoorStiffnessNode(lines: string[], level: number, entries: VehicleDoorStiffnessMultiplier[]): void {
+  if (entries.length === 0) {
+    lines.push(`${indent(level)}<doorStiffnessMultipliers />`);
+    return;
+  }
+
+  lines.push(`${indent(level)}<doorStiffnessMultipliers>`);
+  for (const entry of entries) {
+    lines.push(`${indent(level + 1)}<Item>`);
+    pushIntegerValueNode(lines, level + 2, "doorId", entry.doorId, 0);
+    pushNumberValueNode(lines, level + 2, "stiffnessMult", entry.stiffnessMult, 1);
+    lines.push(`${indent(level + 1)}</Item>`);
+  }
+  lines.push(`${indent(level)}</doorStiffnessMultipliers>`);
 }
 
 export function serializeHandlingMeta(vehicles: VehicleEntry[]): string {
@@ -110,38 +269,137 @@ export function serializeVehiclesMeta(vehicles: VehicleEntry[]): string {
   const lines: string[] = [];
   lines.push(`<?xml version="1.0" encoding="UTF-8"?>`);
   lines.push(`<CVehicleModelInfo__InitDataList>`);
+  if (filtered.length > 0) {
+    const rootVehicle = filtered[0].vehicles;
+    pushTextNode(lines, 1, "residentTxd", rootVehicle.residentTxd, "vehshare");
+    pushTextNode(lines, 1, "residentAnims", rootVehicle.residentAnims);
+    pushUnknownNodes(lines, 1, rootVehicle.unknownFileLevelNodes);
+  }
   lines.push(`${indent(1)}<InitDatas>`);
 
   for (const v of filtered) {
     const d = v.vehicles;
     lines.push(`${indent(2)}<Item>`);
-    lines.push(`${indent(3)}<modelName>${d.modelName}</modelName>`);
-    lines.push(`${indent(3)}<txdName>${d.txdName}</txdName>`);
-    lines.push(`${indent(3)}<handlingId>${d.handlingId}</handlingId>`);
-    lines.push(`${indent(3)}<gameName>${d.gameName}</gameName>`);
-    lines.push(`${indent(3)}<vehicleMakeName>${d.vehicleMakeName}</vehicleMakeName>`);
-    lines.push(`${indent(3)}<type>${d.type}</type>`);
-    lines.push(`${indent(3)}<vehicleClass>${d.vehicleClass}</vehicleClass>`);
-    lines.push(`${indent(3)}<layout>${d.layout}</layout>`);
-    lines.push(`${indent(3)}<driverSourceExtension>${d.driverSourceExtension}</driverSourceExtension>`);
-    lines.push(`${indent(3)}<audioNameHash>${d.audioNameHash}</audioNameHash>`);
-    lines.push(`${indent(3)}<lodDistances content="float_array">`);
-    lines.push(`${indent(4)}${d.lodDistances}`);
-    lines.push(`${indent(3)}</lodDistances>`);
-    lines.push(`${indent(3)}<diffuseTint value="${d.diffuseTint}" />`);
-    lines.push(`${indent(3)}<dirtLevelMin value="${d.dirtLevelMin.toFixed(6)}" />`);
-    lines.push(`${indent(3)}<dirtLevelMax value="${d.dirtLevelMax.toFixed(6)}" />`);
-    if (d.flags.length > 0) {
-      lines.push(`${indent(3)}<flags>`);
-      for (const flag of d.flags) {
-        lines.push(`${indent(4)}<Item>${flag}</Item>`);
-      }
-      lines.push(`${indent(3)}</flags>`);
+    pushTextNode(lines, 3, "modelName", d.modelName, "newvehicle");
+    pushTextNode(lines, 3, "txdName", d.txdName, d.modelName);
+    pushTextNode(lines, 3, "handlingId", d.handlingId, d.modelName.toUpperCase());
+    pushTextNode(lines, 3, "gameName", d.gameName, d.modelName.toUpperCase());
+    pushTextNode(lines, 3, "vehicleMakeName", d.vehicleMakeName, "CUSTOM");
+    pushTextNode(lines, 3, "expressionDictName", d.expressionDictName);
+    pushTextNode(lines, 3, "expressionName", d.expressionName);
+    pushTextNode(lines, 3, "animConvRoofDictName", d.animConvRoofDictName);
+    pushTextNode(lines, 3, "animConvRoofName", d.animConvRoofName);
+    pushTextNode(lines, 3, "animConvRoofWindowsAffected", d.animConvRoofWindowsAffected);
+    pushTextNode(lines, 3, "ptfxAssetName", d.ptfxAssetName);
+    pushTextNode(lines, 3, "audioNameHash", d.audioNameHash, "ADDER");
+    pushTextNode(lines, 3, "layout", d.layout, "LAYOUT_STANDARD");
+    pushTextNode(lines, 3, "driverSourceExtension", d.driverSourceExtension, "feroci");
+    pushTextNode(lines, 3, "coverBoundOffsets", d.coverBoundOffsets);
+    if (d.povTuningInfo != null) {
+      lines.push(...serializeXmlNode("POVTuningInfo", d.povTuningInfo, 3));
+    } else {
+      lines.push(`${indent(3)}<POVTuningInfo />`);
     }
+    if (d.explosionInfo != null) {
+      lines.push(...serializeXmlNode("explosionInfo", d.explosionInfo, 3));
+    } else {
+      lines.push(`${indent(3)}<explosionInfo />`);
+    }
+    pushTextNode(lines, 3, "scenarioLayout", d.scenarioLayout);
+    pushTextNode(lines, 3, "cameraName", d.cameraName, "DEFAULT_SCRIPTED_CAMERA");
+    pushTextNode(lines, 3, "aimCameraName", d.aimCameraName, "DEFAULT_AIM_CAMERA");
+    pushTextNode(lines, 3, "bonnetCameraName", d.bonnetCameraName, "BONNET_CAMERA");
+    pushTextNode(lines, 3, "povCameraName", d.povCameraName, "POV_CAMERA");
+    for (const offsetName of FIRST_PERSON_IK_OFFSET_NAMES) {
+      pushVec3Node(lines, 3, offsetName, d.firstPersonIkOffsets[offsetName] ?? { x: 0, y: 0, z: 0 });
+    }
+    pushVec3Node(lines, 3, "PovCameraOffset", d.povCameraOffset);
+    pushNumberValueNode(lines, 3, "PovCameraVerticalAdjustmentForRollCage", d.povCameraVerticalAdjustmentForRollCage, 0);
+    pushVec3Node(lines, 3, "PovPassengerCameraOffset", d.povPassengerCameraOffset);
+    pushVec3Node(lines, 3, "PovRearPassengerCameraOffset", d.povRearPassengerCameraOffset);
+    if (d.firstPersonDrivebyData != null) {
+      lines.push(...serializeXmlNode("firstPersonDrivebyData", d.firstPersonDrivebyData, 3));
+    } else {
+      lines.push(`${indent(3)}<firstPersonDrivebyData />`);
+    }
+    pushTextNode(lines, 3, "vfxInfoName", d.vfxInfoName, "VFXVEHICLEINFO_DEFAULT");
+    pushBooleanValueNode(lines, 3, "shouldUseCinematicViewMode", d.shouldUseCinematicViewMode, true);
+    pushBooleanValueNode(lines, 3, "shouldCameraTransitionOnClimbUpDown", d.shouldCameraTransitionOnClimbUpDown, false);
+    pushBooleanValueNode(lines, 3, "shouldCameraIgnoreExiting", d.shouldCameraIgnoreExiting, false);
+    pushBooleanValueNode(lines, 3, "AllowPretendOccupants", d.allowPretendOccupants, false);
+    pushBooleanValueNode(lines, 3, "AllowJoyriding", d.allowJoyriding, true);
+    pushBooleanValueNode(lines, 3, "AllowSundayDriving", d.allowSundayDriving, true);
+    pushBooleanValueNode(lines, 3, "AllowBodyColorMapping", d.allowBodyColorMapping, false);
+    pushNumberValueNode(lines, 3, "wheelScale", d.wheelScale, 1);
+    pushNumberValueNode(lines, 3, "wheelScaleRear", d.wheelScaleRear, 1);
+    pushNumberValueNode(lines, 3, "dirtLevelMin", d.dirtLevelMin, 0);
+    pushNumberValueNode(lines, 3, "dirtLevelMax", d.dirtLevelMax, 0.4);
+    pushNumberValueNode(lines, 3, "envEffScaleMin", d.envEffScaleMin, 0);
+    pushNumberValueNode(lines, 3, "envEffScaleMax", d.envEffScaleMax, 1);
+    pushNumberValueNode(lines, 3, "envEffScaleMin2", d.envEffScaleMin2, 0);
+    pushNumberValueNode(lines, 3, "envEffScaleMax2", d.envEffScaleMax2, 1);
+    pushNumberValueNode(lines, 3, "damageMapScale", d.damageMapScale, 1);
+    pushNumberValueNode(lines, 3, "damageOffsetScale", d.damageOffsetScale, 1);
+    lines.push(`${indent(3)}<lodDistances content="float_array">`);
+    lines.push(`${indent(4)}${escapeXml(formatText(d.lodDistances, "15.0 30.0 60.0 120.0 500.0"))}`);
+    lines.push(`${indent(3)}</lodDistances>`);
+    lines.push(`${indent(3)}<diffuseTint value="${escapeXml(formatText(d.diffuseTint, "0x00FFFFFF"))}" />`);
+    pushNumberValueNode(lines, 3, "steerWheelMult", d.steerWheelMult, 1);
+    pushNumberValueNode(lines, 3, "HDTextureDist", d.HDTextureDist, 60);
+    pushNumberValueNode(lines, 3, "minSeatHeight", d.minSeatHeight, 0.2);
+    pushNumberValueNode(lines, 3, "identicalModelSpawnDistance", d.identicalModelSpawnDistance, 20);
+    pushIntegerValueNode(lines, 3, "maxNumOfSameColor", d.maxNumOfSameColor, 5);
+    pushNumberValueNode(lines, 3, "defaultBodyHealth", d.defaultBodyHealth, 700);
+    pushNumberValueNode(lines, 3, "pretendOccupantsScale", d.pretendOccupantsScale, 1);
+    pushNumberValueNode(lines, 3, "visibleSpawnDistScale", d.visibleSpawnDistScale, 1);
+    pushNumberValueNode(lines, 3, "trackerPathWidth", d.trackerPathWidth, 2);
+    pushNumberValueNode(lines, 3, "weaponForceMult", d.weaponForceMult, 1);
+    pushIntegerValueNode(lines, 3, "frequency", d.frequency, 20);
+    pushTextNode(lines, 3, "swankness", d.swankness, "SWANKNESS_3");
+    pushIntegerValueNode(lines, 3, "maxNum", d.maxNum, 20);
+    pushTextNode(lines, 3, "flags", d.flags.join(" "));
+    pushTextNode(lines, 3, "type", d.type, "VEHICLE_TYPE_CAR");
+    pushTextNode(lines, 3, "plateType", d.plateType, "VPT_FRONT_AND_BACK_PLATES");
+    pushTextNode(lines, 3, "dashboardType", d.dashboardType, "VDT_DEFAULT");
+    pushTextNode(lines, 3, "vehicleClass", d.vehicleClass, "VC_SPORT");
+    pushTextNode(lines, 3, "wheelType", d.wheelType, "VWT_SPORT");
+    pushTextNode(lines, 3, "trailers", d.trailers);
+    pushTextNode(lines, 3, "additionalTrailers", d.additionalTrailers);
+    pushDriversNode(lines, 3, d.drivers);
+    pushTextNode(lines, 3, "extraIncludes", d.extraIncludes);
+    pushTextNode(lines, 3, "doorsWithCollisionWhenClosed", d.doorsWithCollisionWhenClosed);
+    pushTextNode(lines, 3, "driveableDoors", d.driveableDoors);
+    pushDoorStiffnessNode(lines, 3, d.doorStiffnessMultipliers);
+    pushBooleanValueNode(lines, 3, "bumpersNeedToCollideWithMap", d.bumpersNeedToCollideWithMap, false);
+    pushBooleanValueNode(lines, 3, "needsRopeTexture", d.needsRopeTexture, false);
+    pushTextNode(lines, 3, "requiredExtras", d.requiredExtras);
+    pushUnknownNodes(lines, 3, d.unknownNodes);
     lines.push(`${indent(2)}</Item>`);
   }
 
   lines.push(`${indent(1)}</InitDatas>`);
+  if (filtered.length > 0) {
+    const relationshipEntries = new Map<string, { parent: string; child: string }>();
+    for (const vehicle of filtered) {
+      for (const relationship of vehicle.vehicles.txdRelationships) {
+        const parent = formatText(relationship.parent, "vehshare");
+        const child = formatText(relationship.child, "");
+        if (child === "") continue;
+        relationshipEntries.set(`${parent}::${child}`, { parent, child });
+      }
+    }
+
+    if (relationshipEntries.size > 0) {
+      lines.push(`${indent(1)}<txdRelationships>`);
+      for (const relationship of relationshipEntries.values()) {
+        lines.push(`${indent(2)}<Item>`);
+        pushTextNode(lines, 3, "parent", relationship.parent, "vehshare");
+        pushTextNode(lines, 3, "child", relationship.child);
+        lines.push(`${indent(2)}</Item>`);
+      }
+      lines.push(`${indent(1)}</txdRelationships>`);
+    }
+  }
   lines.push(`</CVehicleModelInfo__InitDataList>`);
   return lines.join("\n");
 }
@@ -250,7 +508,7 @@ export function serializeCarvariationsMeta(vehicles: VehicleEntry[]): string {
   return lines.join("\n");
 }
 
-function serializeLookAroundSide(side: any, level: number): string[] {
+function serializeLookAroundSide(side: LookAroundSideData, level: number): string[] {
   const lines: string[] = [];
   if (side.offsets && side.offsets.length > 0) {
     lines.push(`${indent(level)}<Offsets>`);

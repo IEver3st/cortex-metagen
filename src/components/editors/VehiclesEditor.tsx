@@ -25,7 +25,13 @@ import {
 import { defaultVehicles } from "@/lib/presets";
 import { cn } from "@/lib/utils";
 import { useMetaStore } from "@/store/meta-store";
-import type { VehicleDoorStiffnessMultiplier, VehicleVec3, VehiclesData } from "@/store/meta-store";
+import type {
+  VehicleDoorStiffnessMultiplier,
+  VehicleDriver,
+  VehicleTxdRelationship,
+  VehicleVec3,
+  VehiclesData,
+} from "@/store/meta-store";
 
 const DEFAULT_VEHICLES: VehiclesData = JSON.parse(JSON.stringify(defaultVehicles)) as VehiclesData;
 
@@ -284,6 +290,80 @@ function DoorStiffnessField({
   );
 }
 
+function DriversField({ value, onChange }: { value: VehicleDriver[]; onChange: (value: VehicleDriver[]) => void }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-[11px] text-muted-foreground">Drivers</Label>
+        <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => onChange([...value, { driverName: "", npcName: "" }])}>
+          <Plus className="size-3" />
+          Add
+        </Button>
+      </div>
+      {value.length === 0 ? <p className="text-[11px] text-muted-foreground">No driver overrides configured.</p> : null}
+      {value.map((entry, index) => (
+        <div key={`${entry.driverName}-${entry.npcName}-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <Input
+            value={entry.driverName}
+            onChange={(event) => onChange(value.map((current, currentIndex) => currentIndex === index ? { ...current, driverName: event.target.value } : current))}
+            className="h-8 text-xs font-mono"
+            placeholder="driverName"
+          />
+          <Input
+            value={entry.npcName}
+            onChange={(event) => onChange(value.map((current, currentIndex) => currentIndex === index ? { ...current, npcName: event.target.value } : current))}
+            className="h-8 text-xs font-mono"
+            placeholder="npcName"
+          />
+          <Button type="button" variant="ghost" size="icon-sm" className="size-8" onClick={() => onChange(value.filter((_, currentIndex) => currentIndex !== index))}>
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TxdRelationshipsField({
+  value,
+  onChange,
+}: {
+  value: VehicleTxdRelationship[];
+  onChange: (value: VehicleTxdRelationship[]) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-[11px] text-muted-foreground">TXD Relationships</Label>
+        <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => onChange([...value, { parent: "vehshare", child: "" }])}>
+          <Plus className="size-3" />
+          Add
+        </Button>
+      </div>
+      {value.length === 0 ? <p className="text-[11px] text-muted-foreground">No additional texture dictionary relationships configured.</p> : null}
+      {value.map((entry, index) => (
+        <div key={`${entry.parent}-${entry.child}-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <Input
+            value={entry.parent}
+            onChange={(event) => onChange(value.map((current, currentIndex) => currentIndex === index ? { ...current, parent: event.target.value } : current))}
+            className="h-8 text-xs font-mono"
+            placeholder="parent"
+          />
+          <Input
+            value={entry.child}
+            onChange={(event) => onChange(value.map((current, currentIndex) => currentIndex === index ? { ...current, child: event.target.value } : current))}
+            className="h-8 text-xs font-mono"
+            placeholder="child"
+          />
+          <Button type="button" variant="ghost" size="icon-sm" className="size-8" onClick={() => onChange(value.filter((_, currentIndex) => currentIndex !== index))}>
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function VehiclesEditor() {
   const activeVehicleId = useMetaStore((state) => state.activeVehicleId);
   const vehicle = useMetaStore((state) => state.activeVehicleId ? state.vehicles[state.activeVehicleId] : null);
@@ -337,6 +417,17 @@ export function VehiclesEditor() {
           </div>
         </Section>
 
+        <Section title="Animations & Expressions" count={["expressionDictName", "expressionName", "animConvRoofDictName", "animConvRoofName", "animConvRoofWindowsAffected", "scenarioLayout"].filter((key) => modified(data, key as keyof VehiclesData)).length} onReset={() => reset(["expressionDictName", "expressionName", "animConvRoofDictName", "animConvRoofName", "animConvRoofWindowsAffected", "scenarioLayout"])} defaultCollapsed>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <TextField label={fieldLabel("expressionDictName")} value={data.expressionDictName} onChange={(value) => update({ expressionDictName: value })} />
+            <TextField label={fieldLabel("expressionName")} value={data.expressionName} onChange={(value) => update({ expressionName: value })} />
+            <TextField label={fieldLabel("animConvRoofDictName")} value={data.animConvRoofDictName} onChange={(value) => update({ animConvRoofDictName: value })} />
+            <TextField label={fieldLabel("animConvRoofName")} value={data.animConvRoofName} onChange={(value) => update({ animConvRoofName: value })} />
+            <TextField label={fieldLabel("animConvRoofWindowsAffected")} value={data.animConvRoofWindowsAffected} onChange={(value) => update({ animConvRoofWindowsAffected: value })} />
+            <TextField label={fieldLabel("scenarioLayout")} value={data.scenarioLayout} onChange={(value) => update({ scenarioLayout: value })} />
+          </div>
+        </Section>
+
         <Section title="Type, Audio & Interaction" count={["type", "vehicleClass", "audioNameHash", "layout", "driverSourceExtension"].filter((key) => modified(data, key as keyof VehiclesData)).length} onReset={() => reset(["type", "vehicleClass", "audioNameHash", "layout", "driverSourceExtension"])}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <Select value={data.type} onValueChange={(value) => update({ type: value })}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger><SelectContent>{vehicleTypes.map((option) => <SelectItem key={option} value={option} className="text-xs">{option}</SelectItem>)}</SelectContent></Select>
@@ -358,7 +449,7 @@ export function VehiclesEditor() {
           </div>
         </Section>
 
-        <Section title="Advanced" count={["cameraName", "aimCameraName", "bonnetCameraName", "povCameraName", "plateType", "dashboardType", "wheelType", "wheelScale", "wheelScaleRear", "envEffScaleMin", "envEffScaleMax", "HDTextureDist", "defaultBodyHealth", "trailers", "additionalTrailers", "doorsWithCollisionWhenClosed", "driveableDoors", "coverBoundOffsets", "povTuningInfo", "explosionInfo", "firstPersonDrivebyData", "povCameraOffset", "povPassengerCameraOffset", "povRearPassengerCameraOffset", "firstPersonIkOffsets", "povCameraVerticalAdjustmentForRollCage", "doorStiffnessMultipliers", "ptfxAssetName", "vfxInfoName", "damageMapScale", "damageOffsetScale", "steerWheelMult", "minSeatHeight", "pretendOccupantsScale", "visibleSpawnDistScale", "trackerPathWidth", "weaponForceMult", "frequency", "maxNumOfSameColor", "maxNum", "swankness", "allowBodyColorMapping", "shouldUseCinematicViewMode", "shouldCameraTransitionOnClimbUpDown", "shouldCameraIgnoreExiting", "allowPretendOccupants", "allowJoyriding", "allowSundayDriving", "bumpersNeedToCollideWithMap", "needsRopeTexture"].filter((key) => modified(data, key as keyof VehiclesData)).length} onReset={() => reset(["cameraName", "aimCameraName", "bonnetCameraName", "povCameraName", "plateType", "dashboardType", "wheelType", "wheelScale", "wheelScaleRear", "envEffScaleMin", "envEffScaleMax", "HDTextureDist", "defaultBodyHealth", "trailers", "additionalTrailers", "doorsWithCollisionWhenClosed", "driveableDoors", "coverBoundOffsets", "povTuningInfo", "explosionInfo", "firstPersonDrivebyData", "povCameraOffset", "povPassengerCameraOffset", "povRearPassengerCameraOffset", "firstPersonIkOffsets", "povCameraVerticalAdjustmentForRollCage", "doorStiffnessMultipliers", "ptfxAssetName", "vfxInfoName", "damageMapScale", "damageOffsetScale", "steerWheelMult", "minSeatHeight", "pretendOccupantsScale", "visibleSpawnDistScale", "trackerPathWidth", "weaponForceMult", "frequency", "maxNumOfSameColor", "maxNum", "swankness", "allowBodyColorMapping", "shouldUseCinematicViewMode", "shouldCameraTransitionOnClimbUpDown", "shouldCameraIgnoreExiting", "allowPretendOccupants", "allowJoyriding", "allowSundayDriving", "bumpersNeedToCollideWithMap", "needsRopeTexture"])} defaultCollapsed>
+        <Section title="Advanced" count={["cameraName", "aimCameraName", "bonnetCameraName", "povCameraName", "plateType", "dashboardType", "wheelType", "wheelScale", "wheelScaleRear", "envEffScaleMin", "envEffScaleMax", "envEffScaleMin2", "envEffScaleMax2", "HDTextureDist", "defaultBodyHealth", "trailers", "additionalTrailers", "drivers", "doorsWithCollisionWhenClosed", "driveableDoors", "coverBoundOffsets", "extraIncludes", "requiredExtras", "povTuningInfo", "explosionInfo", "firstPersonDrivebyData", "povCameraOffset", "povPassengerCameraOffset", "povRearPassengerCameraOffset", "firstPersonIkOffsets", "povCameraVerticalAdjustmentForRollCage", "doorStiffnessMultipliers", "ptfxAssetName", "vfxInfoName", "damageMapScale", "damageOffsetScale", "steerWheelMult", "minSeatHeight", "identicalModelSpawnDistance", "pretendOccupantsScale", "visibleSpawnDistScale", "trackerPathWidth", "weaponForceMult", "frequency", "maxNumOfSameColor", "maxNum", "swankness", "residentTxd", "residentAnims", "txdRelationships", "allowBodyColorMapping", "shouldUseCinematicViewMode", "shouldCameraTransitionOnClimbUpDown", "shouldCameraIgnoreExiting", "allowPretendOccupants", "allowJoyriding", "allowSundayDriving", "bumpersNeedToCollideWithMap", "needsRopeTexture"].filter((key) => modified(data, key as keyof VehiclesData)).length} onReset={() => reset(["cameraName", "aimCameraName", "bonnetCameraName", "povCameraName", "plateType", "dashboardType", "wheelType", "wheelScale", "wheelScaleRear", "envEffScaleMin", "envEffScaleMax", "envEffScaleMin2", "envEffScaleMax2", "HDTextureDist", "defaultBodyHealth", "trailers", "additionalTrailers", "drivers", "doorsWithCollisionWhenClosed", "driveableDoors", "coverBoundOffsets", "extraIncludes", "requiredExtras", "povTuningInfo", "explosionInfo", "firstPersonDrivebyData", "povCameraOffset", "povPassengerCameraOffset", "povRearPassengerCameraOffset", "firstPersonIkOffsets", "povCameraVerticalAdjustmentForRollCage", "doorStiffnessMultipliers", "ptfxAssetName", "vfxInfoName", "damageMapScale", "damageOffsetScale", "steerWheelMult", "minSeatHeight", "identicalModelSpawnDistance", "pretendOccupantsScale", "visibleSpawnDistScale", "trackerPathWidth", "weaponForceMult", "frequency", "maxNumOfSameColor", "maxNum", "swankness", "residentTxd", "residentAnims", "txdRelationships", "allowBodyColorMapping", "shouldUseCinematicViewMode", "shouldCameraTransitionOnClimbUpDown", "shouldCameraIgnoreExiting", "allowPretendOccupants", "allowJoyriding", "allowSundayDriving", "bumpersNeedToCollideWithMap", "needsRopeTexture"])} defaultCollapsed>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
             <div className="space-y-2 rounded border border-border/50 p-3">
               <TextField label={fieldLabel("cameraName")} value={data.cameraName} onChange={(value) => update({ cameraName: value })} />
@@ -375,12 +466,16 @@ export function VehiclesEditor() {
               <SliderField field={vehiclesFields.wheelScaleRear} value={data.wheelScaleRear} onChange={(value) => update({ wheelScaleRear: value })} min={0.5} max={2} step={0.01} />
               <SliderField field={vehiclesFields.envEffScaleMin} value={data.envEffScaleMin} onChange={(value) => update({ envEffScaleMin: value })} min={0} max={2} step={0.01} />
               <SliderField field={vehiclesFields.envEffScaleMax} value={data.envEffScaleMax} onChange={(value) => update({ envEffScaleMax: value })} min={0} max={2} step={0.01} />
+              <NumberField label="Env Effect Scale Min 2" value={data.envEffScaleMin2} onChange={(value) => update({ envEffScaleMin2: value })} />
+              <NumberField label="Env Effect Scale Max 2" value={data.envEffScaleMax2} onChange={(value) => update({ envEffScaleMax2: value })} />
               <SliderField field={vehiclesFields.HDTextureDist} value={data.HDTextureDist} onChange={(value) => update({ HDTextureDist: value })} min={0} max={500} step={1} />
               <SliderField field={vehiclesFields.defaultBodyHealth} value={data.defaultBodyHealth} onChange={(value) => update({ defaultBodyHealth: value })} min={100} max={2000} step={10} />
             </div>
 
             <div className="space-y-2 rounded border border-border/50 p-3">
               <TextAreaField label="Cover Bound Offsets" value={data.coverBoundOffsets} onChange={(value) => update({ coverBoundOffsets: value })} />
+              <TextAreaField label="Extra Includes" value={data.extraIncludes} onChange={(value) => update({ extraIncludes: value })} />
+              <TextAreaField label="Required Extras" value={data.requiredExtras} onChange={(value) => update({ requiredExtras: value })} />
               <JsonField label="POV Tuning Info" value={data.povTuningInfo} onChange={(value) => update({ povTuningInfo: value })} />
               <JsonField label="Explosion Info" value={data.explosionInfo} onChange={(value) => update({ explosionInfo: value })} />
               <JsonField label="First Person Drive-By Data" value={data.firstPersonDrivebyData} onChange={(value) => update({ firstPersonDrivebyData: value })} />
@@ -412,6 +507,7 @@ export function VehiclesEditor() {
               <NumberField label="Damage Offset Scale" value={data.damageOffsetScale} onChange={(value) => update({ damageOffsetScale: value })} />
               <NumberField label="Steer Wheel Multiplier" value={data.steerWheelMult} onChange={(value) => update({ steerWheelMult: value })} />
               <NumberField label="Min Seat Height" value={data.minSeatHeight} onChange={(value) => update({ minSeatHeight: value })} />
+              <NumberField label="Identical Model Spawn Distance" value={data.identicalModelSpawnDistance} onChange={(value) => update({ identicalModelSpawnDistance: value })} />
               <NumberField label="Pretend Occupants Scale" value={data.pretendOccupantsScale} onChange={(value) => update({ pretendOccupantsScale: value })} />
               <NumberField label="Visible Spawn Distance Scale" value={data.visibleSpawnDistScale} onChange={(value) => update({ visibleSpawnDistScale: value })} />
               <NumberField label="Tracker Path Width" value={data.trackerPathWidth} onChange={(value) => update({ trackerPathWidth: value })} />
@@ -431,6 +527,16 @@ export function VehiclesEditor() {
               <ToggleField label="Allow Body Color Mapping" checked={data.allowBodyColorMapping} onChange={(value) => update({ allowBodyColorMapping: value })} />
               <ToggleField label="Bumpers Need Map Collision" checked={data.bumpersNeedToCollideWithMap} onChange={(value) => update({ bumpersNeedToCollideWithMap: value })} />
               <ToggleField label="Needs Rope Texture" checked={data.needsRopeTexture} onChange={(value) => update({ needsRopeTexture: value })} />
+            </div>
+
+            <div className="space-y-2 rounded border border-border/50 p-3">
+              <TextField label="Resident TXD" value={data.residentTxd} onChange={(value) => update({ residentTxd: value.toLowerCase() })} />
+              <TextField label="Resident Anims" value={data.residentAnims} onChange={(value) => update({ residentAnims: value })} />
+              <TxdRelationshipsField value={data.txdRelationships} onChange={(value) => update({ txdRelationships: value })} />
+            </div>
+
+            <div className="space-y-2 rounded border border-border/50 p-3">
+              <DriversField value={data.drivers} onChange={(value) => update({ drivers: value })} />
             </div>
           </div>
         </Section>
