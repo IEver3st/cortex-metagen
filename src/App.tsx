@@ -9,11 +9,13 @@ import { serializeActiveTab, serializeHandlingMeta, serializeVehiclesMeta, seria
 import { useUpdateChecker } from "@/lib/updater";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { exists } from "@tauri-apps/plugin-fs";
 import { RestoreSessionDialog } from "@/components/layout/RestoreSessionDialog";
 import { VehiclesMetaEnhancementsPanel } from "@/components/layout/VehiclesMetaEnhancementsPanel";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { logger } from "@/lib/logger";
-import { useWorkspaceStore } from "@/store/workspace-store";
+import { normalizeWorkspacePath, sanitizeWorkspaceDescriptors, sanitizeWorkspacePaths } from "@/lib/recent-workspaces";
+import { useWorkspaceStore, type WorkspaceDescriptor } from "@/store/workspace-store";
 import {
   buildPersistedWorkspaceSwitcherState,
   useWorkspaceSwitcherStore,
@@ -22,6 +24,7 @@ import {
 
 const SESSION_KEY = "cortex-metagen.session.v1";
 const SESSION_MAX_BYTES = 2_500_000;
+const WORKSPACE_DESCRIPTORS_KEY = "cortex-metagen.workspaces.v1";
 const ALL_META_TYPES: MetaFileType[] = ["handling", "vehicles", "carcols", "carvariations", "vehiclelayouts", "modkits"];
 
 interface InitialSessionState {
@@ -158,6 +161,63 @@ function readInitialSessionState(): InitialSessionState {
       recentWorkspaces: [],
     };
   }
+}
+
+function persistRecentWorkspacesToSession(recentWorkspaces: string[]): void {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!isSessionSnapshot(parsed)) return;
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      ...parsed,
+      recentWorkspaces,
+    }));
+  } catch (error) {
+    logger.warn("session", "Failed to persist sanitized recent workspaces", error);
+  }
+}
+
+function persistWorkspaceDescriptors(descriptors: WorkspaceDescriptor[]): void {
+  try {
+    localStorage.setItem(WORKSPACE_DESCRIPTORS_KEY, JSON.stringify(descriptors));
+  } catch (error) {
+    logger.warn("workspace", "Failed to persist sanitized workspace descriptors", error);
+  }
+}
+
+function setRecentWorkspaceState(paths: string[]): void {
+  useMetaStore.setState({
+    recentWorkspaces: sanitizeWorkspacePaths(paths, paths),
+  });
+}
+
+function pruneWorkspaceDescriptorsState(validWorkspacePaths: Iterable<string>): void {
+  const nextDescriptors = sanitizeWorkspaceDescriptors(
+    useWorkspaceStore.getState().descriptors,
+    validWorkspacePaths,
+  );
+
+  useWorkspaceStore.setState({ descriptors: nextDescriptors });
+  persistWorkspaceDescriptors(nextDescriptors);
+}
+
+function removeWorkspacePathFromState(folderPath: string): void {
+  const normalizedFolderPath = normalizeWorkspacePath(folderPath);
+  const currentRecentWorkspaces = useMetaStore.getState().recentWorkspaces.filter(
+    (path) => normalizeWorkspacePath(path) !== normalizedFolderPath,
+  );
+  setRecentWorkspaceState(currentRecentWorkspaces);
+  persistRecentWorkspacesToSession(currentRecentWorkspaces);
+
+  const descriptorRoots = useWorkspaceStore
+    .getState()
+    .descriptors
+    .flatMap((descriptor) => descriptor.roots)
+    .filter((path) => normalizeWorkspacePath(path) !== normalizedFolderPath);
+  pruneWorkspaceDescriptorsState(descriptorRoots);
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -366,6 +426,21 @@ function App() {
     return invoke<string[]>("list_workspace_meta_files", { path: rootPath });
   }, []);
 
+  const filterExistingDirectories = useCallback(async (paths: string[]): Promise<string[]> => {
+    const uniquePaths = Array.from(new Set(paths.map((path) => normalizeWorkspacePath(path))));
+    const results = await Promise.all(
+      uniquePaths.map(async (path) => {
+        try {
+          return await exists(path) ? path : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    return results.filter((path): path is string => path !== null);
+  }, []);
+
   const openWorkspacePath = useCallback(async (folderPath: string) => {
     try {
       logger.info("workspace", "Opening workspace folder", { folderPath });
@@ -483,6 +558,10 @@ function App() {
       // Also register with workspace store for persistence
       void openWorkspaceFromFolder(folderPath);
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes("Workspace path does not exist") || message.includes("Workspace path is not a directory")) {
+        removeWorkspacePathFromState(folderPath);
+      }
       logger.error("workspace", "Failed to open workspace folder", err);
     }
   }, [collectMetaFiles, loadVehicles, setWorkspace, setFilePath, setSourceFilePath, setActiveTab, addRecentWorkspace, markClean, openWorkspaceFromFolder]);
@@ -764,10 +843,37 @@ function App() {
     for (const recent of initialSession.recentFiles) {
       addRecentFile(recent);
     }
-    for (const recent of initialSession.recentWorkspaces) {
-      addRecentWorkspace(recent);
-    }
-  }, [setUIView, addRecentFile, addRecentWorkspace, initialSession]);
+
+    let cancelled = false;
+
+    const hydrateRecentWorkspaceState = async () => {
+      try {
+        const descriptorRoots = useWorkspaceStore.getState().descriptors.flatMap((descriptor) => descriptor.roots);
+        const candidateWorkspacePaths = Array.from(new Set([
+          ...initialSession.recentWorkspaces,
+          ...descriptorRoots,
+        ]));
+
+        const validWorkspacePaths = await filterExistingDirectories(candidateWorkspacePaths);
+        if (cancelled) return;
+
+        const sanitizedRecentWorkspaces = sanitizeWorkspacePaths(initialSession.recentWorkspaces, validWorkspacePaths);
+        setRecentWorkspaceState(sanitizedRecentWorkspaces);
+        pruneWorkspaceDescriptorsState(validWorkspacePaths);
+        persistRecentWorkspacesToSession(sanitizedRecentWorkspaces);
+      } catch (error) {
+        logger.warn("workspace", "Failed to validate recent workspace paths during startup", error);
+        if (!cancelled) {
+          setRecentWorkspaceState(initialSession.recentWorkspaces);
+        }
+      }
+    };
+
+    void hydrateRecentWorkspaceState();
+    return () => {
+      cancelled = true;
+    };
+  }, [setUIView, addRecentFile, filterExistingDirectories, initialSession]);
 
   const restoreVehicleCount = pendingSnapshot?.vehicles ? Object.keys(pendingSnapshot.vehicles).length : 0;
   const restoreTimestamp = pendingSnapshot?.timestamp;
