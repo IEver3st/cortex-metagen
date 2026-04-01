@@ -23,7 +23,6 @@ import {
   LayoutPanelTop,
   Files,
   Search,
-  Command,
 } from "lucide-react";
 
 interface IdeSidebarProps {
@@ -104,7 +103,6 @@ export function IdeSidebar({
   const workspaceMetaFiles = useMetaStore((s) => s.workspaceMetaFiles);
 
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace);
-  const toggleCommandPalette = useWorkspaceStore((s) => s.toggleCommandPalette);
 
   const [explorerSearch, setExplorerSearch] = useState("");
 
@@ -199,15 +197,6 @@ export function IdeSidebar({
             />
           </motion.div>
 
-          {/* Command Palette shortcut — collapsed shows icon only */}
-          <motion.div variants={itemVariants}>
-            <SidebarAction
-              collapsed={collapsed}
-              label="Commands"
-              icon={Command}
-              onClick={() => toggleCommandPalette()}
-            />
-          </motion.div>
         </motion.div>
 
         {!collapsed && (
