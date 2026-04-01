@@ -11,7 +11,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { exists } from "@tauri-apps/plugin-fs";
 import { RestoreSessionDialog } from "@/components/layout/RestoreSessionDialog";
-import { VehiclesMetaEnhancementsPanel } from "@/components/layout/VehiclesMetaEnhancementsPanel";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { logger } from "@/lib/logger";
 import { normalizeWorkspacePath, sanitizeWorkspaceDescriptors, sanitizeWorkspacePaths } from "@/lib/recent-workspaces";
@@ -1066,8 +1065,6 @@ function App() {
         onRequestDeleteWorkspace={requestDeleteWorkspace}
         onDeleteWorkspace={handleDeleteWorkspace}
       />
-
-      <VehiclesMetaEnhancementsPanel />
 
       <CommandPalette
         onOpenFile={handleOpenFile}
