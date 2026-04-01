@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Bug, Lightbulb, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -73,19 +73,19 @@ export function EarlyAccessModal({
     <AnimatePresence>
       {visible && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - using standard app overlay color */}
           <motion.div
             key="ea-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px]"
+            className="fixed inset-0 z-50 bg-background-app/80 data-[state=closed]:animate-out data-[state=open]:animate-in"
             onClick={handleDismiss}
             aria-hidden="true"
           />
 
-          {/* Modal card */}
+          {/* Modal card - using standard app modal styling */}
           <motion.div
             key="ea-modal"
             role="dialog"
@@ -96,102 +96,96 @@ export function EarlyAccessModal({
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             className={cn(
-              "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
-              "w-full max-w-[440px] rounded-2xl border border-amber-500/20",
-              "bg-[#0c1520] shadow-2xl shadow-black/60",
-              "overflow-hidden",
+              "fixed left-1/2 top-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2",
+              "rounded-xl border bg-card p-4 shadow-sm",
+              "sm:max-w-lg",
             )}
           >
-            {/* Amber accent stripe */}
-            <div className="h-[3px] w-full bg-gradient-to-r from-amber-600/60 via-amber-400 to-amber-600/60" />
-
-            <div className="p-6">
-              {/* Header row */}
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  {/* Animated signal dot */}
-                  <div className="relative mt-0.5 flex shrink-0 items-center justify-center">
-                    <span className="absolute inline-flex size-3 animate-ping rounded-full bg-amber-400/40" />
-                    <span className="relative inline-flex size-2 rounded-full bg-amber-400" />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] font-semibold tracking-[0.18em] text-amber-400 uppercase select-none">
-                        Early Access
-                      </span>
-                      <Zap className="size-3 text-amber-400/70" />
-                    </div>
-                    <p className="mt-0.5 text-sm font-medium text-white/90">
-                      {label} Editor
-                    </p>
-                  </div>
+            {/* Header row */}
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                {/* Animated signal dot - cyan accent */}
+                <div className="relative mt-0.5 flex shrink-0 items-center justify-center">
+                  <span className="absolute inline-flex size-3 animate-ping rounded-full bg-cyan-400/40" />
+                  <span className="relative inline-flex size-2 rounded-full bg-cyan-400" />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleDismiss}
-                  className="rounded-lg p-1 text-white/40 transition-colors hover:bg-white/5 hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
-                  aria-label="Dismiss"
-                >
-                  <X className="size-4" />
-                </button>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[10px] font-semibold tracking-[0.18em] text-cyan-400 uppercase select-none">
+                      Early Access
+                    </span>
+                    <Zap className="size-3 text-cyan-400/70" />
+                  </div>
+                  <p className="mt-0.5 text-base font-medium">
+                    {label} Editor
+                  </p>
+                </div>
               </div>
 
-              {/* Body */}
-              <p className="text-[13px] leading-relaxed text-white/65">
-                The <span className="font-medium text-white/85">{label}</span>{" "}
-                editor is still being refined. Some features may be incomplete,
-                and edge cases may exist that haven't been caught yet.
+              <button
+                type="button"
+                onClick={handleDismiss}
+                className="inline-flex size-8 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/30"
+                aria-label="Dismiss"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              The <span className="font-medium text-foreground">{label}</span>{" "}
+              editor is still being refined. Some features may be incomplete,
+              and edge cases may exist that haven't been caught yet.
+            </p>
+
+            <div className="mt-3 rounded-lg border border-cyan-500/15 bg-cyan-500/5 px-4 py-3">
+              <p className="text-xs leading-relaxed text-cyan-200/75">
+                Your feedback directly shapes this editor. If something breaks
+                or behaves unexpectedly, please{" "}
+                <span className="font-medium text-cyan-300">report it</span>.
+                If you have ideas for improvements or missing features,{" "}
+                <span className="font-medium text-cyan-300">
+                  we want to hear them
+                </span>
+                .
               </p>
+            </div>
 
-              <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/5 px-4 py-3">
-                <p className="text-[12.5px] leading-relaxed text-amber-200/75">
-                  Your feedback directly shapes this editor. If something breaks
-                  or behaves unexpectedly, please{" "}
-                  <span className="font-medium text-amber-300">report it</span>.
-                  If you have ideas for improvements or missing features,{" "}
-                  <span className="font-medium text-amber-300">
-                    we want to hear them
-                  </span>
-                  .
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="mt-5 flex items-center gap-2.5">
-                <Button
-                  size="sm"
-                  className={cn(
-                    "h-8 gap-1.5 border border-amber-500/30 bg-amber-500/10 px-3 text-xs",
-                    "text-amber-200 hover:bg-amber-500/20 hover:text-amber-100",
-                    "focus-visible:ring-amber-400/40",
-                  )}
-                  onClick={handleOpenFeedback}
-                >
-                  <Bug className="size-3.5" />
-                  Report a Bug
-                </Button>
-                <Button
-                  size="sm"
-                  className={cn(
-                    "h-8 gap-1.5 border border-amber-500/30 bg-amber-500/10 px-3 text-xs",
-                    "text-amber-200 hover:bg-amber-500/20 hover:text-amber-100",
-                    "focus-visible:ring-amber-400/40",
-                  )}
-                  onClick={handleOpenFeedback}
-                >
-                  <Lightbulb className="size-3.5" />
-                  Suggest a Feature
-                </Button>
-                <button
-                  type="button"
-                  onClick={handleDismiss}
-                  className="ml-auto text-[11px] text-white/35 transition-colors hover:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
-                >
-                  Don't show again
-                </button>
-              </div>
+            {/* Actions */}
+            <div className="mt-5 flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "h-8 gap-1.5 border-cyan-500/30 bg-cyan-500/10 px-3 text-xs",
+                  "text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300",
+                )}
+                onClick={handleOpenFeedback}
+              >
+                <Bug className="size-3.5" />
+                Report a Bug
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "h-8 gap-1.5 border-cyan-500/30 bg-cyan-500/10 px-3 text-xs",
+                  "text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300",
+                )}
+                onClick={handleOpenFeedback}
+              >
+                <Lightbulb className="size-3.5" />
+                Suggest a Feature
+              </Button>
+              <button
+                type="button"
+                onClick={handleDismiss}
+                className="ml-auto text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Don't show again
+              </button>
             </div>
           </motion.div>
         </>

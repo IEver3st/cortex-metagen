@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+import type { SidebarCustomizationProfile } from "@/lib/sidebar-customization";
+
 export type MetaFileType = "handling" | "vehicles" | "carcols" | "carvariations" | "vehiclelayouts" | "modkits";
 export type PerformanceSpeedUnit = "mph" | "kph";
 
@@ -202,15 +204,53 @@ export interface SirenLight {
   coronaEnabled?: boolean;
   coronaScale?: number;
   sequencer: string;
+  legacyData?: SirenLightLegacyData;
+}
+
+export interface SirenLightLegacySequence {
+  delta: number;
+  start: number;
+  speed: number;
+  sequencer: string;
+  multiples: number;
+  direction: boolean;
+  syncToBpm: boolean;
+}
+
+export interface SirenLightLegacyCorona {
+  intensity: number;
+  size: number;
+  pull: number;
+  faceCamera: boolean;
+}
+
+export interface SirenLightLegacyData {
+  rotation: SirenLightLegacySequence;
+  flashiness: SirenLightLegacySequence;
+  corona: SirenLightLegacyCorona;
+  intensity: number;
+  lightGroup: number;
+  rotate: boolean;
+  scale: boolean;
+  scaleFactor: number;
+  flash: boolean;
+  light: boolean;
+  spotLight: boolean;
+  castShadows: boolean;
 }
 
 export interface CarcolsData {
   id: number;
   kitName: string;
   sirenId: number;
+  name: string;
+  textureName: string;
+  useRealLights: boolean;
   sequencerBpm: number;
   rotationLimit: number;
   lights: SirenLight[];
+  unknownNodes: VehicleUnknownXmlNode[];
+  environmentalLightEnabled: boolean;
   environmentalLightColor: string;
   environmentalLightIntensity: number;
 }
@@ -342,6 +382,54 @@ const defaultVehicleLayouts: VehicleLayoutsData = {
   driveByLookAroundData: [],
 };
 
+const defaultSirenLightLegacySequence: SirenLightLegacySequence = {
+  delta: 0,
+  start: 0,
+  speed: 0,
+  sequencer: "10101010101010101010101010101010",
+  multiples: 1,
+  direction: true,
+  syncToBpm: true,
+};
+
+const defaultSirenLightLegacyCorona: SirenLightLegacyCorona = {
+  intensity: 50,
+  size: 0.15,
+  pull: 0,
+  faceCamera: true,
+};
+
+const defaultSirenLightLegacyData: SirenLightLegacyData = {
+  rotation: { ...defaultSirenLightLegacySequence },
+  flashiness: { ...defaultSirenLightLegacySequence },
+  corona: { ...defaultSirenLightLegacyCorona },
+  intensity: 50,
+  lightGroup: 0,
+  rotate: false,
+  scale: false,
+  scaleFactor: 1,
+  flash: true,
+  light: true,
+  spotLight: false,
+  castShadows: false,
+};
+
+const defaultCarcolsData: CarcolsData = {
+  id: 0,
+  kitName: "0_default_modkit",
+  sirenId: 0,
+  name: "",
+  textureName: "",
+  useRealLights: false,
+  sequencerBpm: 0,
+  rotationLimit: 0,
+  lights: [],
+  unknownNodes: [],
+  environmentalLightEnabled: false,
+  environmentalLightColor: "0x00000000",
+  environmentalLightIntensity: 0,
+};
+
 const defaultCarvariationColor: CarvariationColorSet = {
   primary: 0,
   secondary: 0,
@@ -358,11 +446,129 @@ function getDefaultCarvariationPlateName(index: number): string {
   return defaultCarvariationPlateNames[index] ?? `Plate ${index + 1}`;
 }
 
+function ensureLegacySequence(value: unknown, fallback: SirenLightLegacySequence): SirenLightLegacySequence {
+  const raw = value && typeof value === "object" ? (value as Partial<SirenLightLegacySequence>) : {};
+  return {
+    delta: typeof raw.delta === "number" ? raw.delta : fallback.delta,
+    start: typeof raw.start === "number" ? raw.start : fallback.start,
+    speed: typeof raw.speed === "number" ? raw.speed : fallback.speed,
+    sequencer: typeof raw.sequencer === "string" && raw.sequencer.trim() ? raw.sequencer : fallback.sequencer,
+    multiples: typeof raw.multiples === "number" ? raw.multiples : fallback.multiples,
+    direction: typeof raw.direction === "boolean" ? raw.direction : fallback.direction,
+    syncToBpm: typeof raw.syncToBpm === "boolean" ? raw.syncToBpm : fallback.syncToBpm,
+  };
+}
+
+function ensureLegacyCorona(value: unknown, fallback: SirenLightLegacyCorona): SirenLightLegacyCorona {
+  const raw = value && typeof value === "object" ? (value as Partial<SirenLightLegacyCorona>) : {};
+  return {
+    intensity: typeof raw.intensity === "number" ? raw.intensity : fallback.intensity,
+    size: typeof raw.size === "number" ? raw.size : fallback.size,
+    pull: typeof raw.pull === "number" ? raw.pull : fallback.pull,
+    faceCamera: typeof raw.faceCamera === "boolean" ? raw.faceCamera : fallback.faceCamera,
+  };
+}
+
+function ensureLegacySirenLightData(value: unknown, fallback: SirenLightLegacyData): SirenLightLegacyData {
+  const raw = value && typeof value === "object" ? (value as Partial<SirenLightLegacyData>) : {};
+  return {
+    rotation: ensureLegacySequence(raw.rotation, fallback.rotation),
+    flashiness: ensureLegacySequence(raw.flashiness, fallback.flashiness),
+    corona: ensureLegacyCorona(raw.corona, fallback.corona),
+    intensity: typeof raw.intensity === "number" ? raw.intensity : fallback.intensity,
+    lightGroup: typeof raw.lightGroup === "number" ? raw.lightGroup : fallback.lightGroup,
+    rotate: typeof raw.rotate === "boolean" ? raw.rotate : fallback.rotate,
+    scale: typeof raw.scale === "boolean" ? raw.scale : fallback.scale,
+    scaleFactor: typeof raw.scaleFactor === "number" ? raw.scaleFactor : fallback.scaleFactor,
+    flash: typeof raw.flash === "boolean" ? raw.flash : fallback.flash,
+    light: typeof raw.light === "boolean" ? raw.light : fallback.light,
+    spotLight: typeof raw.spotLight === "boolean" ? raw.spotLight : fallback.spotLight,
+    castShadows: typeof raw.castShadows === "boolean" ? raw.castShadows : fallback.castShadows,
+  };
+}
+
+function ensureSirenLight(value: unknown): SirenLight {
+  const raw = value && typeof value === "object" ? (value as Partial<SirenLight>) : {};
+  const scale = typeof raw.scale === "number" ? raw.scale : defaultSirenLightLegacyCorona.size;
+  const coronaScale = typeof raw.coronaScale === "number" ? raw.coronaScale : scale;
+  const legacyFallback: SirenLightLegacyData = {
+    ...defaultSirenLightLegacyData,
+    rotation: {
+      ...defaultSirenLightLegacyData.rotation,
+      delta: typeof raw.delta === "number" ? raw.delta : defaultSirenLightLegacyData.rotation.delta,
+      sequencer: typeof raw.sequencer === "string" && raw.sequencer.trim()
+        ? raw.sequencer
+        : defaultSirenLightLegacyData.rotation.sequencer,
+    },
+    flashiness: {
+      ...defaultSirenLightLegacyData.flashiness,
+      delta: typeof raw.flashness === "number" ? raw.flashness : defaultSirenLightLegacyData.flashiness.delta,
+      sequencer: typeof raw.sequencer === "string" && raw.sequencer.trim()
+        ? raw.sequencer
+        : defaultSirenLightLegacyData.flashiness.sequencer,
+    },
+    corona: {
+      ...defaultSirenLightLegacyData.corona,
+      intensity: typeof raw.flashness === "number" ? raw.flashness : defaultSirenLightLegacyData.corona.intensity,
+      size: coronaScale,
+    },
+    intensity: typeof raw.flashness === "number" ? raw.flashness : defaultSirenLightLegacyData.intensity,
+    rotate: typeof raw.rotation === "string" ? raw.rotation.trim() === "0 0 1" : defaultSirenLightLegacyData.rotate,
+    flash: typeof raw.rotation === "string" ? raw.rotation.trim() !== "0 0 1" : defaultSirenLightLegacyData.flash,
+    light: raw.coronaEnabled !== false,
+  };
+
+  return {
+    rotation: typeof raw.rotation === "string" ? raw.rotation : "0 0 0",
+    flashness: typeof raw.flashness === "number" ? raw.flashness : 1000,
+    delta: typeof raw.delta === "number" ? raw.delta : 0,
+    color: typeof raw.color === "string" ? raw.color : "0xFFFF0000",
+    scale,
+    coronaEnabled: typeof raw.coronaEnabled === "boolean" ? raw.coronaEnabled : true,
+    coronaScale,
+    sequencer: typeof raw.sequencer === "string" && raw.sequencer.trim()
+      ? raw.sequencer
+      : "10101010101010101010101010101010",
+    legacyData: ensureLegacySirenLightData(raw.legacyData, legacyFallback),
+  };
+}
+
 function ensureVehicleLayouts(vl: any): VehicleLayoutsData {
   if (!vl || typeof vl !== "object") return { ...defaultVehicleLayouts };
   return {
     coverBoundOffsets: Array.isArray(vl.coverBoundOffsets) ? vl.coverBoundOffsets : [],
     driveByLookAroundData: Array.isArray(vl.driveByLookAroundData) ? vl.driveByLookAroundData : [],
+  };
+}
+
+function ensureCarcolsData(carcols: unknown): CarcolsData {
+  const raw = carcols && typeof carcols === "object" ? (carcols as Partial<CarcolsData>) : {};
+  return {
+    ...defaultCarcolsData,
+    ...raw,
+    id: typeof raw.id === "number" ? raw.id : defaultCarcolsData.id,
+    kitName: typeof raw.kitName === "string" ? raw.kitName : defaultCarcolsData.kitName,
+    sirenId: typeof raw.sirenId === "number" ? raw.sirenId : defaultCarcolsData.sirenId,
+    name: typeof raw.name === "string" ? raw.name : defaultCarcolsData.name,
+    textureName: typeof raw.textureName === "string" ? raw.textureName : defaultCarcolsData.textureName,
+    useRealLights: typeof raw.useRealLights === "boolean" ? raw.useRealLights : defaultCarcolsData.useRealLights,
+    sequencerBpm: typeof raw.sequencerBpm === "number" ? raw.sequencerBpm : defaultCarcolsData.sequencerBpm,
+    rotationLimit: typeof raw.rotationLimit === "number" ? raw.rotationLimit : defaultCarcolsData.rotationLimit,
+    lights: Array.isArray(raw.lights) ? raw.lights.map((light) => ensureSirenLight(light)) : [],
+    unknownNodes: Array.isArray(raw.unknownNodes)
+      ? raw.unknownNodes
+        .filter((node): node is VehicleUnknownXmlNode => Boolean(node) && typeof node === "object" && typeof node.tag === "string")
+        .map((node) => ({ tag: node.tag, value: deepClone(node.value) }))
+      : [],
+    environmentalLightEnabled: typeof raw.environmentalLightEnabled === "boolean"
+      ? raw.environmentalLightEnabled
+      : defaultCarcolsData.environmentalLightEnabled,
+    environmentalLightColor: typeof raw.environmentalLightColor === "string"
+      ? raw.environmentalLightColor
+      : defaultCarcolsData.environmentalLightColor,
+    environmentalLightIntensity: typeof raw.environmentalLightIntensity === "number"
+      ? raw.environmentalLightIntensity
+      : defaultCarcolsData.environmentalLightIntensity,
   };
 }
 
@@ -759,6 +965,7 @@ export interface SessionSnapshot {
   sourceFileByType: Partial<Record<MetaFileType, string>>;
   openVehicleIds: string[];
   sidebarCollapsed: boolean;
+  workspaceSidebarProfile: SidebarCustomizationProfile | null;
   performanceSpeedUnit: PerformanceSpeedUnit;
   isDirty: boolean;
   recentFiles: string[];
@@ -804,6 +1011,7 @@ function deserializeVehicles(vehicles: Record<string, SerializedVehicleEntry>): 
     result[id] = {
       ...clone,
       vehicles: ensureVehiclesData(entry.vehicles),
+      carcols: ensureCarcolsData(entry.carcols),
       carvariations: ensureCarvariationsData(entry.carvariations),
       vehiclelayouts: ensureVehicleLayouts(entry.vehiclelayouts),
       modkits: ensureModkitsData(entry.modkits),
@@ -868,6 +1076,7 @@ export interface MetaStore {
   activeTab: MetaFileType;
   codePreviewVisible: boolean;
   editorEditMode: boolean;
+  workspaceSidebarProfile: SidebarCustomizationProfile | null;
   performanceSpeedUnit: PerformanceSpeedUnit;
   filePath: string | null;
   workspacePath: string | null;
@@ -896,6 +1105,7 @@ export interface MetaStore {
   toggleCodePreview: () => void;
   setCodePreviewVisible: (visible: boolean) => void;
   toggleEditorEditMode: () => void;
+  setWorkspaceSidebarProfile: (profile: SidebarCustomizationProfile | null) => void;
   setPerformanceSpeedUnit: (unit: PerformanceSpeedUnit) => void;
 
   addVehicle: (entry: VehicleEntry) => void;
@@ -936,6 +1146,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
   activeTab: "handling",
   codePreviewVisible: true,
   editorEditMode: false,
+  workspaceSidebarProfile: null,
   performanceSpeedUnit: "mph",
   filePath: null,
   workspacePath: null,
@@ -956,6 +1167,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
       activeTab: "handling",
       codePreviewVisible: true,
       editorEditMode: false,
+      workspaceSidebarProfile: s.workspaceSidebarProfile,
       filePath: null,
       workspacePath: null,
       workspaceMetaFiles: [],
@@ -991,6 +1203,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
   setCodePreviewVisible: (visible) => set({ codePreviewVisible: visible }),
   toggleEditorEditMode: () =>
     set((s) => ({ editorEditMode: !s.editorEditMode })),
+  setWorkspaceSidebarProfile: (profile) => set({ workspaceSidebarProfile: profile }),
   setPerformanceSpeedUnit: (unit) => set({ performanceSpeedUnit: unit }),
 
   addVehicle: (entry) =>
@@ -1181,6 +1394,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
       normalized[k] = {
         ...v,
         vehicles: ensureVehiclesData(v.vehicles),
+        carcols: ensureCarcolsData(v.carcols),
         carvariations: ensureCarvariationsData(v.carvariations),
         vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts),
         modkits: ensureModkitsData(v.modkits),
@@ -1201,12 +1415,13 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
     set((s) => {
       const normalized: Record<string, VehicleEntry> = {};
       for (const [k, v] of Object.entries(entries)) {
-        normalized[k] = {
-          ...v,
-          vehicles: ensureVehiclesData(v.vehicles),
-          carvariations: ensureCarvariationsData(v.carvariations),
-          vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts),
-          modkits: ensureModkitsData(v.modkits),
+      normalized[k] = {
+        ...v,
+        vehicles: ensureVehiclesData(v.vehicles),
+        carcols: ensureCarcolsData(v.carcols),
+        carvariations: ensureCarvariationsData(v.carvariations),
+        vehiclelayouts: ensureVehicleLayouts(v.vehiclelayouts),
+        modkits: ensureModkitsData(v.modkits),
         };
       }
       const nextActive =
@@ -1295,6 +1510,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
       sourceFileByType: state.sourceFileByType,
       openVehicleIds: state.openVehicleIds,
       sidebarCollapsed: state.sidebarCollapsed,
+      workspaceSidebarProfile: state.workspaceSidebarProfile,
       performanceSpeedUnit: state.performanceSpeedUnit,
       isDirty: state.isDirty,
       recentFiles: normalizeRecentFiles(state.recentFiles),
@@ -1315,6 +1531,7 @@ export const useMetaStore = create<MetaStore>((set, get) => ({
       sourceFileByType: snapshot.sourceFileByType ?? {},
       openVehicleIds: snapshot.openVehicleIds ?? Object.keys(snapshot.vehicles ?? {}),
       sidebarCollapsed: snapshot.sidebarCollapsed ?? true,
+      workspaceSidebarProfile: snapshot.workspaceSidebarProfile ?? null,
       performanceSpeedUnit: snapshot.performanceSpeedUnit === "kph" ? "kph" : "mph",
       isDirty: snapshot.isDirty,
       recentFiles: normalizeRecentFiles(snapshot.recentFiles ?? []),

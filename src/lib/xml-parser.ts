@@ -136,9 +136,12 @@ function getAttrValue(node: any, fallback: number = 0): number {
   if (typeof node === "number") return node;
   if (typeof node === "object" && "@_value" in node) {
     const v = node["@_value"];
-    return typeof v === "number" ? v : parseFloat(v) || fallback;
+    if (typeof v === "number") return v;
+    const parsed = Number.parseFloat(String(v));
+    return Number.isFinite(parsed) ? parsed : fallback;
   }
-  return parseFloat(String(node)) || fallback;
+  const parsed = Number.parseFloat(String(node));
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function getTextContent(node: any, fallback: string = ""): string {
@@ -444,6 +447,76 @@ function collectUnknownNodes(
     unknown.push({ tag, value: cloneXmlValue(value) });
   }
   return unknown;
+}
+
+const CARCOLS_SIREN_KNOWN_TAGS = new Set<string>([
+  "id",
+  "name",
+  "textureName",
+  "useRealLights",
+  "sequencerBpm",
+  "rotationLimit",
+  "sirens",
+  "environmentalLight",
+]);
+
+function parseLegacySequence(node: unknown, fallbackDelta: number, fallbackSequencer: string) {
+  return {
+    delta: getAttrValue((node as Record<string, unknown> | undefined)?.delta, fallbackDelta),
+    start: getAttrValue((node as Record<string, unknown> | undefined)?.start, 0),
+    speed: getAttrValue((node as Record<string, unknown> | undefined)?.speed, 0),
+    sequencer: getSequencerValue((node as Record<string, unknown> | undefined)?.sequencer, fallbackSequencer),
+    multiples: getAttrValue((node as Record<string, unknown> | undefined)?.multiples, 1),
+    direction: getBoolValue((node as Record<string, unknown> | undefined)?.direction, true),
+    syncToBpm: getBoolValue((node as Record<string, unknown> | undefined)?.syncToBpm, true),
+  };
+}
+
+function parseCarcolsLight(lightItem: Record<string, unknown>): SirenLight {
+  const rotationNode = lightItem.rotation as Record<string, unknown> | undefined;
+  const flashinessNode = lightItem.flashiness as Record<string, unknown> | undefined;
+  const coronaNode = lightItem.corona as Record<string, unknown> | undefined;
+  const rotate = getBoolValue(lightItem.rotate, false);
+  const fallbackSequencer = "10101010101010101010101010101010";
+  const rotationSequencer = getSequencerValue(rotationNode?.sequencer, fallbackSequencer);
+  const flashSequencer = getSequencerValue(flashinessNode?.sequencer, rotationSequencer);
+  const sequencer = rotate ? rotationSequencer : flashSequencer;
+  const scale = getAttrValue(coronaNode?.size ?? lightItem.scale, 0.4);
+  const flashness = getAttrValue(lightItem.intensity ?? coronaNode?.intensity ?? flashinessNode?.delta ?? lightItem.flashness, 1);
+  const delta = getAttrValue(rotationNode?.delta ?? lightItem.delta ?? flashinessNode?.delta, 0);
+
+  const light: SirenLight = {
+    rotation: rotate ? "0 0 1" : getRotation(lightItem.rotation, "0 0 0"),
+    flashness,
+    delta,
+    color: getColorValue(lightItem.color, "0xFFFF0000"),
+    scale,
+    coronaScale: scale,
+    coronaEnabled: getBoolValue(lightItem.light, scale > 0),
+    sequencer,
+  };
+
+  light.legacyData = {
+    rotation: parseLegacySequence(rotationNode, delta, rotationSequencer),
+    flashiness: parseLegacySequence(flashinessNode, flashness, flashSequencer),
+    corona: {
+      intensity: getAttrValue(coronaNode?.intensity, flashness),
+      size: scale,
+      pull: getAttrValue(coronaNode?.pull, 0),
+      faceCamera: getBoolValue(coronaNode?.faceCamera, true),
+    },
+    intensity: getAttrValue(lightItem.intensity, flashness),
+    lightGroup: getAttrValue(lightItem.lightGroup, 0),
+    rotate,
+    scale: getBoolValue(lightItem.scale, false),
+    scaleFactor: getAttrValue(lightItem.scaleFactor, 1),
+    flash: getBoolValue(lightItem.flash, !rotate),
+    light: getBoolValue(lightItem.light, scale > 0),
+    spotLight: getBoolValue(lightItem.spotLight, false),
+    castShadows: getBoolValue(lightItem.castShadows, false),
+  };
+
+  return light;
 }
 
 function skipDeclaration(xml: string, start: number): number {
@@ -1066,25 +1139,18 @@ export function parseCarcolsMeta(
     const sirenId = Math.max(0, Math.trunc(getAttrValue(sirenItem.id, 0)));
     const sequencerBpm = Math.max(0, Math.trunc(getAttrValue(sirenItem.sequencerBpm, 600)));
     const rotationLimit = getAttrValue(sirenItem.rotationLimit, 0);
+    const sirenName = getTextContent(sirenItem.name, "");
+    const textureName = getTextContent(sirenItem.textureName, "");
+    const useRealLights = getBoolValue(sirenItem.useRealLights, false);
+    const unknownNodes = collectUnknownNodes(sirenItem, CARCOLS_SIREN_KNOWN_TAGS);
 
     const lightItems = ensureArray(sirenItem.sirens?.Item ?? sirenItem.sirens?.item);
-    const lights: SirenLight[] = lightItems.map((lightItem: any) => {
-      const scale = getAttrValue(lightItem.scale, 0.4);
-      return {
-        rotation: getRotation(lightItem.rotation, "0 0 0"),
-        flashness: getAttrValue(lightItem.flashness, 1),
-        delta: getAttrValue(lightItem.delta, 0),
-        color: getColorValue(lightItem.color, "0xFFFF0000"),
-        scale,
-        coronaScale: scale,
-        coronaEnabled: scale > 0,
-        sequencer: getSequencerValue(lightItem.sequencer, "10101010101010101010101010101010"),
-      };
-    });
+    const lights: SirenLight[] = lightItems.map((lightItem: any) => parseCarcolsLight(lightItem));
 
     const envLight = sirenItem.environmentalLight;
-    const envColor = envLight ? getColorValue(envLight.color, "0xFFFF0000") : "0xFFFF0000";
-    const envIntensity = envLight ? getAttrValue(envLight.intensity, 50) : 50;
+    const envEnabled = Boolean(envLight);
+    const envColor = envLight ? getColorValue(envLight.color, "0x00000000") : "0x00000000";
+    const envIntensity = envLight ? getAttrValue(envLight.intensity, 0) : 0;
 
     const vehicleKeys = Object.keys(result);
     const bySirenSettings = vehicleKeys.filter(
@@ -1117,9 +1183,14 @@ export function parseCarcolsMeta(
     const carcolsData: CarcolsData = {
       ...entry.carcols,
       sirenId,
+      name: sirenName,
+      textureName,
+      useRealLights,
       sequencerBpm,
       rotationLimit,
       lights,
+      unknownNodes,
+      environmentalLightEnabled: envEnabled,
       environmentalLightColor: envColor,
       environmentalLightIntensity: envIntensity,
     };

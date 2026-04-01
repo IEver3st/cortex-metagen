@@ -1,6 +1,8 @@
 import {
   FIRST_PERSON_IK_OFFSET_NAMES,
   type LookAroundSideData,
+  type SirenLight,
+  type SirenLightLegacyData,
   type VehicleDoorStiffnessMultiplier,
   type VehicleDriver,
   type VehicleEntry,
@@ -153,6 +155,99 @@ function pushUnknownNodes(lines: string[], level: number, nodes: VehicleUnknownX
   for (const node of nodes) {
     lines.push(...serializeXmlNode(node.tag, node.value, level));
   }
+}
+
+function formatSequencerValue(value: string): string {
+  if (/^[01]{32}$/.test(value)) {
+    return String(Number.parseInt(value, 2) >>> 0);
+  }
+  return value;
+}
+
+function createLegacySirenLightData(light: SirenLight): SirenLightLegacyData {
+  const isRotator = light.rotation.trim() === "0 0 1";
+  return {
+    rotation: {
+      delta: light.delta,
+      start: 0,
+      speed: 0,
+      sequencer: light.sequencer,
+      multiples: 1,
+      direction: light.delta >= 0,
+      syncToBpm: true,
+    },
+    flashiness: {
+      delta: light.flashness,
+      start: 0,
+      speed: 0,
+      sequencer: light.sequencer,
+      multiples: 1,
+      direction: true,
+      syncToBpm: true,
+    },
+    corona: {
+      intensity: light.flashness,
+      size: light.coronaScale ?? light.scale,
+      pull: 0,
+      faceCamera: true,
+    },
+    intensity: light.flashness,
+    lightGroup: 0,
+    rotate: isRotator,
+    scale: false,
+    scaleFactor: 1,
+    flash: !isRotator,
+    light: light.coronaEnabled !== false,
+    spotLight: false,
+    castShadows: false,
+  };
+}
+
+function pushLegacySequence(lines: string[], level: number, tag: string, sequence: SirenLightLegacyData["rotation"]): void {
+  lines.push(`${indent(level)}<${tag}>`);
+  pushNumberValueNode(lines, level + 1, "delta", sequence.delta, 0);
+  pushNumberValueNode(lines, level + 1, "start", sequence.start, 0);
+  pushNumberValueNode(lines, level + 1, "speed", sequence.speed, 0);
+  lines.push(`${indent(level + 1)}<sequencer value="${formatSequencerValue(sequence.sequencer)}" />`);
+  pushIntegerValueNode(lines, level + 1, "multiples", sequence.multiples, 1);
+  pushBooleanValueNode(lines, level + 1, "direction", sequence.direction, true);
+  pushBooleanValueNode(lines, level + 1, "syncToBpm", sequence.syncToBpm, true);
+  lines.push(`${indent(level)}</${tag}>`);
+}
+
+function pushLegacySirenLight(lines: string[], level: number, light: SirenLight): void {
+  const legacy = light.legacyData ?? createLegacySirenLightData(light);
+  const resolvedScale = light.coronaEnabled === false ? 0 : (light.coronaScale ?? light.scale);
+
+  lines.push(`${indent(level)}<Item>`);
+  pushLegacySequence(lines, level + 1, "rotation", {
+    ...legacy.rotation,
+    delta: light.delta,
+    sequencer: light.sequencer,
+    direction: light.delta >= 0,
+  });
+  pushLegacySequence(lines, level + 1, "flashiness", {
+    ...legacy.flashiness,
+    delta: light.flashness,
+    sequencer: light.sequencer,
+  });
+  lines.push(`${indent(level + 1)}<corona>`);
+  pushNumberValueNode(lines, level + 2, "intensity", light.flashness, light.flashness);
+  pushNumberValueNode(lines, level + 2, "size", resolvedScale, resolvedScale);
+  pushNumberValueNode(lines, level + 2, "pull", legacy.corona.pull, 0);
+  pushBooleanValueNode(lines, level + 2, "faceCamera", legacy.corona.faceCamera, true);
+  lines.push(`${indent(level + 1)}</corona>`);
+  lines.push(`${indent(level + 1)}<color value="${escapeXml(formatText(light.color, "0xFFFF0000"))}" />`);
+  pushNumberValueNode(lines, level + 1, "intensity", light.flashness, light.flashness);
+  pushIntegerValueNode(lines, level + 1, "lightGroup", legacy.lightGroup, 0);
+  pushBooleanValueNode(lines, level + 1, "rotate", light.rotation.trim() === "0 0 1", false);
+  pushBooleanValueNode(lines, level + 1, "scale", legacy.scale, false);
+  pushNumberValueNode(lines, level + 1, "scaleFactor", legacy.scaleFactor, 1);
+  pushBooleanValueNode(lines, level + 1, "flash", light.rotation.trim() !== "0 0 1", true);
+  pushBooleanValueNode(lines, level + 1, "light", light.coronaEnabled !== false, true);
+  pushBooleanValueNode(lines, level + 1, "spotLight", legacy.spotLight, false);
+  pushBooleanValueNode(lines, level + 1, "castShadows", legacy.castShadows, false);
+  lines.push(`${indent(level)}</Item>`);
 }
 
 function pushDriversNode(lines: string[], level: number, drivers: VehicleDriver[]): void {
@@ -427,38 +522,33 @@ export function serializeCarcolsMeta(vehicles: VehicleEntry[]): string {
     if (c.sirenId === 0 && c.lights.length === 0) continue;
     lines.push(`${indent(2)}<Item>`);
     lines.push(`${indent(3)}<id value="${c.sirenId}" />`);
+    if (c.name.trim()) {
+      pushTextNode(lines, 3, "name", c.name);
+    }
+    if (c.textureName.trim()) {
+      pushTextNode(lines, 3, "textureName", c.textureName);
+    }
+    if (c.useRealLights) {
+      pushBooleanValueNode(lines, 3, "useRealLights", c.useRealLights, false);
+    }
     lines.push(`${indent(3)}<sequencerBpm value="${c.sequencerBpm}" />`);
-    lines.push(`${indent(3)}<rotationLimit value="${c.rotationLimit.toFixed(6)}" />`);
+    pushUnknownNodes(lines, 3, c.unknownNodes);
+    if (c.rotationLimit !== 0) {
+      lines.push(`${indent(3)}<rotationLimit value="${c.rotationLimit.toFixed(6)}" />`);
+    }
     if (c.lights.length > 0) {
       lines.push(`${indent(3)}<sirens>`);
       for (const light of c.lights) {
-        const rotParts = light.rotation.trim().split(/\s+/);
-        const rx = parseFloat(rotParts[0]) || 0;
-        const ry = parseFloat(rotParts[1]) || 0;
-        const rz = parseFloat(rotParts[2]) || 0;
-        const resolvedScale = light.coronaEnabled === false
-          ? 0
-          : (light.coronaScale ?? light.scale);
-        // Convert binary sequencer to decimal
-        let seqVal = light.sequencer;
-        if (/^[01]{32}$/.test(seqVal)) {
-          seqVal = String(parseInt(seqVal, 2) >>> 0);
-        }
-        lines.push(`${indent(4)}<Item>`);
-        lines.push(`${indent(5)}<rotation x="${rx.toFixed(6)}" y="${ry.toFixed(6)}" z="${rz.toFixed(6)}" />`);
-        lines.push(`${indent(5)}<flashness value="${light.flashness.toFixed(6)}" />`);
-        lines.push(`${indent(5)}<delta value="${light.delta.toFixed(6)}" />`);
-        lines.push(`${indent(5)}<color value="${light.color}" />`);
-        lines.push(`${indent(5)}<scale value="${resolvedScale.toFixed(6)}" />`);
-        lines.push(`${indent(5)}<sequencer value="${seqVal}" />`);
-        lines.push(`${indent(4)}</Item>`);
+        pushLegacySirenLight(lines, 4, light);
       }
       lines.push(`${indent(3)}</sirens>`);
     }
-    lines.push(`${indent(3)}<environmentalLight>`);
-    lines.push(`${indent(4)}<color value="${c.environmentalLightColor}" />`);
-    lines.push(`${indent(4)}<intensity value="${c.environmentalLightIntensity.toFixed(6)}" />`);
-    lines.push(`${indent(3)}</environmentalLight>`);
+    if (c.environmentalLightEnabled) {
+      lines.push(`${indent(3)}<environmentalLight>`);
+      lines.push(`${indent(4)}<color value="${c.environmentalLightColor}" />`);
+      lines.push(`${indent(4)}<intensity value="${c.environmentalLightIntensity.toFixed(6)}" />`);
+      lines.push(`${indent(3)}</environmentalLight>`);
+    }
     lines.push(`${indent(2)}</Item>`);
   }
 
@@ -597,33 +687,41 @@ export function serializeModkitsMeta(vehicles: VehicleEntry[]): string {
   for (const v of filtered) {
     for (const kit of v.modkits.kits) {
       lines.push(`${indent(2)}<Item>`);
-      lines.push(`${indent(3)}<kitName>${kit.kitName}</kitName>`);
-      lines.push(`${indent(3)}<id value="${kit.id}" />`);
-      lines.push(`${indent(3)}<kitType>${kit.kitType}</kitType>`);
+      pushTextNode(lines, 3, "kitName", kit.kitName);
+      lines.push(`${indent(3)}<id value="${formatInteger(kit.id, 0)}" />`);
+      pushTextNode(lines, 3, "kitType", kit.kitType, "MKT_STANDARD");
 
       if (kit.visibleMods.length > 0) {
         lines.push(`${indent(3)}<visibleMods>`);
         for (const mod of kit.visibleMods) {
           lines.push(`${indent(4)}<Item>`);
-          lines.push(`${indent(5)}<modelName>${mod.modelName}</modelName>`);
-          lines.push(`${indent(5)}<modShopLabel>${mod.modShopLabel}</modShopLabel>`);
-          if (mod.linkedModels) {
-            lines.push(`${indent(5)}<linkedModels>${mod.linkedModels}</linkedModels>`);
-          } else {
-            lines.push(`${indent(5)}<linkedModels/>`);
-          }
+          pushTextNode(lines, 5, "modelName", mod.modelName);
+          pushTextNode(lines, 5, "modShopLabel", mod.modShopLabel);
+          pushTextNode(lines, 5, "linkedModels", mod.linkedModels);
           if (mod.turnOffBones.length > 0) {
             lines.push(`${indent(5)}<turnOffBones>`);
             for (const bone of mod.turnOffBones) {
-              lines.push(`${indent(6)}<Item>${bone}</Item>`);
+              lines.push(`${indent(6)}<Item>${escapeXml(bone)}</Item>`);
             }
             lines.push(`${indent(5)}</turnOffBones>`);
           } else {
             lines.push(`${indent(5)}<turnOffBones/>`);
           }
-          lines.push(`${indent(5)}<type>${mod.type}</type>`);
-          lines.push(`${indent(5)}<bone>${mod.bone}</bone>`);
-          lines.push(`${indent(5)}<collisionBone>${mod.collisionBone}</collisionBone>`);
+          pushTextNode(lines, 5, "type", mod.type, "VMT_SPOILER");
+          pushTextNode(lines, 5, "bone", mod.bone, "chassis");
+          pushTextNode(lines, 5, "collisionBone", mod.collisionBone, "chassis");
+          lines.push(`${indent(5)}<cameraPos value="${formatInteger(mod.cameraPos, 0)}" />`);
+          lines.push(`${indent(5)}<audioApply value="${formatNumber(mod.audioApply, 1)}" />`);
+          lines.push(`${indent(5)}<weight value="${formatInteger(mod.weight, 0)}" />`);
+          lines.push(`${indent(5)}<turnOffExtra value="${formatInteger(mod.turnOffExtra, -1)}" />`);
+          lines.push(`${indent(5)}<disableBonnetCamera value="${formatBoolean(mod.disableBonnetCamera, false)}" />`);
+          lines.push(`${indent(5)}<allowBonnetSlide value="${formatBoolean(mod.allowBonnetSlide, false)}" />`);
+          pushTextNode(lines, 5, "weaponSlot", mod.weaponSlot);
+          pushTextNode(lines, 5, "weaponSlotSecondary", mod.weaponSlotSecondary);
+          lines.push(`${indent(5)}<disableProjectileDriveby value="${formatBoolean(mod.disableProjectileDriveby, false)}" />`);
+          lines.push(`${indent(5)}<disableDriveby value="${formatBoolean(mod.disableDriveby, false)}" />`);
+          lines.push(`${indent(5)}<disableDrivebySeat value="${formatBoolean(mod.disableDrivebySeat, false)}" />`);
+          lines.push(`${indent(5)}<disableDrivebySeatSecondary value="${formatBoolean(mod.disableDrivebySeatSecondary, false)}" />`);
           lines.push(`${indent(4)}</Item>`);
         }
         lines.push(`${indent(3)}</visibleMods>`);
@@ -631,19 +729,29 @@ export function serializeModkitsMeta(vehicles: VehicleEntry[]): string {
         lines.push(`${indent(3)}<visibleMods/>`);
       }
 
+      if (kit.linkMods.length > 0) {
+        lines.push(`${indent(3)}<linkMods>`);
+        for (const linkMod of kit.linkMods) {
+          lines.push(`${indent(4)}<Item>`);
+          pushTextNode(lines, 5, "modelName", linkMod.modelName);
+          pushTextNode(lines, 5, "bone", linkMod.bone, "chassis");
+          lines.push(`${indent(5)}<turnOffExtra value="${formatInteger(linkMod.turnOffExtra, -1)}" />`);
+          lines.push(`${indent(4)}</Item>`);
+        }
+        lines.push(`${indent(3)}</linkMods>`);
+      } else {
+        lines.push(`${indent(3)}<linkMods/>`);
+      }
+
       if (kit.statMods.length > 0) {
         lines.push(`${indent(3)}<statMods>`);
         for (const mod of kit.statMods) {
           lines.push(`${indent(4)}<Item>`);
-          if (mod.identifier) {
-            lines.push(`${indent(5)}<identifier>${mod.identifier}</identifier>`);
-          } else {
-            lines.push(`${indent(5)}<identifier />`);
-          }
-          lines.push(`${indent(5)}<modifier value="${mod.modifier}" />`);
-          lines.push(`${indent(5)}<audioApply value="${mod.audioApply.toFixed(6)}" />`);
-          lines.push(`${indent(5)}<weight value="${mod.weight}" />`);
-          lines.push(`${indent(5)}<type>${mod.type}</type>`);
+          pushTextNode(lines, 5, "identifier", mod.identifier);
+          lines.push(`${indent(5)}<modifier value="${formatNumber(mod.modifier, 0)}" />`);
+          lines.push(`${indent(5)}<audioApply value="${formatNumber(mod.audioApply, 1)}" />`);
+          lines.push(`${indent(5)}<weight value="${formatInteger(mod.weight, 0)}" />`);
+          pushTextNode(lines, 5, "type", mod.type, "VMT_ENGINE");
           lines.push(`${indent(4)}</Item>`);
         }
         lines.push(`${indent(3)}</statMods>`);
@@ -655,13 +763,33 @@ export function serializeModkitsMeta(vehicles: VehicleEntry[]): string {
         lines.push(`${indent(3)}<slotNames>`);
         for (const slot of kit.slotNames) {
           lines.push(`${indent(4)}<Item>`);
-          lines.push(`${indent(5)}<slot>${slot.slot}</slot>`);
-          lines.push(`${indent(5)}<name>${slot.name}</name>`);
+          pushTextNode(lines, 5, "slot", slot.slot);
+          pushTextNode(lines, 5, "name", slot.name);
           lines.push(`${indent(4)}</Item>`);
         }
         lines.push(`${indent(3)}</slotNames>`);
       } else {
         lines.push(`${indent(3)}<slotNames/>`);
+      }
+
+      if (kit.liveryNames.length > 0) {
+        lines.push(`${indent(3)}<liveryNames>`);
+        for (const name of kit.liveryNames) {
+          lines.push(`${indent(4)}<Item>${escapeXml(name)}</Item>`);
+        }
+        lines.push(`${indent(3)}</liveryNames>`);
+      } else {
+        lines.push(`${indent(3)}<liveryNames/>`);
+      }
+
+      if (kit.livery2Names.length > 0) {
+        lines.push(`${indent(3)}<livery2Names>`);
+        for (const name of kit.livery2Names) {
+          lines.push(`${indent(4)}<Item>${escapeXml(name)}</Item>`);
+        }
+        lines.push(`${indent(3)}</livery2Names>`);
+      } else {
+        lines.push(`${indent(3)}<livery2Names/>`);
       }
 
       lines.push(`${indent(2)}</Item>`);

@@ -236,6 +236,7 @@ function createBlankWorkspaceSnapshot(snapshot: SessionSnapshot): SessionSnapsho
     workspaceMetaFiles: [],
     sourceFileByType: {},
     openVehicleIds: [],
+    workspaceSidebarProfile: null,
     isDirty: false,
     timestamp: Date.now(),
   };

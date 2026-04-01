@@ -7,6 +7,7 @@ import {
 } from "react-resizable-panels";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMetaStore } from "@/store/meta-store";
+import type { WorkspaceSwitcherWorkspace } from "@/store/workspace-switcher-store";
 import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import type { ValidationIssue } from "@/lib/xml-validator";
@@ -151,6 +152,23 @@ interface AppShellProps {
   onClearSession?: () => void;
   problemsPanelVisible?: boolean;
   onToggleProblemsPanel?: () => void;
+  workspaceSwitcherOpen?: boolean;
+  workspaceSwitcherWorkspaceCount?: number;
+  switcherWorkspaces?: WorkspaceSwitcherWorkspace[];
+  activeWorkspaceId?: string | null;
+  highlightedWorkspaceId?: string | null;
+  hoveredWorkspaceId?: string | null;
+  keyboardPreviewActive?: boolean;
+  renamingWorkspaceId?: string | null;
+  deleteConfirmationId?: string | null;
+  onHoverWorkspace?: (workspaceId: string | null) => void;
+  onHighlightWorkspace?: (workspaceId: string | null) => void;
+  onActivateWorkspace?: (workspaceId: string) => void;
+  onCreateWorkspace?: () => void;
+  onRenameWorkspace?: (workspaceId: string, name: string) => void;
+  onSetRenamingWorkspace?: (workspaceId: string | null) => void;
+  onRequestDeleteWorkspace?: (workspaceId: string | null) => void;
+  onDeleteWorkspace?: (workspaceId: string) => void;
 }
 
 export function AppShell({

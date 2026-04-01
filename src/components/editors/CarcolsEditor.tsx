@@ -335,6 +335,7 @@ export function CarcolsEditor() {
   }
 
   const c = vehicle.carcols;
+  const preservedLegacyTags = c.unknownNodes.map((node) => node.tag);
 
   const lightCountColor = c.lights.length > 20
     ? c.lights.length > 32 ? "text-red-400" : "text-amber-400"
@@ -380,9 +381,47 @@ export function CarcolsEditor() {
                 className="h-7 text-xs font-mono flex-1"
               />
             </div>
+            <div className="flex items-center gap-3">
+              <Label className="text-sm text-muted-foreground min-w-[180px]">Siren Name</Label>
+              <Input
+                value={c.name}
+                onChange={(e) => update({ name: e.target.value })}
+                className="h-7 text-xs font-mono flex-1"
+                placeholder="legacy_police"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Label className="text-sm text-muted-foreground min-w-[180px]">Light Texture</Label>
+              <Input
+                value={c.textureName}
+                onChange={(e) => update({ textureName: e.target.value })}
+                className="h-7 text-xs font-mono flex-1"
+                placeholder="vehshare_whelight_corona"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Label className="text-sm text-muted-foreground min-w-[180px]">Use Real Lights</Label>
+              <div className="flex items-center gap-2">
+                <SquareToggle
+                  checked={c.useRealLights}
+                  onCheckedChange={(checked: boolean) => update({ useRealLights: checked })}
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  {c.useRealLights ? "Enabled" : "Disabled"}
+                </span>
+              </div>
+            </div>
             <p className="text-[10px] text-muted-foreground">
               Use unique IDs (e.g. 5000+) to avoid conflicts. Must match carvariations sirenSettings.
             </p>
+            {preservedLegacyTags.length > 0 && (
+              <div className="rounded border border-blue-500/20 bg-blue-500/5 p-2 text-[10px] text-blue-300">
+                Preserving {preservedLegacyTags.length} advanced siren node{preservedLegacyTags.length === 1 ? "" : "s"} on save:
+                {" "}
+                {preservedLegacyTags.slice(0, 5).join(", ")}
+                {preservedLegacyTags.length > 5 ? ", ..." : ""}
+              </div>
+            )}
             <SliderField
               field={carcolsFields.sequencerBpm}
               value={c.sequencerBpm}
@@ -477,9 +516,21 @@ export function CarcolsEditor() {
 
         <AccordionItem value="envlight" className="border rounded-md px-3">
           <AccordionTrigger className="text-sm font-medium py-2">
-            Environmental Lighting
+            Auxiliary Environmental Light
           </AccordionTrigger>
           <AccordionContent className="pb-3 space-y-2">
+            <div className="flex items-center gap-3">
+              <Label className="text-sm text-muted-foreground min-w-[180px]">Enabled</Label>
+              <div className="flex items-center gap-2">
+                <SquareToggle
+                  checked={c.environmentalLightEnabled}
+                  onCheckedChange={(checked: boolean) => update({ environmentalLightEnabled: checked })}
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  {c.environmentalLightEnabled ? "Enabled" : "Disabled"}
+                </span>
+              </div>
+            </div>
             <div className="flex items-center gap-3">
               <Label className="text-sm text-muted-foreground min-w-[180px]">Color</Label>
               <Input
@@ -487,6 +538,7 @@ export function CarcolsEditor() {
                 onChange={(e) => update({ environmentalLightColor: e.target.value })}
                 className="h-7 text-xs font-mono flex-1"
                 placeholder="0xFFFF0000"
+                disabled={!c.environmentalLightEnabled}
               />
               <div
                 className="w-5 h-5 rounded border border-border shrink-0"
@@ -500,7 +552,11 @@ export function CarcolsEditor() {
               min={0}
               max={200}
               step={1}
+              disabled={!c.environmentalLightEnabled}
             />
+            <p className="text-[10px] text-muted-foreground">
+              This block is optional. It stays out of exported XML unless enabled.
+            </p>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

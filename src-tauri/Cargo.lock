@@ -443,7 +443,7 @@ dependencies = [
 
 [[package]]
 name = "cortex-metagen"
-version = "0.15.5"
+version = "0.15.7"
 dependencies = [
  "dotenv",
  "reqwest 0.12.28",
