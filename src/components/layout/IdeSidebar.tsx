@@ -204,7 +204,7 @@ export function IdeSidebar({
                 }
 
                 return (
-                  <motion.div key={itemId} variants={itemVariants}>
+                  <motion.div key={itemId} variants={itemVariants} initial="show">
                     <SidebarSectionCard icon={FolderTree} label={sidebarCustomization.labels[itemId]}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -230,7 +230,7 @@ export function IdeSidebar({
                 }
 
                 return (
-                  <motion.div key={itemId} variants={itemVariants}>
+                  <motion.div key={itemId} variants={itemVariants} initial="show">
                     <SidebarSectionCard icon={Command} label={sidebarCustomization.labels[itemId]}>
                       <PresetPicker />
                     </SidebarSectionCard>
@@ -242,7 +242,7 @@ export function IdeSidebar({
 
               if (itemId === "workspace-toggle") {
                 return (
-                  <motion.div key={itemId} variants={itemVariants} className="space-y-2">
+                  <motion.div key={itemId} variants={itemVariants} initial="show" className="space-y-2">
                     <SidebarAction
                       collapsed={collapsed}
                       label={sidebarCustomization.labels[itemId]}
@@ -291,7 +291,7 @@ export function IdeSidebar({
 
               if (itemId === "open-folder") {
                 return (
-                  <motion.div key={itemId} variants={itemVariants}>
+                  <motion.div key={itemId} variants={itemVariants} initial="show">
                     <SidebarAction
                       collapsed={collapsed}
                       label={sidebarCustomization.labels[itemId]}
@@ -304,7 +304,7 @@ export function IdeSidebar({
 
               if (itemId === "open-file") {
                 return (
-                  <motion.div key={itemId} variants={itemVariants}>
+                  <motion.div key={itemId} variants={itemVariants} initial="show">
                     <SidebarAction
                       collapsed={collapsed}
                       label={sidebarCustomization.labels[itemId]}
@@ -317,7 +317,7 @@ export function IdeSidebar({
 
               if (itemId === "meta-merging") {
                 return (
-                  <motion.div key={itemId} variants={itemVariants}>
+                  <motion.div key={itemId} variants={itemVariants} initial="show">
                     <SidebarAction
                       collapsed={collapsed}
                       label={sidebarCustomization.labels[itemId]}
@@ -339,7 +339,7 @@ export function IdeSidebar({
               const count = metaTypeCounts[itemId];
 
               return (
-                <motion.div key={itemId} variants={itemVariants}>
+                <motion.div key={itemId} variants={itemVariants} initial="show">
                   <SidebarAction
                     collapsed={collapsed}
                     label={sidebarCustomization.labels[itemId]}

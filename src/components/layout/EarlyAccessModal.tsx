@@ -2,6 +2,11 @@ import { useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Bug, Lightbulb, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { MetaFileType } from "@/store/meta-store";
 
@@ -97,15 +102,15 @@ export function EarlyAccessModal({
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             className={cn(
               "fixed left-1/2 top-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2",
-              "rounded-xl border bg-card p-4 shadow-sm",
+              "rounded-xl border bg-card p-6 shadow-sm",
               "sm:max-w-lg",
             )}
           >
             {/* Header row */}
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
                 {/* Animated signal dot - cyan accent */}
-                <div className="relative mt-0.5 flex shrink-0 items-center justify-center">
+                <div className="relative mt-1 flex shrink-0 items-center justify-center">
                   <span className="absolute inline-flex size-3 animate-ping rounded-full bg-cyan-400/40" />
                   <span className="relative inline-flex size-2 rounded-full bg-cyan-400" />
                 </div>
@@ -117,7 +122,7 @@ export function EarlyAccessModal({
                     </span>
                     <Zap className="size-3 text-cyan-400/70" />
                   </div>
-                  <p className="mt-0.5 text-base font-medium">
+                  <p className="mt-1 text-lg font-medium">
                     {label} Editor
                   </p>
                 </div>
@@ -140,8 +145,8 @@ export function EarlyAccessModal({
               and edge cases may exist that haven't been caught yet.
             </p>
 
-            <div className="mt-3 rounded-lg border border-cyan-500/15 bg-cyan-500/5 px-4 py-3">
-              <p className="text-xs leading-relaxed text-cyan-200/75">
+            <div className="mt-4 rounded-lg border border-cyan-500/15 bg-cyan-500/5 px-5 py-4">
+              <p className="text-sm leading-relaxed text-cyan-200/75">
                 Your feedback directly shapes this editor. If something breaks
                 or behaves unexpectedly, please{" "}
                 <span className="font-medium text-cyan-300">report it</span>.
@@ -154,38 +159,55 @@ export function EarlyAccessModal({
             </div>
 
             {/* Actions */}
-            <div className="mt-5 flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className={cn(
-                  "h-8 gap-1.5 border-cyan-500/30 bg-cyan-500/10 px-3 text-xs",
-                  "text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300",
-                )}
-                onClick={handleOpenFeedback}
-              >
-                <Bug className="size-3.5" />
-                Report a Bug
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className={cn(
-                  "h-8 gap-1.5 border-cyan-500/30 bg-cyan-500/10 px-3 text-xs",
-                  "text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300",
-                )}
-                onClick={handleOpenFeedback}
-              >
-                <Lightbulb className="size-3.5" />
-                Suggest a Feature
-              </Button>
-              <button
-                type="button"
-                onClick={handleDismiss}
-                className="ml-auto text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Don't show again
-              </button>
+            <div className="mt-6 flex items-center justify-between gap-4">
+              {/* Icon buttons for feedback */}
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={handleOpenFeedback}
+                      className="inline-flex size-9 items-center justify-center rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 transition-colors hover:bg-cyan-500/20 hover:text-cyan-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/30"
+                      aria-label="Report a bug"
+                    >
+                      <Bug className="size-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Report a Bug</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={handleOpenFeedback}
+                      className="inline-flex size-9 items-center justify-center rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 transition-colors hover:bg-cyan-500/20 hover:text-cyan-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/30"
+                      aria-label="Suggest a feature"
+                    >
+                      <Lightbulb className="size-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Suggest a Feature</TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* Right side actions */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleDismiss}
+                  className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Don't show again
+                </button>
+                <Button
+                  size="sm"
+                  className="h-8 px-5 text-xs"
+                  onClick={handleDismiss}
+                >
+                  Continue
+                </Button>
+              </div>
             </div>
           </motion.div>
         </>

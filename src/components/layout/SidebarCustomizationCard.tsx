@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   EyeOff,
   GripVertical,
@@ -41,8 +41,9 @@ export function SidebarCustomizationCard() {
   const workspacePath = useMetaStore((state) => state.workspacePath);
 
   const [mode, setMode] = useState<SidebarCustomizationMode>("global");
-  const [draggedItemId, setDraggedItemId] = useState<SidebarItemId | null>(null);
-  const [dropTargetItemId, setDropTargetItemId] = useState<SidebarItemId | "end" | null>(null);
+  const [dragItemId, setDragItemId] = useState<SidebarItemId | null>(null);
+  const [insertBeforeIndex, setInsertBeforeIndex] = useState<number | null>(null);
+  const itemRefs = useRef<Map<SidebarItemId, HTMLDivElement>>(new Map());
 
   const workspaceName = workspacePath?.replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop() ?? "current workspace";
   const workspaceOverrideEnabled = workspaceSidebarProfile !== null;
@@ -75,14 +76,38 @@ export function SidebarCustomizationCard() {
     setMode("global");
   };
 
-  const handleDrop = (targetIndex: number) => {
-    if (!draggedItemId) {
-      return;
-    }
+  const handleGripPointerDown = (e: React.PointerEvent<HTMLDivElement>, itemId: SidebarItemId) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragItemId(itemId);
+    setInsertBeforeIndex(null);
+  };
 
-    applyProfile(moveSidebarItem(activeProfile, draggedItemId, targetIndex));
-    setDraggedItemId(null);
-    setDropTargetItemId(null);
+  const handleGripPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragItemId) return;
+    const y = e.clientY;
+    const items = activeCustomization.visibleItemIds;
+    let insertIndex = items.length;
+    for (let i = 0; i < items.length; i++) {
+      const ref = itemRefs.current.get(items[i]);
+      if (!ref) continue;
+      const rect = ref.getBoundingClientRect();
+      if (y < rect.top + rect.height / 2) {
+        insertIndex = i;
+        break;
+      }
+    }
+    setInsertBeforeIndex(insertIndex);
+  };
+
+  const handleGripPointerUp = (e: React.PointerEvent<HTMLDivElement>, itemId: SidebarItemId) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (dragItemId && insertBeforeIndex !== null && dragItemId === itemId) {
+      const newProfile = moveSidebarItem(activeProfile, dragItemId, insertBeforeIndex);
+      applyProfile(newProfile);
+    }
+    setDragItemId(null);
+    setInsertBeforeIndex(null);
   };
 
   return (
@@ -168,111 +193,93 @@ export function SidebarCustomizationCard() {
 
         {mode === "workspace" && !workspaceOverrideEnabled ? null : (
           <>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {activeCustomization.visibleItemIds.map((itemId, index) => {
                 const definition = getSidebarItemDefinition(itemId);
                 const label = getSidebarItemLabel(itemId, activeProfile);
 
                 return (
-                  <div
-                    key={itemId}
-                    draggable
-                    onDragStart={() => {
-                      setDraggedItemId(itemId);
-                      setDropTargetItemId(itemId);
-                    }}
-                    onDragEnd={() => {
-                      setDraggedItemId(null);
-                      setDropTargetItemId(null);
-                    }}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setDropTargetItemId(itemId);
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      handleDrop(index);
-                    }}
-                    className={cn(
-                      "rounded-lg border border-border bg-background/30 p-3 transition-colors",
-                      dropTargetItemId === itemId && draggedItemId !== itemId && "border-primary/50 bg-primary/5",
+                  <div key={itemId}>
+                    {dragItemId !== null && insertBeforeIndex === index && dragItemId !== itemId && (
+                      <div className="mx-1 mb-1 h-0.5 rounded-full bg-primary/70" />
                     )}
-                  >
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                      <div className="flex min-w-0 items-start gap-3 lg:w-[260px]">
-                        <button
-                          type="button"
-                          className="mt-0.5 rounded-sm border border-border bg-muted/30 p-1 text-muted-foreground"
+                    <div
+                      ref={(el) => {
+                        if (el) itemRefs.current.set(itemId, el);
+                        else itemRefs.current.delete(itemId);
+                      }}
+                      className={cn(
+                        "rounded-lg border border-border bg-background/30 p-3 transition-opacity",
+                        dragItemId === itemId && "opacity-40",
+                      )}
+                    >
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                        <div
+                          onPointerDown={(e) => handleGripPointerDown(e, itemId)}
+                          onPointerMove={handleGripPointerMove}
+                          onPointerUp={(e) => handleGripPointerUp(e, itemId)}
+                          className="flex min-w-0 items-start gap-3 lg:w-[260px] cursor-grab active:cursor-grabbing select-none touch-none"
                           aria-label={`Drag ${label}`}
+                          title={`Drag to reorder ${label}`}
                         >
-                          <GripVertical className="size-3.5" />
-                        </button>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-card-foreground">{label}</p>
-                          <p className="text-xs text-muted-foreground">{definition.description}</p>
+                          <div className="mt-0.5 rounded-sm border border-border bg-muted/30 p-1 text-muted-foreground pointer-events-none">
+                            <GripVertical className="size-3.5" />
+                          </div>
+                          <div className="min-w-0 pointer-events-none">
+                            <p className="truncate text-sm font-medium text-card-foreground">{label}</p>
+                            <p className="text-xs text-muted-foreground">{definition.description}</p>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                            Nickname
-                          </label>
-                          <Input
-                            value={activeProfile.nicknames[itemId] ?? ""}
-                            onChange={(event) => {
-                              applyProfile(setSidebarItemNickname(activeProfile, itemId, event.target.value));
+                        <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                              Nickname
+                            </label>
+                            <Input
+                              value={activeProfile.nicknames[itemId] ?? ""}
+                              onChange={(event) => {
+                                applyProfile(setSidebarItemNickname(activeProfile, itemId, event.target.value));
+                              }}
+                              placeholder={definition.defaultLabel}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked
+                              onCheckedChange={(checked) => {
+                                applyProfile(setSidebarItemHidden(activeProfile, itemId, !checked));
+                              }}
+                              aria-label={`Show ${label}`}
+                            />
+                            <span className="text-xs text-muted-foreground">Visible</span>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 justify-start text-xs text-muted-foreground"
+                            onClick={() => {
+                              applyProfile(resetSidebarItem(activeProfile, itemId));
                             }}
-                            placeholder={definition.defaultLabel}
-                            className="h-8 text-xs"
-                          />
+                          >
+                            <RotateCcw className="mr-1.5 size-3.5" />
+                            Reset
+                          </Button>
                         </div>
-
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked
-                            onCheckedChange={(checked) => {
-                              applyProfile(setSidebarItemHidden(activeProfile, itemId, !checked));
-                            }}
-                            aria-label={`Show ${label}`}
-                          />
-                          <span className="text-xs text-muted-foreground">Visible</span>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 justify-start text-xs text-muted-foreground"
-                          onClick={() => {
-                            applyProfile(resetSidebarItem(activeProfile, itemId));
-                          }}
-                        >
-                          <RotateCcw className="mr-1.5 size-3.5" />
-                          Reset
-                        </Button>
                       </div>
                     </div>
                   </div>
                 );
               })}
 
-              <div
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setDropTargetItemId("end");
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  handleDrop(activeCustomization.visibleItemIds.length);
-                }}
-                className={cn(
-                  "rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground",
-                  dropTargetItemId === "end" && "border-primary/50 bg-primary/5 text-foreground",
-                )}
-              >
-                Drop here to move an item to the end
-              </div>
+              {/* End-of-list drop indicator */}
+              {dragItemId !== null && insertBeforeIndex === activeCustomization.visibleItemIds.length && (
+                <div className="mx-1 mt-1 h-0.5 rounded-full bg-primary/70" />
+              )}
             </div>
 
             <div className="rounded-lg border border-border bg-background/30 p-3">
